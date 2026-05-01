@@ -80,6 +80,14 @@ Auth Service runs on port `8081` and exposes:
 - `POST /api/auth/login`
 - `GET /api/auth/me`
 
+Reminder Service runs on port `8082` and exposes:
+
+- `POST /api/reminders`
+- `GET /api/reminders`
+- `GET /api/reminders/{id}`
+- `PUT /api/reminders/{id}`
+- `DELETE /api/reminders/{id}`
+
 ## Documentation
 
 - Execution plan: [EXECUTION_PLAN.md](./EXECUTION_PLAN.md)
