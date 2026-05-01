@@ -4,6 +4,11 @@ server:
 spring:
   application:
     name: reminder-service
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
   datasource:
     url: ${REMINDER_DB_URL:jdbc:postgresql://localhost:5432/notifyhub_reminder}
     username: ${REMINDER_DB_USERNAME:notifyhub}
@@ -16,6 +21,17 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+
+notifyhub:
+  messaging:
+    kafka:
+      enabled: ${KAFKA_ENABLED:false}
+    topics:
+      reminder-triggered: ${KAFKA_TOPIC_REMINDER_TRIGGERED:reminder.triggered}
+  reminders:
+    trigger-scheduler:
+      enabled: ${REMINDER_TRIGGER_SCHEDULER_ENABLED:false}
+      fixed-delay-ms: ${REMINDER_TRIGGER_SCHEDULER_DELAY_MS:60000}
 
 management:
   endpoint:

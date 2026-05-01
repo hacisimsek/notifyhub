@@ -4,6 +4,16 @@ server:
 spring:
   application:
     name: notification-service
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${KAFKA_NOTIFICATION_GROUP_ID:notification-service}
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.notifyhub.common.events
+        spring.json.value.default.type: com.notifyhub.common.events.ReminderTriggeredEvent
   datasource:
     url: ${NOTIFICATION_DB_URL:jdbc:postgresql://localhost:5432/notifyhub_notification}
     username: ${NOTIFICATION_DB_USERNAME:notifyhub}
@@ -16,6 +26,13 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+
+notifyhub:
+  messaging:
+    kafka:
+      enabled: ${KAFKA_ENABLED:false}
+    topics:
+      reminder-triggered: ${KAFKA_TOPIC_REMINDER_TRIGGERED:reminder.triggered}
 
 management:
   endpoint:

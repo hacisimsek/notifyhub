@@ -14,6 +14,7 @@ public record ReminderResponse(
         String message,
         Instant scheduledFor,
         NotificationChannel channel,
+        String recipient,
         ReminderStatus status,
         Instant createdAt,
         Instant updatedAt
@@ -26,6 +27,7 @@ public record ReminderResponse(
                 reminder.getMessage(),
                 reminder.getScheduledFor(),
                 reminder.getChannel(),
+                reminder.getRecipient(),
                 reminder.getStatus(),
                 reminder.getCreatedAt(),
                 reminder.getUpdatedAt()

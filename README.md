@@ -93,6 +93,12 @@ Notification Service runs on port `8083` and exposes:
 - `POST /internal/notifications`
 - `GET /api/notifications`
 
+Messaging flow:
+
+- Reminder Service can scan due reminders and publish `reminder.triggered` events to Kafka.
+- Notification Service consumes `reminder.triggered`, creates an idempotent notification log and dispatches through the mock channel adapter.
+- The reminder trigger scheduler is disabled by default and should be enabled with `REMINDER_TRIGGER_SCHEDULER_ENABLED=true` when Kafka is available.
+
 ## Documentation
 
 - Execution plan: [EXECUTION_PLAN.md](./EXECUTION_PLAN.md)
