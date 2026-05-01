@@ -74,6 +74,23 @@ Detailed commands will be added as services are scaffolded. The expected local p
 mvn -B -ntp -f backend/pom.xml verify
 ```
 
+### Docker Compose
+
+Local backend stack can be started with PostgreSQL, Kafka, RabbitMQ, Redis and all backend services:
+
+```bash
+cp deploy/docker/.env.example deploy/docker/.env
+docker compose --env-file deploy/docker/.env -f deploy/docker/compose.yml up --build
+```
+
+The Gateway Service is available at `http://localhost:8080`.
+
+To stop the stack:
+
+```bash
+docker compose --env-file deploy/docker/.env -f deploy/docker/compose.yml down
+```
+
 Auth Service runs on port `8081` and exposes:
 
 - `POST /api/auth/register`

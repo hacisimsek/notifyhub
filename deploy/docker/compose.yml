@@ -1,0 +1,155 @@
+name: notifyhub
+
+x-backend-build: &backend-build
+  context: ../..
+  dockerfile: backend/Dockerfile
+
+x-jwt-env: &jwt-env
+  AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER:-notifyhub-auth}
+  AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-change-this-development-secret-change-this-development-secret}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-notifyhub}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-notifyhub}
+      POSTGRES_DB: ${POSTGRES_DB:-notifyhub}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init-databases.sql:/docker-entrypoint-initdb.d/001-init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  kafka:
+    image: bitnami/kafka:3.7
+    environment:
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_CFG_PROCESS_ROLES: broker,controller
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,EXTERNAL://:9094,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:${KAFKA_PORT:-9092}
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "${KAFKA_PORT:-9092}:9094"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  auth-service:
+    image: notifyhub/auth-service:local
+    build:
+      <<: *backend-build
+      args:
+        SERVICE_MODULE: auth-service
+    environment:
+      <<: *jwt-env
+      AUTH_JWT_EXPIRATION: ${AUTH_JWT_EXPIRATION:-PT2H}
+      AUTH_DB_URL: jdbc:postgresql://postgres:5432/notifyhub_auth
+      AUTH_DB_USERNAME: ${POSTGRES_USER:-notifyhub}
+      AUTH_DB_PASSWORD: ${POSTGRES_PASSWORD:-notifyhub}
+    ports:
+      - "${AUTH_SERVICE_PORT:-8081}:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  reminder-service:
+    image: notifyhub/reminder-service:local
+    build:
+      <<: *backend-build
+      args:
+        SERVICE_MODULE: reminder-service
+    environment:
+      REMINDER_DB_URL: jdbc:postgresql://postgres:5432/notifyhub_reminder
+      REMINDER_DB_USERNAME: ${POSTGRES_USER:-notifyhub}
+      REMINDER_DB_PASSWORD: ${POSTGRES_PASSWORD:-notifyhub}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_ENABLED: "true"
+      KAFKA_TOPIC_REMINDER_TRIGGERED: ${KAFKA_TOPIC_REMINDER_TRIGGERED:-reminder.triggered}
+      REMINDER_TRIGGER_SCHEDULER_ENABLED: "true"
+    ports:
+      - "${REMINDER_SERVICE_PORT:-8082}:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  notification-service:
+    image: notifyhub/notification-service:local
+    build:
+      <<: *backend-build
+      args:
+        SERVICE_MODULE: notification-service
+    environment:
+      NOTIFICATION_DB_URL: jdbc:postgresql://postgres:5432/notifyhub_notification
+      NOTIFICATION_DB_USERNAME: ${POSTGRES_USER:-notifyhub}
+      NOTIFICATION_DB_PASSWORD: ${POSTGRES_PASSWORD:-notifyhub}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_ENABLED: "true"
+      KAFKA_TOPIC_REMINDER_TRIGGERED: ${KAFKA_TOPIC_REMINDER_TRIGGERED:-reminder.triggered}
+      KAFKA_NOTIFICATION_GROUP_ID: ${KAFKA_NOTIFICATION_GROUP_ID:-notification-service}
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT:-8083}:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  gateway-service:
+    image: notifyhub/gateway-service:local
+    build:
+      <<: *backend-build
+      args:
+        SERVICE_MODULE: gateway-service
+    environment:
+      <<: *jwt-env
+      AUTH_SERVICE_URL: http://auth-service:8081
+      REMINDER_SERVICE_URL: http://reminder-service:8082
+      NOTIFICATION_SERVICE_URL: http://notification-service:8083
+    ports:
+      - "${GATEWAY_SERVICE_PORT:-8080}:8080"
+    depends_on:
+      auth-service:
+        condition: service_started
+      reminder-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+
+volumes:
+  postgres-data:
