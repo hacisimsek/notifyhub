@@ -1,0 +1,36 @@
+name: Local Stack CI
+
+on:
+  pull_request:
+    paths:
+      - "deploy/docker/**"
+      - "observability/**"
+      - "backend/Dockerfile"
+      - "web/dashboard/Dockerfile"
+      - "web/dashboard/nginx.conf"
+      - ".github/workflows/local-stack-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "deploy/docker/**"
+      - "observability/**"
+      - "backend/Dockerfile"
+      - "web/dashboard/Dockerfile"
+      - "web/dashboard/nginx.conf"
+      - ".github/workflows/local-stack-ci.yml"
+
+jobs:
+  validate:
+    name: Validate local stack
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Render compose config
+        run: docker compose --env-file deploy/docker/.env.example -f deploy/docker/compose.yml config
+
+      - name: List compose services
+        run: docker compose --env-file deploy/docker/.env.example -f deploy/docker/compose.yml config --services

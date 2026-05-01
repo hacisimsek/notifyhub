@@ -74,6 +74,14 @@ Detailed commands will be added as services are scaffolded. The expected local p
 mvn -B -ntp -f backend/pom.xml verify
 ```
 
+### CI Checks
+
+Pull requests run targeted checks for backend, dashboard and local stack changes:
+
+- Backend: Maven verify for all backend modules.
+- Dashboard: dependency install and production build.
+- Local stack: Docker Compose config rendering.
+
 ### Docker Compose
 
 Local backend stack can be started with PostgreSQL, Kafka, RabbitMQ, Redis and all backend services:
