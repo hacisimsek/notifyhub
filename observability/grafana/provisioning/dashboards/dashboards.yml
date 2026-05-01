@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: NotifyHub
+    orgId: 1
+    folder: NotifyHub
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards
