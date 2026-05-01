@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -50,7 +51,7 @@ public class NotificationService {
                 request.userId(),
                 request.reminderId(),
                 request.channel(),
-                request.recipient().trim().toLowerCase(),
+                normalizeRecipient(request),
                 request.subject().trim(),
                 request.message().trim(),
                 normalizeIdempotencyKey(request.idempotencyKey())
@@ -68,5 +69,13 @@ public class NotificationService {
 
     private String normalizeIdempotencyKey(String idempotencyKey) {
         return StringUtils.hasText(idempotencyKey) ? idempotencyKey.trim() : null;
+    }
+
+    private String normalizeRecipient(CreateNotificationRequest request) {
+        String recipient = request.recipient().trim();
+        return switch (request.channel()) {
+            case EMAIL -> recipient.toLowerCase(Locale.ROOT);
+            case SMS, PUSH -> recipient;
+        };
     }
 }

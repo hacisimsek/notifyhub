@@ -7,3 +7,11 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+
+notifyhub:
+  messaging:
+    kafka:
+      enabled: false
+  reminders:
+    trigger-scheduler:
+      enabled: false

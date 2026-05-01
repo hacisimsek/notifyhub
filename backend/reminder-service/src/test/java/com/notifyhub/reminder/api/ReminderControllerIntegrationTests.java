@@ -59,14 +59,16 @@ class ReminderControllerIntegrationTests {
                                   "title": "Pay invoice",
                                   "message": "Invoice is due tomorrow",
                                   "scheduledFor": "%s",
-                                  "channel": "EMAIL"
+                                  "channel": "EMAIL",
+                                  "recipient": "User@Example.com"
                                 }
                                 """.formatted(scheduledFor)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.ownerId", equalTo(USER_ID.toString())))
                 .andExpect(jsonPath("$.title", equalTo("Pay invoice")))
                 .andExpect(jsonPath("$.status", equalTo("SCHEDULED")))
-                .andExpect(jsonPath("$.channel", equalTo("EMAIL")));
+                .andExpect(jsonPath("$.channel", equalTo("EMAIL")))
+                .andExpect(jsonPath("$.recipient", equalTo("User@Example.com")));
 
         mockMvc.perform(get("/api/reminders")
                         .header("X-User-Id", USER_ID))
@@ -88,13 +90,15 @@ class ReminderControllerIntegrationTests {
                                   "title": "Updated reminder",
                                   "message": "Updated message",
                                   "scheduledFor": "%s",
-                                  "channel": "SMS"
+                                  "channel": "SMS",
+                                  "recipient": "+905551112233"
                                 }
                                 """.formatted(scheduledFor)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title", equalTo("Updated reminder")))
                 .andExpect(jsonPath("$.message", equalTo("Updated message")))
-                .andExpect(jsonPath("$.channel", equalTo("SMS")));
+                .andExpect(jsonPath("$.channel", equalTo("SMS")))
+                .andExpect(jsonPath("$.recipient", equalTo("+905551112233")));
     }
 
     @Test
@@ -131,7 +135,8 @@ class ReminderControllerIntegrationTests {
                                   "title": "Past reminder",
                                   "message": "This should fail",
                                   "scheduledFor": "%s",
-                                  "channel": "EMAIL"
+                                  "channel": "EMAIL",
+                                  "recipient": "user@example.com"
                                 }
                                 """.formatted(scheduledFor)))
                 .andExpect(status().isBadRequest());
@@ -147,7 +152,8 @@ class ReminderControllerIntegrationTests {
                                   "title": "%s",
                                   "message": "Message",
                                   "scheduledFor": "%s",
-                                  "channel": "EMAIL"
+                                  "channel": "EMAIL",
+                                  "recipient": "user@example.com"
                                 }
                                 """.formatted(title, scheduledFor)))
                 .andExpect(status().isCreated())
