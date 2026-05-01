@@ -5,6 +5,16 @@ spring:
   application:
     name: gateway-service
 
+notifyhub:
+  gateway:
+    services:
+      auth-url: ${AUTH_SERVICE_URL:http://localhost:8081}
+      reminder-url: ${REMINDER_SERVICE_URL:http://localhost:8082}
+      notification-url: ${NOTIFICATION_SERVICE_URL:http://localhost:8083}
+    jwt:
+      issuer: ${AUTH_JWT_ISSUER:notifyhub-auth}
+      secret: ${AUTH_JWT_SECRET:change-this-development-secret-change-this-development-secret}
+
 management:
   endpoint:
     health:
