@@ -12,3 +12,6 @@ notifyhub:
   messaging:
     kafka:
       enabled: false
+  delivery:
+    rabbitmq:
+      enabled: false

@@ -14,6 +14,11 @@ spring:
       properties:
         spring.json.trusted.packages: com.notifyhub.common.events
         spring.json.value.default.type: com.notifyhub.common.events.ReminderTriggeredEvent
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
   datasource:
     url: ${NOTIFICATION_DB_URL:jdbc:postgresql://localhost:5432/notifyhub_notification}
     username: ${NOTIFICATION_DB_USERNAME:notifyhub}
@@ -33,6 +38,20 @@ notifyhub:
       enabled: ${KAFKA_ENABLED:false}
     topics:
       reminder-triggered: ${KAFKA_TOPIC_REMINDER_TRIGGERED:reminder.triggered}
+  delivery:
+    rabbitmq:
+      enabled: ${RABBITMQ_ENABLED:false}
+      exchange: ${NOTIFICATION_DELIVERY_EXCHANGE:notifyhub.notifications.delivery}
+      retry-exchange: ${NOTIFICATION_DELIVERY_RETRY_EXCHANGE:notifyhub.notifications.retry}
+      dead-letter-exchange: ${NOTIFICATION_DELIVERY_DLX:notifyhub.notifications.dlx}
+      queue: ${NOTIFICATION_DELIVERY_QUEUE:notifyhub.notifications.delivery}
+      retry-queue: ${NOTIFICATION_DELIVERY_RETRY_QUEUE:notifyhub.notifications.delivery.retry}
+      dead-letter-queue: ${NOTIFICATION_DELIVERY_DLQ:notifyhub.notifications.delivery.dlq}
+      routing-key: ${NOTIFICATION_DELIVERY_ROUTING_KEY:notification.delivery}
+      retry-routing-key: ${NOTIFICATION_DELIVERY_RETRY_ROUTING_KEY:notification.retry}
+      dead-letter-routing-key: ${NOTIFICATION_DELIVERY_DLQ_ROUTING_KEY:notification.failed}
+      max-attempts: ${NOTIFICATION_DELIVERY_MAX_ATTEMPTS:3}
+      retry-delay-ms: ${NOTIFICATION_DELIVERY_RETRY_DELAY_MS:5000}
 
 management:
   endpoint:

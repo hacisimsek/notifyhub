@@ -19,6 +19,14 @@ Open the `NotifyHub Overview` dashboard to inspect service availability, request
 
 - Starting and stopping the local environment
 - Common failure modes
-- Kafka and RabbitMQ inspection
-- Dead letter queue handling
 - Final demo flow
+
+## RabbitMQ Delivery Queues
+
+Notification delivery uses RabbitMQ in the local Docker stack. The key queues are:
+
+- `notifyhub.notifications.delivery`
+- `notifyhub.notifications.delivery.retry`
+- `notifyhub.notifications.delivery.dlq`
+
+The retry queue uses a TTL and dead-letters work back to the delivery exchange. When the configured attempt limit is reached, Notification Service marks the notification log as `FAILED` and publishes the work item to the DLQ.

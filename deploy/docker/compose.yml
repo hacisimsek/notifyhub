@@ -123,12 +123,21 @@ services:
       KAFKA_ENABLED: "true"
       KAFKA_TOPIC_REMINDER_TRIGGERED: ${KAFKA_TOPIC_REMINDER_TRIGGERED:-reminder.triggered}
       KAFKA_NOTIFICATION_GROUP_ID: ${KAFKA_NOTIFICATION_GROUP_ID:-notification-service}
+      RABBITMQ_ENABLED: ${RABBITMQ_ENABLED:-true}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      NOTIFICATION_DELIVERY_MAX_ATTEMPTS: ${NOTIFICATION_DELIVERY_MAX_ATTEMPTS:-3}
+      NOTIFICATION_DELIVERY_RETRY_DELAY_MS: ${NOTIFICATION_DELIVERY_RETRY_DELAY_MS:-5000}
     ports:
       - "${NOTIFICATION_SERVICE_PORT:-8083}:8083"
     depends_on:
       postgres:
         condition: service_healthy
       kafka:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
 
   gateway-service:
