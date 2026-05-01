@@ -62,11 +62,12 @@ The current service boundary expects `X-User-Id: <uuid>` from the gateway. Direc
   "title": "Pay invoice",
   "message": "Invoice is due tomorrow",
   "scheduledFor": "2026-05-04T10:00:00Z",
-  "channel": "EMAIL"
+  "channel": "EMAIL",
+  "recipient": "user@example.com"
 }
 ```
 
-Supported channels are `EMAIL`, `SMS` and `PUSH`.
+Supported channels are `EMAIL`, `SMS` and `PUSH`. `recipient` is channel-specific: email address, phone number, or push target identifier.
 
 ### List Reminders
 
@@ -110,6 +111,10 @@ The public history endpoint expects `X-User-Id: <uuid>` from the gateway. Direct
 ```
 
 The current adapter is mock delivery. Successful mock dispatch moves the log from `PENDING` to `SENT`.
+
+## Messaging
+
+Due reminders are published to Kafka topic `reminder.triggered`. Notification Service consumes this event, creates notification work with the event idempotency key, and dispatches through the configured channel adapter.
 
 ### List Notification History
 

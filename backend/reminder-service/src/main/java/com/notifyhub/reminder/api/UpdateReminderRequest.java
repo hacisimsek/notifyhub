@@ -12,6 +12,7 @@ public record UpdateReminderRequest(
         @NotBlank @Size(max = 140) String title,
         @Size(max = 1000) String message,
         @NotNull @Future Instant scheduledFor,
-        @NotNull NotificationChannel channel
+        @NotNull NotificationChannel channel,
+        @NotBlank @Size(max = 320) String recipient
 ) {
 }

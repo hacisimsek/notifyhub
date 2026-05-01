@@ -38,6 +38,9 @@ public class Reminder {
     @Column(nullable = false, length = 32)
     private NotificationChannel channel;
 
+    @Column(nullable = false, length = 320)
+    private String recipient;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private ReminderStatus status = ReminderStatus.SCHEDULED;
@@ -56,13 +59,15 @@ public class Reminder {
             String title,
             String message,
             Instant scheduledFor,
-            NotificationChannel channel
+            NotificationChannel channel,
+            String recipient
     ) {
         this.ownerId = ownerId;
         this.title = title;
         this.message = message;
         this.scheduledFor = scheduledFor;
         this.channel = channel;
+        this.recipient = recipient;
     }
 
     @PrePersist
@@ -77,11 +82,16 @@ public class Reminder {
         updatedAt = Instant.now();
     }
 
-    public void update(String title, String message, Instant scheduledFor, NotificationChannel channel) {
+    public void update(String title, String message, Instant scheduledFor, NotificationChannel channel, String recipient) {
         this.title = title;
         this.message = message;
         this.scheduledFor = scheduledFor;
         this.channel = channel;
+        this.recipient = recipient;
+    }
+
+    public void markTriggered() {
+        status = ReminderStatus.TRIGGERED;
     }
 
     public UUID getId() {
@@ -106,6 +116,10 @@ public class Reminder {
 
     public NotificationChannel getChannel() {
         return channel;
+    }
+
+    public String getRecipient() {
+        return recipient;
     }
 
     public ReminderStatus getStatus() {

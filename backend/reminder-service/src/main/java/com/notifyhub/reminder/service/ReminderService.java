@@ -29,7 +29,8 @@ public class ReminderService {
                 request.title().trim(),
                 normalizeMessage(request.message()),
                 request.scheduledFor(),
-                request.channel()
+                request.channel(),
+                normalizeRecipient(request.recipient())
         );
         return ReminderResponse.from(reminderRepository.save(reminder));
     }
@@ -54,7 +55,8 @@ public class ReminderService {
                 request.title().trim(),
                 normalizeMessage(request.message()),
                 request.scheduledFor(),
-                request.channel()
+                request.channel(),
+                normalizeRecipient(request.recipient())
         );
         return ReminderResponse.from(reminder);
     }
@@ -72,5 +74,9 @@ public class ReminderService {
 
     private String normalizeMessage(String message) {
         return message == null ? null : message.trim();
+    }
+
+    private String normalizeRecipient(String recipient) {
+        return recipient.trim();
     }
 }
