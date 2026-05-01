@@ -152,5 +152,16 @@ services:
       notification-service:
         condition: service_started
 
+  dashboard:
+    image: notifyhub/dashboard:local
+    build:
+      context: ../..
+      dockerfile: web/dashboard/Dockerfile
+    ports:
+      - "${DASHBOARD_PORT:-3000}:80"
+    depends_on:
+      gateway-service:
+        condition: service_started
+
 volumes:
   postgres-data:
