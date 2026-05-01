@@ -97,6 +97,15 @@ To stop the stack:
 docker compose --env-file deploy/docker/.env -f deploy/docker/compose.yml down
 ```
 
+### Dashboard
+
+The dashboard app lives under `web/dashboard` and talks to the Gateway Service through `/api`:
+
+```bash
+npm install --prefix web/dashboard
+npm run dev --prefix web/dashboard
+```
+
 Auth Service runs on port `8081` and exposes:
 
 - `POST /api/auth/register`
