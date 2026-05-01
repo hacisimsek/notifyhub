@@ -2,6 +2,8 @@
 
 This directory will hold OpenAPI references, example requests and service-specific API notes.
 
+External clients should call the Gateway Service on port `8080`. The service-specific notes below describe the exposed API shape; internally, the gateway forwards authenticated requests to backend services and propagates identity with `X-User-Id`, `X-User-Email`, and `X-User-Role`.
+
 Planned API groups:
 
 - Auth API

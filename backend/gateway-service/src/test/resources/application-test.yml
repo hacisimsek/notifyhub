@@ -1,0 +1,9 @@
+notifyhub:
+  gateway:
+    services:
+      auth-url: http://auth-service.test
+      reminder-url: http://reminder-service.test
+      notification-url: http://notification-service.test
+    jwt:
+      issuer: notifyhub-auth-test
+      secret: test-secret-with-enough-length-for-hmac-signing

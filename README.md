@@ -93,11 +93,17 @@ Notification Service runs on port `8083` and exposes:
 - `POST /internal/notifications`
 - `GET /api/notifications`
 
-Messaging flow:
+Gateway Service runs on port `8080` and exposes the external API surface:
 
-- Reminder Service can scan due reminders and publish `reminder.triggered` events to Kafka.
-- Notification Service consumes `reminder.triggered`, creates an idempotent notification log and dispatches through the mock channel adapter.
-- The reminder trigger scheduler is disabled by default and should be enabled with `REMINDER_TRIGGER_SCHEDULER_ENABLED=true` when Kafka is available.
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/auth/me`
+- `POST /api/reminders`
+- `GET /api/reminders`
+- `GET /api/reminders/{id}`
+- `PUT /api/reminders/{id}`
+- `DELETE /api/reminders/{id}`
+- `GET /api/notifications`
 
 ## Documentation
 
