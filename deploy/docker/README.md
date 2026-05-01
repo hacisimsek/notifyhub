@@ -2,6 +2,11 @@
 
 This compose stack runs the local infrastructure and backend services for NotifyHub.
 
+Requirements:
+
+- Docker Desktop running.
+- `curl` and Node.js available for the smoke test script.
+
 ## Start
 
 ```bash
@@ -10,6 +15,14 @@ docker compose --env-file deploy/docker/.env -f deploy/docker/compose.yml up --b
 ```
 
 The gateway is exposed at `http://localhost:8080`.
+
+Run the gateway smoke test after the stack is healthy:
+
+```bash
+./scripts/gateway-e2e-smoke.sh
+```
+
+The smoke test registers a temporary user, creates a reminder through the gateway, waits for the Kafka-backed reminder flow, and checks notification history for a `SENT` delivery.
 
 ## Services
 

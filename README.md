@@ -85,6 +85,12 @@ docker compose --env-file deploy/docker/.env -f deploy/docker/compose.yml up --b
 
 The Gateway Service is available at `http://localhost:8080`.
 
+After the stack is healthy, run the gateway smoke test:
+
+```bash
+./scripts/gateway-e2e-smoke.sh
+```
+
 To stop the stack:
 
 ```bash
