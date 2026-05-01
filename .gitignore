@@ -1,16 +1,51 @@
-# Compiled class file
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDEs and editors
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+.factorypath
+
+# Java and Maven
 *.class
+target/
+out/
+build/
+dependency-reduced-pom.xml
 
-# Log file
+# Logs
 *.log
+logs/
 
-# BlueJ files
-*.ctxt
+# Runtime and environment files
+.env
+.env.*
+!.env.example
+*.local
 
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
+# Node and frontend builds
+node_modules/
+dist/
+coverage/
+.vite/
+.turbo/
+.next/
+.npm/
+.pnpm-store/
 
-# Package Files #
+# Test and reports
+surefire-reports/
+failsafe-reports/
+test-results/
+playwright-report/
+
+# Package archives and build artifacts
 *.jar
 *.war
 *.nar
@@ -19,6 +54,11 @@
 *.tar.gz
 *.rar
 
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+# Docker and local volumes
+.docker/
+docker-data/
+volumes/
+
+# JVM crash logs
 hs_err_pid*
 replay_pid*
