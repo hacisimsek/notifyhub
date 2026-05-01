@@ -81,3 +81,34 @@ Uses the same body shape as create.
 ### Delete Reminder
 
 `DELETE /api/reminders/{id}`
+
+## Notification API
+
+Base paths:
+
+- `/internal/notifications` for service-to-service delivery work.
+- `/api/notifications` for user delivery history.
+
+The public history endpoint expects `X-User-Id: <uuid>` from the gateway. Direct local calls must include this header.
+
+### Create Notification Work
+
+`POST /internal/notifications`
+
+```json
+{
+  "userId": "018f1757-0aa5-7a6a-9a33-e78995f25a21",
+  "reminderId": "018f1757-0aa5-7a6a-9a33-e78995f25a23",
+  "channel": "EMAIL",
+  "recipient": "user@example.com",
+  "subject": "Invoice due",
+  "message": "Invoice is due tomorrow",
+  "idempotencyKey": "invoice-due-2026-05-04"
+}
+```
+
+The current adapter is mock delivery. Successful mock dispatch moves the log from `PENDING` to `SENT`.
+
+### List Notification History
+
+`GET /api/notifications`

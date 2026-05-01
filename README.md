@@ -88,6 +88,11 @@ Reminder Service runs on port `8082` and exposes:
 - `PUT /api/reminders/{id}`
 - `DELETE /api/reminders/{id}`
 
+Notification Service runs on port `8083` and exposes:
+
+- `POST /internal/notifications`
+- `GET /api/notifications`
+
 ## Documentation
 
 - Execution plan: [EXECUTION_PLAN.md](./EXECUTION_PLAN.md)
