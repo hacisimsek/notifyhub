@@ -81,6 +81,7 @@ Pull requests run targeted checks for backend, dashboard and local stack changes
 - Backend: Maven verify for all backend modules.
 - Dashboard: dependency install and production build.
 - Local stack: Docker Compose config rendering.
+- Kubernetes: YAML parsing and Kustomize rendering for local manifests.
 
 ### Docker Compose
 
@@ -108,6 +109,14 @@ To stop the stack:
 
 ```bash
 docker compose --env-file deploy/docker/.env -f deploy/docker/compose.yml down
+```
+
+### Kubernetes
+
+Local Minikube manifests live under `deploy/k8s`:
+
+```bash
+kubectl apply -k deploy/k8s/base
 ```
 
 ### Dashboard
