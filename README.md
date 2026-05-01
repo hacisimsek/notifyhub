@@ -74,6 +74,12 @@ Detailed commands will be added as services are scaffolded. The expected local p
 mvn -B -ntp -f backend/pom.xml verify
 ```
 
+Auth Service runs on port `8081` and exposes:
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/auth/me`
+
 ## Documentation
 
 - Execution plan: [EXECUTION_PLAN.md](./EXECUTION_PLAN.md)
