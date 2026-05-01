@@ -68,6 +68,12 @@ Detailed commands will be added as services are scaffolded. The expected local p
 - Docker Desktop
 - Minikube
 
+### Backend
+
+```bash
+mvn -B -ntp -f backend/pom.xml verify
+```
+
 ## Documentation
 
 - Execution plan: [EXECUTION_PLAN.md](./EXECUTION_PLAN.md)
