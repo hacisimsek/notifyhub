@@ -38,7 +38,11 @@ management:
     health:
       probes:
         enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus

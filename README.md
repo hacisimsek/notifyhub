@@ -85,6 +85,8 @@ docker compose --env-file deploy/docker/.env -f deploy/docker/compose.yml up --b
 
 The Gateway Service is available at `http://localhost:8080`.
 The Dashboard is available at `http://localhost:3000`.
+Prometheus is available at `http://localhost:9090`.
+Grafana is available at `http://localhost:3001`.
 
 After the stack is healthy, run the gateway smoke test:
 

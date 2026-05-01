@@ -16,6 +16,8 @@ docker compose --env-file deploy/docker/.env -f deploy/docker/compose.yml up --b
 
 The gateway is exposed at `http://localhost:8080`.
 The dashboard is exposed at `http://localhost:3000`.
+Prometheus is exposed at `http://localhost:9090`.
+Grafana is exposed at `http://localhost:3001`.
 
 Run the gateway smoke test after the stack is healthy:
 
@@ -37,6 +39,8 @@ The smoke test registers a temporary user, creates a reminder through the gatewa
 - Notification Service: `http://localhost:8083`
 - Gateway Service: `http://localhost:8080`
 - Dashboard: `http://localhost:3000`
+- Prometheus: `http://localhost:9090`
+- Grafana: `http://localhost:3001`
 
 ## Stop
 
