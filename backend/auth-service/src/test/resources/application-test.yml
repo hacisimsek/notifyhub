@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:notifyhub_auth;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+notifyhub:
+  auth:
+    jwt:
+      issuer: notifyhub-auth-test
+      secret: test-secret-with-enough-length-for-hmac-signing
+      expiration: PT1H

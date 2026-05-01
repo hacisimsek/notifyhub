@@ -1,0 +1,35 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: auth-service
+  datasource:
+    url: ${AUTH_DB_URL:jdbc:postgresql://localhost:5432/notifyhub_auth}
+    username: ${AUTH_DB_USERNAME:notifyhub}
+    password: ${AUTH_DB_PASSWORD:notifyhub}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+notifyhub:
+  auth:
+    jwt:
+      issuer: ${AUTH_JWT_ISSUER:notifyhub-auth}
+      secret: ${AUTH_JWT_SECRET:change-this-development-secret-change-this-development-secret}
+      expiration: ${AUTH_JWT_EXPIRATION:PT2H}
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info
