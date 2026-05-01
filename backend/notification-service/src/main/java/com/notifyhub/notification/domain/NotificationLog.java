@@ -104,6 +104,12 @@ public class NotificationLog {
         sentAt = null;
     }
 
+    public void markRetrying(String reason) {
+        status = DeliveryStatus.RETRYING;
+        failureReason = reason;
+        sentAt = null;
+    }
+
     public UUID getId() {
         return id;
     }

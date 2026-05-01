@@ -102,6 +102,8 @@ After the stack is healthy, run the gateway smoke test:
 ./scripts/gateway-e2e-smoke.sh
 ```
 
+In the Docker stack, Notification Service consumes reminder events from Kafka and dispatches notification work through RabbitMQ delivery, retry and DLQ queues.
+
 To stop the stack:
 
 ```bash

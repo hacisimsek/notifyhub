@@ -2,7 +2,7 @@ package com.notifyhub.notification.service;
 
 import com.notifyhub.notification.api.CreateNotificationRequest;
 import com.notifyhub.notification.api.NotificationResponse;
-import com.notifyhub.notification.delivery.NotificationSender;
+import com.notifyhub.notification.delivery.NotificationDeliveryDispatcher;
 import com.notifyhub.notification.domain.NotificationLog;
 import com.notifyhub.notification.repository.NotificationLogRepository;
 import org.springframework.stereotype.Service;
@@ -17,14 +17,14 @@ import java.util.UUID;
 public class NotificationService {
 
     private final NotificationLogRepository notificationLogRepository;
-    private final NotificationSender notificationSender;
+    private final NotificationDeliveryDispatcher notificationDeliveryDispatcher;
 
     public NotificationService(
             NotificationLogRepository notificationLogRepository,
-            NotificationSender notificationSender
+            NotificationDeliveryDispatcher notificationDeliveryDispatcher
     ) {
         this.notificationLogRepository = notificationLogRepository;
-        this.notificationSender = notificationSender;
+        this.notificationDeliveryDispatcher = notificationDeliveryDispatcher;
     }
 
     @Transactional
@@ -57,14 +57,7 @@ public class NotificationService {
                 normalizeIdempotencyKey(request.idempotencyKey())
         ));
 
-        NotificationSender.DeliveryResult result = notificationSender.send(log);
-        if (result.sent()) {
-            log.markSent();
-        } else {
-            log.markFailed(result.failureReason());
-        }
-
-        return NotificationResponse.from(log);
+        return NotificationResponse.from(notificationDeliveryDispatcher.dispatch(log));
     }
 
     private String normalizeIdempotencyKey(String idempotencyKey) {
