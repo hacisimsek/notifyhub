@@ -80,6 +80,7 @@ Pull requests run targeted checks for backend, dashboard and local stack changes
 
 - Backend: Maven verify for all backend modules.
 - Dashboard: dependency install and production build.
+- Docker images: backend service and dashboard image builds.
 - Local stack: Docker Compose config rendering.
 - Kubernetes: YAML parsing and Kustomize rendering for local manifests.
 

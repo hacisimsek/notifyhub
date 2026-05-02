@@ -1,0 +1,62 @@
+name: Docker Image CI
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - "web/dashboard/**"
+      - "deploy/docker/**"
+      - "backend/Dockerfile"
+      - "web/dashboard/Dockerfile"
+      - ".github/workflows/docker-image-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - "web/dashboard/**"
+      - "deploy/docker/**"
+      - "backend/Dockerfile"
+      - "web/dashboard/Dockerfile"
+      - ".github/workflows/docker-image-ci.yml"
+
+jobs:
+  backend-images:
+    name: Build backend image (${{ matrix.service }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - auth-service
+          - reminder-service
+          - notification-service
+          - gateway-service
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: >
+          docker build
+          --build-arg SERVICE_MODULE=${{ matrix.service }}
+          -t notifyhub/${{ matrix.service }}:ci
+          -f backend/Dockerfile
+          .
+
+  dashboard-image:
+    name: Build dashboard image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build dashboard image
+        run: >
+          docker build
+          -t notifyhub/dashboard:ci
+          -f web/dashboard/Dockerfile
+          .
