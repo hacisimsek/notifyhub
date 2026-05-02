@@ -1,5 +1,6 @@
 package com.notifyhub.notification.api;
 
+import com.notifyhub.notification.repository.NotificationDeliveryAttemptRepository;
 import com.notifyhub.notification.repository.NotificationLogRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
@@ -33,10 +35,14 @@ class NotificationControllerIntegrationTests {
     private MockMvc mockMvc;
 
     @Autowired
+    private NotificationDeliveryAttemptRepository notificationDeliveryAttemptRepository;
+
+    @Autowired
     private NotificationLogRepository notificationLogRepository;
 
     @BeforeEach
     void cleanDatabase() {
+        notificationDeliveryAttemptRepository.deleteAll();
         notificationLogRepository.deleteAll();
     }
 
@@ -51,7 +57,16 @@ class NotificationControllerIntegrationTests {
                 .andExpect(jsonPath("$.channel", equalTo("EMAIL")))
                 .andExpect(jsonPath("$.recipient", equalTo("user@example.com")))
                 .andExpect(jsonPath("$.status", equalTo("SENT")))
+                .andExpect(jsonPath("$.attemptCount", equalTo(1)))
+                .andExpect(jsonPath("$.lastAttemptAt", notNullValue()))
                 .andExpect(jsonPath("$.sentAt", notNullValue()));
+
+        var notification = notificationLogRepository.findByUserIdOrderByCreatedAtDesc(USER_ID).getFirst();
+        var attempts = notificationDeliveryAttemptRepository
+                .findByNotificationLogIdOrderByAttemptedAtAsc(notification.getId());
+        assertThat(attempts).hasSize(1);
+        assertThat(attempts.getFirst().getAttemptNumber()).isEqualTo(1);
+        assertThat(attempts.getFirst().getStatus().name()).isEqualTo("SENT");
     }
 
     @Test
@@ -70,7 +85,9 @@ class NotificationControllerIntegrationTests {
                         .header("X-User-Id", USER_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].userId", equalTo(USER_ID.toString())));
+                .andExpect(jsonPath("$[0].userId", equalTo(USER_ID.toString())))
+                .andExpect(jsonPath("$[0].attemptCount", equalTo(1)))
+                .andExpect(jsonPath("$[0].lastAttemptAt", notNullValue()));
     }
 
     @Test
@@ -91,7 +108,8 @@ class NotificationControllerIntegrationTests {
                         .header("X-User-Id", USER_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].idempotencyKey", equalTo(idempotencyKey)));
+                .andExpect(jsonPath("$[0].idempotencyKey", equalTo(idempotencyKey)))
+                .andExpect(jsonPath("$[0].attemptCount", equalTo(1)));
     }
 
     private String notificationRequest(String idempotencyKey) {

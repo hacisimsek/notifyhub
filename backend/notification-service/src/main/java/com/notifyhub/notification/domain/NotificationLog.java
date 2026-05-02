@@ -59,6 +59,11 @@ public class NotificationLog {
 
     private Instant sentAt;
 
+    @Column(nullable = false)
+    private int attemptCount;
+
+    private Instant lastAttemptAt;
+
     protected NotificationLog() {
     }
 
@@ -108,6 +113,11 @@ public class NotificationLog {
         status = DeliveryStatus.RETRYING;
         failureReason = reason;
         sentAt = null;
+    }
+
+    public void recordDeliveryAttempt(Instant attemptedAt) {
+        attemptCount++;
+        lastAttemptAt = attemptedAt;
     }
 
     public UUID getId() {
@@ -160,5 +170,13 @@ public class NotificationLog {
 
     public Instant getSentAt() {
         return sentAt;
+    }
+
+    public int getAttemptCount() {
+        return attemptCount;
+    }
+
+    public Instant getLastAttemptAt() {
+        return lastAttemptAt;
     }
 }

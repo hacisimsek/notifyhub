@@ -513,6 +513,11 @@ td span {
   font-size: 0.85rem;
 }
 
+.notification-meta {
+  display: grid;
+  gap: 4px;
+}
+
 .empty-state {
   padding: 18px;
   color: #657368;

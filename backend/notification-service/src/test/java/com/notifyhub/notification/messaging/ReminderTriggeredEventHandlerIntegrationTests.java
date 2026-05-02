@@ -2,6 +2,7 @@ package com.notifyhub.notification.messaging;
 
 import com.notifyhub.common.events.ReminderTriggeredEvent;
 import com.notifyhub.common.notifications.NotificationChannel;
+import com.notifyhub.notification.repository.NotificationDeliveryAttemptRepository;
 import com.notifyhub.notification.repository.NotificationLogRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,10 +26,14 @@ class ReminderTriggeredEventHandlerIntegrationTests {
     private ReminderTriggeredEventHandler eventHandler;
 
     @Autowired
+    private NotificationDeliveryAttemptRepository notificationDeliveryAttemptRepository;
+
+    @Autowired
     private NotificationLogRepository notificationLogRepository;
 
     @BeforeEach
     void cleanDatabase() {
+        notificationDeliveryAttemptRepository.deleteAll();
         notificationLogRepository.deleteAll();
     }
 
@@ -41,6 +46,8 @@ class ReminderTriggeredEventHandlerIntegrationTests {
         assertThat(response.channel()).isEqualTo(NotificationChannel.EMAIL);
         assertThat(response.recipient()).isEqualTo("user@example.com");
         assertThat(response.status().name()).isEqualTo("SENT");
+        assertThat(response.attemptCount()).isEqualTo(1);
+        assertThat(response.lastAttemptAt()).isNotNull();
         assertThat(notificationLogRepository.findByUserIdOrderByCreatedAtDesc(USER_ID)).hasSize(1);
     }
 
@@ -50,6 +57,9 @@ class ReminderTriggeredEventHandlerIntegrationTests {
         eventHandler.handle(event("reminder-idempotency-2"));
 
         assertThat(notificationLogRepository.findByUserIdOrderByCreatedAtDesc(USER_ID)).hasSize(1);
+        var notification = notificationLogRepository.findByUserIdOrderByCreatedAtDesc(USER_ID).getFirst();
+        assertThat(notificationDeliveryAttemptRepository.findByNotificationLogIdOrderByAttemptedAtAsc(notification.getId()))
+                .hasSize(1);
     }
 
     private ReminderTriggeredEvent event(String idempotencyKey) {

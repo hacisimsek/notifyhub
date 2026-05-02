@@ -13,17 +13,20 @@ class RabbitNotificationDeliveryWorker {
 
     private final NotificationLogRepository notificationLogRepository;
     private final NotificationSender notificationSender;
+    private final NotificationDeliveryAttemptRecorder attemptRecorder;
     private final NotificationRabbitProperties properties;
     private final RabbitNotificationDeliveryPublisher publisher;
 
     RabbitNotificationDeliveryWorker(
             NotificationLogRepository notificationLogRepository,
             NotificationSender notificationSender,
+            NotificationDeliveryAttemptRecorder attemptRecorder,
             NotificationRabbitProperties properties,
             RabbitNotificationDeliveryPublisher publisher
     ) {
         this.notificationLogRepository = notificationLogRepository;
         this.notificationSender = notificationSender;
+        this.attemptRecorder = attemptRecorder;
         this.properties = properties;
         this.publisher = publisher;
     }
@@ -40,17 +43,20 @@ class RabbitNotificationDeliveryWorker {
         NotificationSender.DeliveryResult result = notificationSender.send(notificationLog);
         if (result.sent()) {
             notificationLog.markSent();
+            attemptRecorder.record(notificationLog, work.attempt(), DeliveryStatus.SENT, null);
             return;
         }
 
         String failureReason = normalizeFailureReason(result.failureReason());
         if (work.attempt() < properties.getMaxAttempts()) {
             notificationLog.markRetrying(failureReason);
+            attemptRecorder.record(notificationLog, work.attempt(), DeliveryStatus.RETRYING, failureReason);
             publisher.publishRetry(work.nextAttempt());
             return;
         }
 
         notificationLog.markFailed(failureReason);
+        attemptRecorder.record(notificationLog, work.attempt(), DeliveryStatus.FAILED, failureReason);
         publisher.publishDeadLetter(work);
     }
 

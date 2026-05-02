@@ -111,6 +111,7 @@ The public history endpoint expects `X-User-Id: <uuid>` from the gateway. Direct
 ```
 
 The current adapter is mock delivery. Successful mock dispatch moves the log from `PENDING` to `SENT`.
+Each delivery run writes a delivery attempt record and updates `attemptCount` plus `lastAttemptAt` on the notification response.
 
 ## Messaging
 
@@ -119,3 +120,9 @@ Due reminders are published to Kafka topic `reminder.triggered`. Notification Se
 ### List Notification History
 
 `GET /api/notifications`
+
+Returns notification logs ordered by creation time. Each item includes final status fields and attempt summary fields:
+
+- `attemptCount`
+- `lastAttemptAt`
+- `failureReason`

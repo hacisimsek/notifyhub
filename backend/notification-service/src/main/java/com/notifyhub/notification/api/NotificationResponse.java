@@ -18,7 +18,10 @@ public record NotificationResponse(
         DeliveryStatus status,
         String failureReason,
         String idempotencyKey,
+        int attemptCount,
         Instant createdAt,
+        Instant updatedAt,
+        Instant lastAttemptAt,
         Instant sentAt
 ) {
     public static NotificationResponse from(NotificationLog log) {
@@ -33,7 +36,10 @@ public record NotificationResponse(
                 log.getStatus(),
                 log.getFailureReason(),
                 log.getIdempotencyKey(),
+                log.getAttemptCount(),
                 log.getCreatedAt(),
+                log.getUpdatedAt(),
+                log.getLastAttemptAt(),
                 log.getSentAt()
         );
     }
