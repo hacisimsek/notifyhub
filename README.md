@@ -13,7 +13,7 @@ NotifyHub is a smart reminder and notification platform for time-sensitive alert
 
 ## Current Status
 
-The repository now contains a working MVP vertical slice:
+The repository is in final delivery polish. It contains a working MVP vertical slice:
 
 1. Register and log in through the dashboard or Gateway API.
 2. Create, update, delete and filter one-time reminders.
@@ -24,7 +24,7 @@ The repository now contains a working MVP vertical slice:
 7. Show reminders, notification history, filters and delivery metrics in the dashboard.
 8. Run the local stack with Docker Compose and validate it with a gateway e2e smoke script.
 
-The remaining work is final delivery polish: complete demo documentation, broaden frontend test coverage, run a fresh Docker Compose e2e check, and verify the Minikube deployment path.
+Final handoff work is now focused on running the full local demo in the target environment and capturing evidence.
 
 ## Planned Structure
 
@@ -88,6 +88,18 @@ Pull requests run targeted checks for backend, dashboard and local stack changes
 - Docker images: backend service and dashboard image builds.
 - Local stack: Docker Compose config rendering.
 - Kubernetes: YAML parsing and Kustomize rendering for local manifests.
+
+Run the main local verification suite:
+
+```bash
+./scripts/final-verify.sh
+```
+
+To include environment-dependent e2e checks:
+
+```bash
+RUN_FULL_STACK=true RUN_K8S=true ./scripts/final-verify.sh
+```
 
 ### Docker Compose
 

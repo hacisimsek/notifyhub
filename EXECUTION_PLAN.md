@@ -275,10 +275,10 @@ The project is done when:
 
 ## Current Remaining Steps
 
-The implementation has moved past the foundation and MVP service phases. Continue with final delivery hardening:
+The implementation has moved past the foundation and MVP service phases. The remaining work is final evidence capture:
 
-1. Keep README, API notes, architecture docs, runbook and demo guide aligned with the current system.
-2. Add dashboard-focused test coverage around auth, reminder management, filters and notification history rendering.
-3. Run a fresh Docker Compose e2e check from a clean local state.
-4. Verify the Minikube deployment path with locally built images.
-5. Capture final demo evidence and close any issues found during the full-stack checks.
+1. Run `./scripts/final-verify.sh` locally before final review.
+2. Run `TEARDOWN=true ./scripts/local-stack-e2e.sh` with Docker Desktop running.
+3. Run `./scripts/k8s-local-verify.sh` with Minikube running.
+4. Capture final demo evidence from the dashboard, notification history, Prometheus and Grafana.
+5. Close any issues found during those environment-dependent checks.

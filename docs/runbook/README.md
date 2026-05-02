@@ -37,6 +37,22 @@ For a full vertical-slice check:
 
 The smoke script registers a temporary user, creates a reminder due shortly, waits for the notification history entry and expects final status `SENT`.
 
+## Final Verification
+
+Before a handoff or demo, run:
+
+```bash
+./scripts/final-verify.sh
+```
+
+This runs backend verification, dashboard tests/build, OpenAPI YAML parsing, Kubernetes manifest rendering, Docker Compose config rendering and shell script syntax checks.
+
+When Docker Desktop and Minikube are available, include the environment-dependent e2e checks:
+
+```bash
+RUN_FULL_STACK=true RUN_K8S=true ./scripts/final-verify.sh
+```
+
 ## Local Monitoring
 
 Start the Docker Compose stack from the repository root:

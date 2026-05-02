@@ -11,6 +11,7 @@ on:
       - "scripts/local-stack-e2e.sh"
       - "scripts/gateway-e2e-smoke.sh"
       - "scripts/smoke-check.sh"
+      - "scripts/final-verify.sh"
       - ".github/workflows/local-stack-ci.yml"
   push:
     branches:
@@ -24,6 +25,7 @@ on:
       - "scripts/local-stack-e2e.sh"
       - "scripts/gateway-e2e-smoke.sh"
       - "scripts/smoke-check.sh"
+      - "scripts/final-verify.sh"
       - ".github/workflows/local-stack-ci.yml"
 
 jobs:
@@ -42,7 +44,7 @@ jobs:
         run: docker compose --env-file deploy/docker/.env.example -f deploy/docker/compose.yml config --services
 
       - name: Check local stack scripts
-        run: bash -n scripts/local-stack-e2e.sh scripts/gateway-e2e-smoke.sh scripts/smoke-check.sh
+        run: bash -n scripts/local-stack-e2e.sh scripts/gateway-e2e-smoke.sh scripts/smoke-check.sh scripts/final-verify.sh
 
       - name: Check Prometheus config
         run: >
