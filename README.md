@@ -131,6 +131,7 @@ The dashboard app lives under `web/dashboard` and talks to the Gateway Service t
 
 ```bash
 npm install --prefix web/dashboard
+npm run test --prefix web/dashboard
 npm run dev --prefix web/dashboard
 ```
 

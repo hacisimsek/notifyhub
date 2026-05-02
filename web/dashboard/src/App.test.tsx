@@ -1,0 +1,212 @@
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { App } from './App';
+import * as api from './api';
+import type { AuthResponse, NotificationLog, Reminder, UserSummary } from './api';
+
+vi.mock('./api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./api')>();
+  return {
+    ...actual,
+    createReminder: vi.fn(),
+    currentUser: vi.fn(),
+    deleteReminder: vi.fn(),
+    listNotifications: vi.fn(),
+    listReminders: vi.fn(),
+    login: vi.fn(),
+    register: vi.fn(),
+    updateReminder: vi.fn()
+  };
+});
+
+const mockedApi = vi.mocked(api);
+
+const user: UserSummary = {
+  id: 'user-1',
+  email: 'user@example.com',
+  role: 'USER'
+};
+
+const reminders: Reminder[] = [
+  reminder({
+    id: 'reminder-1',
+    title: 'Pay invoice',
+    channel: 'EMAIL',
+    status: 'SCHEDULED',
+    recipient: 'billing@example.com'
+  }),
+  reminder({
+    id: 'reminder-2',
+    title: 'Send report',
+    channel: 'SMS',
+    status: 'TRIGGERED',
+    recipient: '+905551112233'
+  })
+];
+
+const notifications: NotificationLog[] = [
+  notification({
+    id: 'notification-1',
+    subject: 'Pay invoice',
+    channel: 'EMAIL',
+    status: 'SENT',
+    attemptCount: 1
+  }),
+  notification({
+    id: 'notification-2',
+    subject: 'Send report',
+    channel: 'SMS',
+    status: 'RETRYING',
+    attemptCount: 2
+  })
+];
+
+describe('App dashboard', () => {
+  beforeEach(() => {
+    vi.setSystemTime(new Date('2026-05-02T12:00:00.000Z'));
+    mockedApi.currentUser.mockResolvedValue(user);
+    mockedApi.login.mockResolvedValue(authResponse());
+    mockedApi.register.mockResolvedValue(authResponse());
+    mockedApi.createReminder.mockResolvedValue(reminder({ id: 'created-reminder', title: 'Created reminder' }));
+    mockedApi.updateReminder.mockResolvedValue(reminder({ id: 'updated-reminder', title: 'Updated reminder' }));
+    mockedApi.deleteReminder.mockResolvedValue();
+    mockedApi.listReminders.mockImplementation(async (_token, filters = {}) => {
+      return reminders.filter((item) => {
+        return (!filters.status || item.status === filters.status)
+          && (!filters.channel || item.channel === filters.channel);
+      });
+    });
+    mockedApi.listNotifications.mockImplementation(async (_token, filters = {}) => {
+      return notifications.filter((item) => {
+        return (!filters.status || item.status === filters.status)
+          && (!filters.channel || item.channel === filters.channel);
+      });
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  it('signs in and loads the authenticated dashboard', async () => {
+    const actor = userEvent.setup();
+    render(<App />);
+
+    await actor.type(screen.getByLabelText('Email'), 'user@example.com');
+    await actor.type(screen.getByLabelText('Password'), 'secret123');
+    await actor.click(screen.getByRole('button', { name: /sign in/i }));
+
+    expect(mockedApi.login).toHaveBeenCalledWith('user@example.com', 'secret123');
+    await screen.findByRole('heading', { name: 'Reminder delivery dashboard' });
+    expect(localStorage.getItem('notifyhub.dashboard.token')).toBe('token-1');
+    expect(within(remindersPanel()).getByText('Pay invoice')).toBeInTheDocument();
+  });
+
+  it('creates reminders with trimmed form values and refreshes data', async () => {
+    const actor = userEvent.setup();
+    await renderAuthenticatedDashboard();
+    vi.clearAllMocks();
+
+    await actor.type(screen.getByLabelText('Title'), '  Demo reminder  ');
+    await actor.type(screen.getByLabelText('Message'), '  Follow up with finance  ');
+    await actor.type(screen.getByLabelText('Recipient'), '  demo@example.com  ');
+    await actor.click(screen.getByRole('button', { name: /add reminder/i }));
+
+    await waitFor(() => {
+      expect(mockedApi.createReminder).toHaveBeenCalledWith('token-1', expect.objectContaining({
+        title: 'Demo reminder',
+        message: 'Follow up with finance',
+        channel: 'EMAIL',
+        recipient: 'demo@example.com'
+      }));
+    });
+    expect(mockedApi.listReminders).toHaveBeenCalled();
+    expect(mockedApi.listNotifications).toHaveBeenCalled();
+  });
+
+  it('requests filtered reminder and notification views from the gateway API', async () => {
+    const actor = userEvent.setup();
+    await renderAuthenticatedDashboard();
+    vi.clearAllMocks();
+
+    await actor.click(within(screen.getByLabelText('Reminder filters')).getByRole('button', { name: 'SCHEDULED' }));
+
+    await waitFor(() => {
+      expect(mockedApi.listReminders).toHaveBeenCalledWith('token-1', {
+        status: 'SCHEDULED',
+        channel: undefined
+      });
+    });
+    expect(within(remindersPanel()).getByText('Pay invoice')).toBeInTheDocument();
+    expect(within(remindersPanel()).queryByText('Send report')).not.toBeInTheDocument();
+
+    vi.clearAllMocks();
+    await actor.click(within(screen.getByLabelText('Notification filters')).getByRole('button', { name: 'SENT' }));
+    await actor.click(within(screen.getByLabelText('Notification filters')).getByRole('button', { name: 'EMAIL' }));
+
+    await waitFor(() => {
+      expect(mockedApi.listNotifications).toHaveBeenCalledWith('token-1', {
+        status: 'SENT',
+        channel: 'EMAIL'
+      });
+    });
+  });
+});
+
+async function renderAuthenticatedDashboard() {
+  localStorage.setItem('notifyhub.dashboard.token', 'token-1');
+  render(<App />);
+  await screen.findByRole('heading', { name: 'Reminder delivery dashboard' });
+}
+
+function remindersPanel() {
+  return screen.getByRole('heading', { name: 'Reminders' }).closest('section') as HTMLElement;
+}
+
+function authResponse(): AuthResponse {
+  return {
+    accessToken: 'token-1',
+    tokenType: 'Bearer',
+    expiresAt: '2026-05-02T14:00:00.000Z',
+    user
+  };
+}
+
+function reminder(overrides: Partial<Reminder> = {}): Reminder {
+  return {
+    id: 'reminder-1',
+    ownerId: 'user-1',
+    title: 'Pay invoice',
+    message: 'Invoice is due tomorrow',
+    scheduledFor: '2026-05-04T10:00:00.000Z',
+    channel: 'EMAIL',
+    recipient: 'billing@example.com',
+    status: 'SCHEDULED',
+    createdAt: '2026-05-02T10:00:00.000Z',
+    updatedAt: '2026-05-02T10:00:00.000Z',
+    ...overrides
+  };
+}
+
+function notification(overrides: Partial<NotificationLog> = {}): NotificationLog {
+  return {
+    id: 'notification-1',
+    userId: 'user-1',
+    reminderId: 'reminder-1',
+    channel: 'EMAIL',
+    recipient: 'billing@example.com',
+    subject: 'Pay invoice',
+    message: 'Invoice is due tomorrow',
+    status: 'SENT',
+    failureReason: null,
+    idempotencyKey: 'reminder-1-2026-05-04',
+    attemptCount: 1,
+    createdAt: '2026-05-02T10:00:00.000Z',
+    lastAttemptAt: '2026-05-02T10:01:00.000Z',
+    updatedAt: '2026-05-02T10:01:00.000Z',
+    sentAt: '2026-05-02T10:01:00.000Z',
+    ...overrides
+  };
+}
