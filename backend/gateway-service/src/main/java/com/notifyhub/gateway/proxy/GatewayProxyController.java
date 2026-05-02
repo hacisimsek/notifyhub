@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 import java.util.Collections;
@@ -128,8 +129,12 @@ class GatewayProxyController {
 
     private URI targetUri(String baseUrl, HttpServletRequest request) {
         String normalizedBase = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
-        String query = request.getQueryString() == null ? "" : "?" + request.getQueryString();
-        return URI.create(normalizedBase + request.getRequestURI() + query);
+        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(normalizedBase)
+                .path(request.getRequestURI());
+        if (request.getQueryString() != null) {
+            builder.query(request.getQueryString());
+        }
+        return builder.build(true).toUri();
     }
 
     private enum HeaderMode {

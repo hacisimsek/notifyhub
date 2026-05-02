@@ -75,12 +75,15 @@ class GatewayProxyControllerIntegrationTests {
 
     @Test
     void reminderRequestForwardsPrincipalHeaders() throws Exception {
-        mockMvc.perform(get("/api/reminders?status=SCHEDULED")
+        mockMvc.perform(get("/api/reminders?status=SCHEDULED&channel=EMAIL")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + validToken()))
                 .andExpect(status().isOk())
                 .andExpect(content().string("proxied"));
 
-        assertThat(proxyClient.targetUri).hasToString("http://reminder-service.test/api/reminders?status=SCHEDULED");
+        assertThat(proxyClient.targetUri).hasToString(
+                "http://reminder-service.test/api/reminders?status=SCHEDULED&channel=EMAIL"
+        );
+        assertThat(proxyClient.request.query()).isEqualTo("status=SCHEDULED&channel=EMAIL");
         assertThat(proxyClient.request.headers().getFirst("X-User-Id")).isEqualTo(USER_ID.toString());
         assertThat(proxyClient.request.headers().getFirst("X-User-Email")).isEqualTo("user@example.com");
         assertThat(proxyClient.request.headers().getFirst("X-User-Role")).isEqualTo("USER");
@@ -88,13 +91,16 @@ class GatewayProxyControllerIntegrationTests {
     }
 
     @Test
-    void notificationHistoryForwardsToNotificationService() throws Exception {
-        mockMvc.perform(get("/api/notifications")
+    void notificationHistoryForwardsQueryToNotificationService() throws Exception {
+        mockMvc.perform(get("/api/notifications?status=SENT&channel=SMS")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + validToken()))
                 .andExpect(status().isOk())
                 .andExpect(content().string("proxied"));
 
-        assertThat(proxyClient.targetUri).hasToString("http://notification-service.test/api/notifications");
+        assertThat(proxyClient.targetUri).hasToString(
+                "http://notification-service.test/api/notifications?status=SENT&channel=SMS"
+        );
+        assertThat(proxyClient.request.query()).isEqualTo("status=SENT&channel=SMS");
         assertThat(proxyClient.request.headers().getFirst("X-User-Id")).isEqualTo(USER_ID.toString());
     }
 
