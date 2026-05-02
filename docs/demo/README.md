@@ -33,6 +33,18 @@ Gateway e2e smoke passed for smoke-...
 
 The script proves the full path: register user, verify current user, create reminder, wait for scheduler, publish Kafka event, create notification log, dispatch delivery work and read final notification history through Gateway.
 
+The same automated check can be run as a one-command background stack check:
+
+```bash
+./scripts/local-stack-e2e.sh
+```
+
+For a clean local data reset before the check:
+
+```bash
+RESET_STACK=true ./scripts/local-stack-e2e.sh
+```
+
 ## Manual Dashboard Demo
 
 1. Open `http://localhost:3000`.

@@ -8,6 +8,9 @@ on:
       - "backend/Dockerfile"
       - "web/dashboard/Dockerfile"
       - "web/dashboard/nginx.conf"
+      - "scripts/local-stack-e2e.sh"
+      - "scripts/gateway-e2e-smoke.sh"
+      - "scripts/smoke-check.sh"
       - ".github/workflows/local-stack-ci.yml"
   push:
     branches:
@@ -18,6 +21,9 @@ on:
       - "backend/Dockerfile"
       - "web/dashboard/Dockerfile"
       - "web/dashboard/nginx.conf"
+      - "scripts/local-stack-e2e.sh"
+      - "scripts/gateway-e2e-smoke.sh"
+      - "scripts/smoke-check.sh"
       - ".github/workflows/local-stack-ci.yml"
 
 jobs:
@@ -34,6 +40,9 @@ jobs:
 
       - name: List compose services
         run: docker compose --env-file deploy/docker/.env.example -f deploy/docker/compose.yml config --services
+
+      - name: Check local stack scripts
+        run: bash -n scripts/local-stack-e2e.sh scripts/gateway-e2e-smoke.sh scripts/smoke-check.sh
 
       - name: Check Prometheus config
         run: >

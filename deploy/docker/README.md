@@ -27,6 +27,18 @@ Run the gateway smoke test after the stack is healthy:
 
 The smoke test registers a temporary user, creates a reminder through the gateway, waits for the Kafka-backed reminder flow, and checks notification history for a `SENT` delivery.
 
+For the repeatable one-command path from the repository root:
+
+```bash
+./scripts/local-stack-e2e.sh
+```
+
+Useful options:
+
+- `RESET_STACK=true ./scripts/local-stack-e2e.sh` stops the compose project and removes local volumes before starting.
+- `TEARDOWN=true ./scripts/local-stack-e2e.sh` stops the compose project after the smoke check.
+- `SMOKE_TIMEOUT_SECONDS=240 ./scripts/local-stack-e2e.sh` gives slower machines more time for the reminder flow.
+
 ## Services
 
 - PostgreSQL: `localhost:5432`
