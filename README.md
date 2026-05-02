@@ -184,5 +184,6 @@ Gateway Service runs on port `8080` and exposes the external API surface:
 - Architecture overview: [docs/architecture](./docs/architecture)
 - Architecture decisions: [docs/adr](./docs/adr)
 - API notes: [docs/api](./docs/api)
+- OpenAPI reference: [docs/api/openapi.yaml](./docs/api/openapi.yaml)
 - Demo guide: [docs/demo](./docs/demo)
 - Runbook: [docs/runbook](./docs/runbook)

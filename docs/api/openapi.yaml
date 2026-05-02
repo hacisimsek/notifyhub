@@ -1,0 +1,527 @@
+openapi: 3.1.0
+info:
+  title: NotifyHub API
+  version: 0.1.0
+  description: >
+    Public Gateway API and current internal notification work endpoint for the
+    NotifyHub MVP.
+servers:
+  - url: http://localhost:8080
+    description: Local Gateway Service
+tags:
+  - name: Auth
+    description: Registration, login and current-user profile routes.
+  - name: Reminders
+    description: Authenticated reminder management routes.
+  - name: Notifications
+    description: Authenticated notification history routes.
+  - name: Internal
+    description: Service-to-service notification work route.
+paths:
+  /api/auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Register a user
+      operationId: registerUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthCredentials"
+            examples:
+              default:
+                value:
+                  email: user@example.com
+                  password: secret123
+      responses:
+        "201":
+          description: User registered and bearer token issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Log in
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthCredentials"
+      responses:
+        "200":
+          description: Bearer token issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/auth/me:
+    get:
+      tags:
+        - Auth
+      summary: Get current user
+      operationId: getCurrentUser
+      responses:
+        "200":
+          description: Current authenticated user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/reminders:
+    post:
+      tags:
+        - Reminders
+      summary: Create a reminder
+      operationId: createReminder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReminderRequest"
+            examples:
+              emailReminder:
+                value:
+                  title: Pay invoice
+                  message: Invoice is due tomorrow
+                  scheduledFor: "2026-05-04T10:00:00Z"
+                  channel: EMAIL
+                  recipient: user@example.com
+      responses:
+        "201":
+          description: Reminder created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reminder"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    get:
+      tags:
+        - Reminders
+      summary: List reminders
+      operationId: listReminders
+      parameters:
+        - $ref: "#/components/parameters/ReminderStatus"
+        - $ref: "#/components/parameters/Channel"
+      responses:
+        "200":
+          description: Reminders owned by the current user.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reminder"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/reminders/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      tags:
+        - Reminders
+      summary: Get a reminder
+      operationId: getReminder
+      responses:
+        "200":
+          description: Reminder detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reminder"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags:
+        - Reminders
+      summary: Update a reminder
+      operationId: updateReminder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReminderRequest"
+      responses:
+        "200":
+          description: Reminder updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reminder"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags:
+        - Reminders
+      summary: Delete a reminder
+      operationId: deleteReminder
+      responses:
+        "204":
+          description: Reminder deleted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/notifications:
+    get:
+      tags:
+        - Notifications
+      summary: List notification history
+      operationId: listNotifications
+      parameters:
+        - $ref: "#/components/parameters/DeliveryStatus"
+        - $ref: "#/components/parameters/Channel"
+      responses:
+        "200":
+          description: Notification history for the current user.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /internal/notifications:
+    servers:
+      - url: http://localhost:8083
+        description: Local Notification Service
+    post:
+      tags:
+        - Internal
+      summary: Create notification delivery work
+      operationId: createNotificationWork
+      description: Service-to-service route used by backend integrations.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNotificationRequest"
+      responses:
+        "201":
+          description: Notification work created and dispatch requested.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Channel:
+      name: channel
+      in: query
+      required: false
+      schema:
+        $ref: "#/components/schemas/NotificationChannel"
+    ReminderStatus:
+      name: status
+      in: query
+      required: false
+      schema:
+        $ref: "#/components/schemas/ReminderStatus"
+    DeliveryStatus:
+      name: status
+      in: query
+      required: false
+      schema:
+        $ref: "#/components/schemas/DeliveryStatus"
+  responses:
+    BadRequest:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    Unauthorized:
+      description: Missing or invalid bearer token.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    NotFound:
+      description: Resource not found or not owned by the current user.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    Conflict:
+      description: Resource already exists or request conflicts with current state.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+  schemas:
+    AuthCredentials:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+          format: password
+          example: secret123
+    AuthResponse:
+      type: object
+      required:
+        - accessToken
+        - tokenType
+        - expiresAt
+        - user
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          example: Bearer
+        expiresAt:
+          type: string
+          format: date-time
+        user:
+          $ref: "#/components/schemas/UserSummary"
+    UserSummary:
+      type: object
+      required:
+        - id
+        - email
+        - role
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          example: USER
+    CurrentUser:
+      allOf:
+        - $ref: "#/components/schemas/UserSummary"
+        - type: object
+          required:
+            - createdAt
+          properties:
+            createdAt:
+              type: string
+              format: date-time
+    ReminderRequest:
+      type: object
+      required:
+        - title
+        - scheduledFor
+        - channel
+        - recipient
+      properties:
+        title:
+          type: string
+          maxLength: 140
+          example: Pay invoice
+        message:
+          type:
+            - string
+            - "null"
+          maxLength: 1000
+          example: Invoice is due tomorrow
+        scheduledFor:
+          type: string
+          format: date-time
+          description: Must be in the future.
+        channel:
+          $ref: "#/components/schemas/NotificationChannel"
+        recipient:
+          type: string
+          maxLength: 320
+          example: user@example.com
+    Reminder:
+      allOf:
+        - $ref: "#/components/schemas/ReminderRequest"
+        - type: object
+          required:
+            - id
+            - ownerId
+            - status
+            - createdAt
+            - updatedAt
+          properties:
+            id:
+              type: string
+              format: uuid
+            ownerId:
+              type: string
+              format: uuid
+            status:
+              $ref: "#/components/schemas/ReminderStatus"
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+    CreateNotificationRequest:
+      type: object
+      required:
+        - userId
+        - channel
+        - recipient
+        - subject
+        - message
+      properties:
+        userId:
+          type: string
+          format: uuid
+        reminderId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        channel:
+          $ref: "#/components/schemas/NotificationChannel"
+        recipient:
+          type: string
+          maxLength: 320
+        subject:
+          type: string
+          maxLength: 140
+        message:
+          type: string
+          maxLength: 2000
+        idempotencyKey:
+          type:
+            - string
+            - "null"
+          maxLength: 180
+    Notification:
+      allOf:
+        - $ref: "#/components/schemas/CreateNotificationRequest"
+        - type: object
+          required:
+            - id
+            - status
+            - attemptCount
+            - createdAt
+            - updatedAt
+          properties:
+            id:
+              type: string
+              format: uuid
+            status:
+              $ref: "#/components/schemas/DeliveryStatus"
+            failureReason:
+              type:
+                - string
+                - "null"
+            attemptCount:
+              type: integer
+              minimum: 0
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+            lastAttemptAt:
+              type:
+                - string
+                - "null"
+              format: date-time
+            sentAt:
+              type:
+                - string
+                - "null"
+              format: date-time
+    ApiError:
+      type: object
+      required:
+        - timestamp
+        - status
+        - error
+        - message
+        - path
+        - fieldErrors
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: string
+    NotificationChannel:
+      type: string
+      enum:
+        - EMAIL
+        - SMS
+        - PUSH
+    ReminderStatus:
+      type: string
+      enum:
+        - SCHEDULED
+        - TRIGGERED
+        - CANCELLED
+    DeliveryStatus:
+      type: string
+      enum:
+        - PENDING
+        - SENT
+        - FAILED
+        - RETRYING
+security:
+  - bearerAuth: []

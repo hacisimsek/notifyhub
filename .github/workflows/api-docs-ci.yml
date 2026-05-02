@@ -1,0 +1,25 @@
+name: API Docs CI
+
+on:
+  pull_request:
+    paths:
+      - "docs/api/**"
+      - ".github/workflows/api-docs-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/api/**"
+      - ".github/workflows/api-docs-ci.yml"
+
+jobs:
+  validate:
+    name: Validate API docs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Parse OpenAPI YAML
+        run: ruby -e 'require "yaml"; YAML.load_file("docs/api/openapi.yaml"); puts "docs/api/openapi.yaml"'
