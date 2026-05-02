@@ -1,0 +1,382 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  labels:
+    app.kubernetes.io/name: auth-service
+    app.kubernetes.io/part-of: notifyhub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: auth-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: auth-service
+        app.kubernetes.io/part-of: notifyhub
+    spec:
+      containers:
+        - name: auth-service
+          image: notifyhub/auth-service:local
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8081
+          env:
+            - name: AUTH_DB_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: AUTH_DB_URL
+            - name: AUTH_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: notifyhub-secrets
+                  key: POSTGRES_USER
+            - name: AUTH_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: notifyhub-secrets
+                  key: POSTGRES_PASSWORD
+            - name: AUTH_JWT_ISSUER
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: AUTH_JWT_ISSUER
+            - name: AUTH_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: notifyhub-secrets
+                  key: AUTH_JWT_SECRET
+            - name: AUTH_JWT_EXPIRATION
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: AUTH_JWT_EXPIRATION
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 45
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 75
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  labels:
+    app.kubernetes.io/name: auth-service
+    app.kubernetes.io/part-of: notifyhub
+spec:
+  selector:
+    app.kubernetes.io/name: auth-service
+  ports:
+    - name: http
+      port: 8081
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reminder-service
+  labels:
+    app.kubernetes.io/name: reminder-service
+    app.kubernetes.io/part-of: notifyhub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: reminder-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: reminder-service
+        app.kubernetes.io/part-of: notifyhub
+    spec:
+      containers:
+        - name: reminder-service
+          image: notifyhub/reminder-service:local
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8082
+          env:
+            - name: REMINDER_DB_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: REMINDER_DB_URL
+            - name: REMINDER_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: notifyhub-secrets
+                  key: POSTGRES_USER
+            - name: REMINDER_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: notifyhub-secrets
+                  key: POSTGRES_PASSWORD
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: KAFKA_BOOTSTRAP_SERVERS
+            - name: KAFKA_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: KAFKA_ENABLED
+            - name: KAFKA_TOPIC_REMINDER_TRIGGERED
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: KAFKA_TOPIC_REMINDER_TRIGGERED
+            - name: REMINDER_TRIGGER_SCHEDULER_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: REMINDER_TRIGGER_SCHEDULER_ENABLED
+            - name: REMINDER_TRIGGER_SCHEDULER_DELAY_MS
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: REMINDER_TRIGGER_SCHEDULER_DELAY_MS
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 45
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 75
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: reminder-service
+  labels:
+    app.kubernetes.io/name: reminder-service
+    app.kubernetes.io/part-of: notifyhub
+spec:
+  selector:
+    app.kubernetes.io/name: reminder-service
+  ports:
+    - name: http
+      port: 8082
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  labels:
+    app.kubernetes.io/name: notification-service
+    app.kubernetes.io/part-of: notifyhub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: notification-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: notification-service
+        app.kubernetes.io/part-of: notifyhub
+    spec:
+      containers:
+        - name: notification-service
+          image: notifyhub/notification-service:local
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8083
+          env:
+            - name: NOTIFICATION_DB_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: NOTIFICATION_DB_URL
+            - name: NOTIFICATION_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: notifyhub-secrets
+                  key: POSTGRES_USER
+            - name: NOTIFICATION_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: notifyhub-secrets
+                  key: POSTGRES_PASSWORD
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: KAFKA_BOOTSTRAP_SERVERS
+            - name: KAFKA_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: KAFKA_ENABLED
+            - name: KAFKA_TOPIC_REMINDER_TRIGGERED
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: KAFKA_TOPIC_REMINDER_TRIGGERED
+            - name: KAFKA_NOTIFICATION_GROUP_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: KAFKA_NOTIFICATION_GROUP_ID
+            - name: RABBITMQ_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: RABBITMQ_ENABLED
+            - name: RABBITMQ_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: RABBITMQ_HOST
+            - name: RABBITMQ_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: RABBITMQ_PORT
+            - name: RABBITMQ_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: notifyhub-secrets
+                  key: RABBITMQ_USERNAME
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: notifyhub-secrets
+                  key: RABBITMQ_PASSWORD
+            - name: NOTIFICATION_DELIVERY_MAX_ATTEMPTS
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: NOTIFICATION_DELIVERY_MAX_ATTEMPTS
+            - name: NOTIFICATION_DELIVERY_RETRY_DELAY_MS
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: NOTIFICATION_DELIVERY_RETRY_DELAY_MS
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 45
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 75
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  labels:
+    app.kubernetes.io/name: notification-service
+    app.kubernetes.io/part-of: notifyhub
+spec:
+  selector:
+    app.kubernetes.io/name: notification-service
+  ports:
+    - name: http
+      port: 8083
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway-service
+  labels:
+    app.kubernetes.io/name: gateway-service
+    app.kubernetes.io/part-of: notifyhub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gateway-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gateway-service
+        app.kubernetes.io/part-of: notifyhub
+    spec:
+      containers:
+        - name: gateway-service
+          image: notifyhub/gateway-service:local
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: AUTH_JWT_ISSUER
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: AUTH_JWT_ISSUER
+            - name: AUTH_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: notifyhub-secrets
+                  key: AUTH_JWT_SECRET
+            - name: AUTH_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: AUTH_SERVICE_URL
+            - name: REMINDER_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: REMINDER_SERVICE_URL
+            - name: NOTIFICATION_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: NOTIFICATION_SERVICE_URL
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-service
+  labels:
+    app.kubernetes.io/name: gateway-service
+    app.kubernetes.io/part-of: notifyhub
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: gateway-service
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      nodePort: 30080
