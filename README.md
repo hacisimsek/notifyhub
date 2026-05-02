@@ -13,13 +13,18 @@ NotifyHub is a smart reminder and notification platform for time-sensitive alert
 
 ## Current Status
 
-The repository is in the foundation phase. The first milestone is a working vertical slice:
+The repository now contains a working MVP vertical slice:
 
-1. Register and log in.
-2. Create a one-time reminder.
-3. Trigger the reminder.
-4. Create a notification log.
-5. Show the reminder and delivery status in the dashboard.
+1. Register and log in through the dashboard or Gateway API.
+2. Create, update, delete and filter one-time reminders.
+3. Trigger due reminders from Reminder Service.
+4. Publish reminder events through Kafka.
+5. Create notification logs and dispatch delivery work through RabbitMQ.
+6. Retry failed delivery work and route exhausted work to a DLQ.
+7. Show reminders, notification history, filters and delivery metrics in the dashboard.
+8. Run the local stack with Docker Compose and validate it with a gateway e2e smoke script.
+
+The remaining work is final delivery polish: complete demo documentation, broaden frontend test coverage, run a fresh Docker Compose e2e check, and verify the Minikube deployment path.
 
 ## Planned Structure
 
@@ -60,7 +65,7 @@ notifyhub/
 
 ## Local Development
 
-Detailed commands will be added as services are scaffolded. The expected local prerequisites are:
+Use the commands below to build, run and validate the current local MVP. The expected local prerequisites are:
 
 - Java 21
 - Maven 3.9+
@@ -163,6 +168,8 @@ Gateway Service runs on port `8080` and exposes the external API surface:
 ## Documentation
 
 - Execution plan: [EXECUTION_PLAN.md](./EXECUTION_PLAN.md)
+- Architecture overview: [docs/architecture](./docs/architecture)
 - Architecture decisions: [docs/adr](./docs/adr)
 - API notes: [docs/api](./docs/api)
+- Demo guide: [docs/demo](./docs/demo)
 - Runbook: [docs/runbook](./docs/runbook)

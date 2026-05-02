@@ -1,15 +1,33 @@
 # API Notes
 
-This directory will hold OpenAPI references, example requests and service-specific API notes.
+This directory holds example requests and service-specific API notes for the current MVP surface.
 
 External clients should call the Gateway Service on port `8080`. The service-specific notes below describe the exposed API shape; internally, the gateway forwards authenticated requests to backend services and propagates identity with `X-User-Id`, `X-User-Email`, and `X-User-Role`.
 
-Planned API groups:
+API groups:
 
 - Auth API
 - Reminder API
 - Notification API
 - Gateway routes
+
+## Gateway Routes
+
+Gateway Service is the public entry point for browser and script clients. It forwards auth routes directly to Auth Service and forwards authenticated reminder and notification routes with propagated identity headers.
+
+| Method | Path | Auth | Target |
+| --- | --- | --- | --- |
+| `POST` | `/api/auth/register` | No | Auth Service |
+| `POST` | `/api/auth/login` | No | Auth Service |
+| `GET` | `/api/auth/me` | Bearer token | Auth Service |
+| `POST` | `/api/reminders` | Bearer token | Reminder Service |
+| `GET` | `/api/reminders` | Bearer token | Reminder Service |
+| `GET` | `/api/reminders/{id}` | Bearer token | Reminder Service |
+| `PUT` | `/api/reminders/{id}` | Bearer token | Reminder Service |
+| `DELETE` | `/api/reminders/{id}` | Bearer token | Reminder Service |
+| `GET` | `/api/notifications` | Bearer token | Notification Service |
+
+Gateway health is available at `GET /actuator/health`.
 
 ## Auth API
 
@@ -27,6 +45,21 @@ Base path: `/api/auth`
 ```
 
 Returns `201 Created` with a bearer access token and user summary.
+
+Example response:
+
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+  "tokenType": "Bearer",
+  "expiresAt": "2026-05-02T15:00:00Z",
+  "user": {
+    "id": "018f1757-0aa5-7a6a-9a33-e78995f25a21",
+    "email": "user@example.com",
+    "role": "USER"
+  }
+}
+```
 
 ### Login
 
@@ -96,6 +129,8 @@ Uses the same body shape as create.
 
 `DELETE /api/reminders/{id}`
 
+Cancels the reminder and returns `204 No Content`.
+
 ## Notification API
 
 Base paths:
@@ -147,4 +182,26 @@ Example:
 
 ```text
 GET /api/notifications?status=SENT&channel=EMAIL
+```
+
+Example response item:
+
+```json
+{
+  "id": "018f1757-0aa5-7a6a-9a33-e78995f25a30",
+  "userId": "018f1757-0aa5-7a6a-9a33-e78995f25a21",
+  "reminderId": "018f1757-0aa5-7a6a-9a33-e78995f25a23",
+  "channel": "EMAIL",
+  "recipient": "user@example.com",
+  "subject": "Invoice due",
+  "message": "Invoice is due tomorrow",
+  "status": "SENT",
+  "failureReason": null,
+  "idempotencyKey": "invoice-due-2026-05-04",
+  "attemptCount": 1,
+  "createdAt": "2026-05-02T13:00:00Z",
+  "lastAttemptAt": "2026-05-02T13:00:01Z",
+  "updatedAt": "2026-05-02T13:00:01Z",
+  "sentAt": "2026-05-02T13:00:01Z"
+}
 ```

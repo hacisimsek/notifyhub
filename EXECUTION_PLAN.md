@@ -273,12 +273,12 @@ The project is done when:
 - CI runs build/test checks.
 - Runbook and final demo guide exist.
 
-## Immediate Next Step
+## Current Remaining Steps
 
-When implementation starts, begin with:
+The implementation has moved past the foundation and MVP service phases. Continue with final delivery hardening:
 
-1. Create/switch to branch `feature/notifyhub-foundation`.
-2. Commit this execution plan.
-3. Add README, ADR folder and repo metadata.
-4. Scaffold backend Maven parent and service modules.
-5. Add first CI workflow and verify it locally where possible.
+1. Keep README, API notes, architecture docs, runbook and demo guide aligned with the current system.
+2. Add dashboard-focused test coverage around auth, reminder management, filters and notification history rendering.
+3. Run a fresh Docker Compose e2e check from a clean local state.
+4. Verify the Minikube deployment path with locally built images.
+5. Capture final demo evidence and close any issues found during the full-stack checks.
