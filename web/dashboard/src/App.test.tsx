@@ -139,6 +139,29 @@ describe('App dashboard', () => {
     expect(mockedApi.listNotifications).toHaveBeenCalled();
   });
 
+  it('switches the dashboard content from the side navigation route', async () => {
+    const actor = userEvent.setup();
+    await renderAuthenticatedDashboard();
+
+    expect(screen.getByRole('heading', { name: 'Reminders' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Notifications' })).not.toBeInTheDocument();
+
+    await actor.click(screen.getByRole('link', { name: /history/i }));
+
+    expect(window.location.hash).toBe('#history');
+    expect(screen.getByRole('heading', { name: 'Notification history' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Notifications' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Reminders' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /history/i })).toHaveAttribute('aria-current', 'page');
+
+    await actor.click(screen.getByRole('link', { name: /reminders/i }));
+
+    expect(window.location.hash).toBe('#reminders');
+    expect(screen.getByRole('heading', { name: 'Reminder delivery dashboard' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Reminders' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Notifications' })).not.toBeInTheDocument();
+  });
+
   it('requests filtered reminder and notification views from the gateway API', async () => {
     const actor = userEvent.setup();
     await renderAuthenticatedDashboard();
@@ -156,6 +179,7 @@ describe('App dashboard', () => {
     expect(within(remindersPanel()).queryByText('Send report')).not.toBeInTheDocument();
 
     vi.clearAllMocks();
+    await actor.click(screen.getByRole('link', { name: /history/i }));
     await actor.click(within(screen.getByLabelText('Notification filters')).getByRole('button', { name: 'SENT' }));
     await actor.click(within(screen.getByLabelText('Notification filters')).getByRole('button', { name: 'EMAIL' }));
 

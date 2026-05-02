@@ -45,6 +45,7 @@ type ReminderChannelFilter = 'ALL' | Channel;
 type NotificationStatusFilter = 'ALL' | DeliveryStatus;
 type NotificationChannelFilter = 'ALL' | Channel;
 type ThemeMode = 'light' | 'dark';
+type DashboardView = 'reminders' | 'history';
 
 type ReminderForm = {
   title: string;
@@ -59,6 +60,10 @@ const THEME_KEY = 'notifyhub.dashboard.theme';
 const CHANNELS: Channel[] = ['EMAIL', 'SMS', 'PUSH'];
 const REMINDER_STATUSES: ReminderStatus[] = ['SCHEDULED', 'TRIGGERED', 'CANCELLED'];
 const DELIVERY_STATUSES: DeliveryStatus[] = ['PENDING', 'SENT', 'FAILED', 'RETRYING'];
+const DASHBOARD_ROUTES: Record<DashboardView, string> = {
+  reminders: '#reminders',
+  history: '#history'
+};
 
 const emptyReminderForm = (): ReminderForm => ({
   title: '',
@@ -71,6 +76,7 @@ const emptyReminderForm = (): ReminderForm => ({
 export function App() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
   const [theme, setTheme] = useState<ThemeMode>(() => initialTheme());
+  const [activeView, setActiveView] = useState<DashboardView>(() => currentDashboardView());
   const [user, setUser] = useState<UserSummary | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
@@ -96,6 +102,18 @@ export function App() {
     document.documentElement.style.setProperty('color-scheme', theme);
     localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
+
+  useEffect(() => {
+    const syncRoute = () => setActiveView(currentDashboardView());
+
+    window.addEventListener('hashchange', syncRoute);
+    window.addEventListener('popstate', syncRoute);
+
+    return () => {
+      window.removeEventListener('hashchange', syncRoute);
+      window.removeEventListener('popstate', syncRoute);
+    };
+  }, []);
 
   useEffect(() => {
     if (!token) {
@@ -309,6 +327,15 @@ export function App() {
     setTheme((currentTheme) => currentTheme === 'dark' ? 'light' : 'dark');
   }
 
+  function openDashboardView(nextView: DashboardView) {
+    setActiveView(nextView);
+    const nextRoute = DASHBOARD_ROUTES[nextView];
+
+    if (window.location.hash !== nextRoute) {
+      window.history.pushState(null, '', nextRoute);
+    }
+  }
+
   function selectedReminderFilters(): ReminderFilters {
     return {
       status: reminderStatusFilter === 'ALL' ? undefined : reminderStatusFilter,
@@ -397,6 +424,9 @@ export function App() {
   }
 
   const authenticatedUser = user;
+  const heading = activeView === 'history'
+    ? { eyebrow: 'Delivery log', title: 'Notification history' }
+    : { eyebrow: 'Operations', title: 'Reminder delivery dashboard' };
 
   return (
     <main className="app-shell">
@@ -408,16 +438,34 @@ export function App() {
           <span>NotifyHub</span>
         </div>
         <nav>
-          <a href="#reminders"><CalendarClock size={18} aria-hidden="true" />Reminders</a>
-          <a href="#notifications"><History size={18} aria-hidden="true" />History</a>
+          <a
+            href={DASHBOARD_ROUTES.reminders}
+            aria-current={activeView === 'reminders' ? 'page' : undefined}
+            onClick={(event) => {
+              event.preventDefault();
+              openDashboardView('reminders');
+            }}
+          >
+            <CalendarClock size={18} aria-hidden="true" />Reminders
+          </a>
+          <a
+            href={DASHBOARD_ROUTES.history}
+            aria-current={activeView === 'history' ? 'page' : undefined}
+            onClick={(event) => {
+              event.preventDefault();
+              openDashboardView('history');
+            }}
+          >
+            <History size={18} aria-hidden="true" />History
+          </a>
         </nav>
       </aside>
 
       <section className="workspace">
         <header className="top-bar">
           <div>
-            <p className="eyebrow">Operations</p>
-            <h1>Reminder delivery dashboard</h1>
+            <p className="eyebrow">{heading.eyebrow}</p>
+            <h1>{heading.title}</h1>
           </div>
           <div className="top-actions">
             <ThemeToggle theme={theme} onToggle={toggleTheme} />
@@ -444,6 +492,7 @@ export function App() {
         </section>
 
         <section className="content-grid">
+          {activeView === 'reminders' ? (
           <section className="panel" id="reminders" aria-labelledby="reminders-title">
             <div className="panel-heading">
               <div>
@@ -613,8 +662,10 @@ export function App() {
               </table>
             </div>
           </section>
+          ) : null}
 
-          <section className="panel" id="notifications" aria-labelledby="notifications-title">
+          {activeView === 'history' ? (
+          <section className="panel" id="history" aria-labelledby="notifications-title">
             <div className="panel-heading">
               <div>
                 <p className="eyebrow">Delivery log</p>
@@ -682,6 +733,7 @@ export function App() {
               ) : null}
             </div>
           </section>
+          ) : null}
         </section>
       </section>
     </main>
@@ -775,6 +827,19 @@ function initialTheme(): ThemeMode {
   }
 
   return 'light';
+}
+
+function currentDashboardView(): DashboardView {
+  if (typeof window === 'undefined') {
+    return 'reminders';
+  }
+
+  const normalizedHash = window.location.hash.toLowerCase();
+  if (normalizedHash === '#history' || normalizedHash === '#notifications') {
+    return 'history';
+  }
+
+  return 'reminders';
 }
 
 function formatError(error: unknown) {
