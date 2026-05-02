@@ -10,12 +10,14 @@ import {
   Loader2,
   LogOut,
   Mail,
+  Moon,
   Plus,
   RefreshCw,
   Save,
   Send,
   ShieldCheck,
   Smartphone,
+  Sun,
   Trash2,
   XCircle
 } from 'lucide-react';
@@ -42,6 +44,7 @@ type ReminderStatusFilter = 'ALL' | ReminderStatus;
 type ReminderChannelFilter = 'ALL' | Channel;
 type NotificationStatusFilter = 'ALL' | DeliveryStatus;
 type NotificationChannelFilter = 'ALL' | Channel;
+type ThemeMode = 'light' | 'dark';
 
 type ReminderForm = {
   title: string;
@@ -52,6 +55,7 @@ type ReminderForm = {
 };
 
 const TOKEN_KEY = 'notifyhub.dashboard.token';
+const THEME_KEY = 'notifyhub.dashboard.theme';
 const CHANNELS: Channel[] = ['EMAIL', 'SMS', 'PUSH'];
 const REMINDER_STATUSES: ReminderStatus[] = ['SCHEDULED', 'TRIGGERED', 'CANCELLED'];
 const DELIVERY_STATUSES: DeliveryStatus[] = ['PENDING', 'SENT', 'FAILED', 'RETRYING'];
@@ -66,6 +70,7 @@ const emptyReminderForm = (): ReminderForm => ({
 
 export function App() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
+  const [theme, setTheme] = useState<ThemeMode>(() => initialTheme());
   const [user, setUser] = useState<UserSummary | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
@@ -85,6 +90,12 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
 
   const isAuthenticated = Boolean(token && user);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.setProperty('color-scheme', theme);
+    localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
 
   useEffect(() => {
     if (!token) {
@@ -294,6 +305,10 @@ export function App() {
     setForm(emptyReminderForm());
   }
 
+  function toggleTheme() {
+    setTheme((currentTheme) => currentTheme === 'dark' ? 'light' : 'dark');
+  }
+
   function selectedReminderFilters(): ReminderFilters {
     return {
       status: reminderStatusFilter === 'ALL' ? undefined : reminderStatusFilter,
@@ -312,14 +327,17 @@ export function App() {
     return (
       <main className="auth-page">
         <section className="auth-panel" aria-labelledby="auth-title">
-          <div className="brand-row">
-            <div className="brand-mark">
-              <Bell size={22} aria-hidden="true" />
+          <div className="auth-heading">
+            <div className="brand-row">
+              <div className="brand-mark">
+                <Bell size={22} aria-hidden="true" />
+              </div>
+              <div>
+                <h1 id="auth-title">NotifyHub</h1>
+                <p>Reminder operations dashboard</p>
+              </div>
             </div>
-            <div>
-              <h1 id="auth-title">NotifyHub</h1>
-              <p>Reminder operations dashboard</p>
-            </div>
+            <ThemeToggle theme={theme} onToggle={toggleTheme} />
           </div>
 
           <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
@@ -402,6 +420,7 @@ export function App() {
             <h1>Reminder delivery dashboard</h1>
           </div>
           <div className="top-actions">
+            <ThemeToggle theme={theme} onToggle={toggleTheme} />
             <button type="button" className="icon-action" onClick={() => refreshData()} disabled={refreshing} title="Refresh data">
               <RefreshCw className={refreshing ? 'spin' : ''} size={18} aria-hidden="true" />
               <span>Refresh</span>
@@ -679,6 +698,23 @@ function Metric({ label, value, icon, tone }: { label: string; value: number; ic
   );
 }
 
+function ThemeToggle({ theme, onToggle }: { theme: ThemeMode; onToggle: () => void }) {
+  const nextTheme = theme === 'dark' ? 'light' : 'dark';
+
+  return (
+    <button
+      type="button"
+      className="icon-action theme-toggle"
+      onClick={onToggle}
+      title={`Switch to ${nextTheme} theme`}
+      aria-label={`Switch to ${nextTheme} theme`}
+    >
+      {theme === 'dark' ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+      <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
+    </button>
+  );
+}
+
 function channelIcon(channel: Channel) {
   if (channel === 'EMAIL') {
     return <Mail size={16} aria-hidden="true" />;
@@ -726,6 +762,19 @@ function toDateTimeLocal(value: string) {
   const date = new Date(value);
   const offset = date.getTimezoneOffset() * 60 * 1000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
+function initialTheme(): ThemeMode {
+  const storedTheme = localStorage.getItem(THEME_KEY);
+  if (storedTheme === 'light' || storedTheme === 'dark') {
+    return storedTheme;
+  }
+
+  if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches) {
+    return 'dark';
+  }
+
+  return 'light';
 }
 
 function formatError(error: unknown) {

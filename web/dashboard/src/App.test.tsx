@@ -104,6 +104,19 @@ describe('App dashboard', () => {
     expect(within(remindersPanel()).getByText('Pay invoice')).toBeInTheDocument();
   });
 
+  it('toggles and persists the dark theme preference', async () => {
+    const actor = userEvent.setup();
+    render(<App />);
+
+    await actor.click(screen.getByRole('button', { name: /switch to dark theme/i }));
+
+    await waitFor(() => {
+      expect(document.documentElement.dataset.theme).toBe('dark');
+    });
+    expect(localStorage.getItem('notifyhub.dashboard.theme')).toBe('dark');
+    expect(screen.getByRole('button', { name: /switch to light theme/i })).toBeInTheDocument();
+  });
+
   it('creates reminders with trimmed form values and refreshes data', async () => {
     const actor = userEvent.setup();
     await renderAuthenticatedDashboard();
