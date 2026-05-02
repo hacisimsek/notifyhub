@@ -12,6 +12,12 @@ This guide describes the repeatable local demo path for the current MVP.
 
 ## Automated Demo Check
 
+Run the local non-destructive verification suite before environment-specific demos:
+
+```bash
+./scripts/final-verify.sh
+```
+
 Start the local stack:
 
 ```bash
