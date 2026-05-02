@@ -258,7 +258,7 @@ textarea {
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 14px;
 }
 
@@ -309,6 +309,16 @@ textarea {
   background: #fae8e5;
 }
 
+.metric-card.amber div {
+  color: #80612b;
+  background: #fff1d6;
+}
+
+.metric-card.slate div {
+  color: #334155;
+  background: #e8eef5;
+}
+
 .content-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
@@ -333,6 +343,16 @@ textarea {
   background: #f6f9f4;
   font-size: 0.84rem;
   overflow-wrap: anywhere;
+}
+
+.history-count {
+  border: 1px solid #dbe4d8;
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: #425147;
+  background: #f6f9f4;
+  font-size: 0.84rem;
+  font-weight: 800;
 }
 
 .reminder-form {
@@ -477,6 +497,53 @@ td span {
   margin-top: 18px;
 }
 
+.notification-toolbar {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 12px;
+  border: 1px solid #e0e8dd;
+  border-radius: 8px;
+  background: #fbfdf9;
+}
+
+.filter-group {
+  display: grid;
+  gap: 8px;
+}
+
+.filter-group > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #37463d;
+  font-size: 0.84rem;
+  font-weight: 850;
+}
+
+.filter-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.filter-buttons button {
+  min-height: 32px;
+  border: 1px solid #d5dfd3;
+  border-radius: 8px;
+  color: #425147;
+  background: #ffffff;
+  padding: 0 10px;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.filter-buttons button.active {
+  color: #ffffff;
+  border-color: #236a4b;
+  background: #236a4b;
+}
+
 .notification-item {
   display: grid;
   grid-template-columns: 38px minmax(0, 1fr);
@@ -571,6 +638,11 @@ td span {
   .metric-grid,
   .form-row {
     grid-template-columns: 1fr;
+  }
+
+  .filter-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .panel-heading,
