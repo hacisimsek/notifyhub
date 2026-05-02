@@ -53,13 +53,41 @@ wait_for_gateway() {
   done
 }
 
+request_with_retry() {
+  local label="$1"
+  shift
+  local elapsed=0
+  local error_file
+  error_file="$(mktemp)"
+  local output
+
+  while (( elapsed < TIMEOUT_SECONDS )); do
+    if output="$("$@" 2>"${error_file}")"; then
+      rm -f "${error_file}"
+      printf '%s' "${output}"
+      return 0
+    fi
+
+    sleep 3
+    elapsed=$((elapsed + 3))
+  done
+
+  echo "${label} did not succeed within ${TIMEOUT_SECONDS}s" >&2
+  if [[ -s "${error_file}" ]]; then
+    cat "${error_file}" >&2
+  fi
+  rm -f "${error_file}"
+  exit 1
+}
+
 require_command curl
 require_command node
 
 wait_for_gateway
 
 register_response="$(
-  curl --fail --silent --show-error \
+  request_with_retry "User registration" \
+    curl --fail --silent --show-error \
     -X POST "${BASE_URL}/api/auth/register" \
     -H "Content-Type: application/json" \
     --data "{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\"}"
@@ -69,7 +97,8 @@ access_token="$(printf '%s' "${register_response}" | json_value "accessToken")"
 user_id="$(printf '%s' "${register_response}" | json_value "user.id")"
 
 me_response="$(
-  curl --fail --silent --show-error \
+  request_with_retry "Authenticated user lookup" \
+    curl --fail --silent --show-error \
     "${BASE_URL}/api/auth/me" \
     -H "Authorization: Bearer ${access_token}"
 )"
@@ -82,7 +111,8 @@ fi
 
 scheduled_for="$(node -e 'console.log(new Date(Date.now() + 15000).toISOString())')"
 reminder_response="$(
-  curl --fail --silent --show-error \
+  request_with_retry "Reminder creation" \
+    curl --fail --silent --show-error \
     -X POST "${BASE_URL}/api/reminders" \
     -H "Authorization: Bearer ${access_token}" \
     -H "Content-Type: application/json" \
@@ -90,9 +120,10 @@ reminder_response="$(
 )"
 reminder_id="$(printf '%s' "${reminder_response}" | json_value "id")"
 
-curl --fail --silent --show-error \
-  "${BASE_URL}/api/reminders" \
-  -H "Authorization: Bearer ${access_token}" \
+request_with_retry "Reminder list" \
+  curl --fail --silent --show-error \
+    "${BASE_URL}/api/reminders" \
+    -H "Authorization: Bearer ${access_token}" \
   | node -e '
 const fs = require("fs");
 const reminderId = process.argv[1];
@@ -105,15 +136,16 @@ if (!reminders.some((reminder) => reminder.id === reminderId)) {
 elapsed=0
 notification_status=""
 while (( elapsed < TIMEOUT_SECONDS )); do
-  notifications="$(
+  if notifications="$(
     curl --fail --silent --show-error \
       "${BASE_URL}/api/notifications" \
       -H "Authorization: Bearer ${access_token}"
-  )"
-  notification_status="$(printf '%s' "${notifications}" | find_notification_status "${reminder_id}" 2>/dev/null || true)"
-  if [[ "${notification_status}" == "SENT" ]]; then
-    echo "Gateway e2e smoke passed for ${EMAIL}"
-    exit 0
+  )"; then
+    notification_status="$(printf '%s' "${notifications}" | find_notification_status "${reminder_id}" 2>/dev/null || true)"
+    if [[ "${notification_status}" == "SENT" ]]; then
+      echo "Gateway e2e smoke passed for ${EMAIL}"
+      exit 0
+    fi
   fi
 
   sleep 3
