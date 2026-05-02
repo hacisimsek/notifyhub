@@ -48,7 +48,7 @@ services:
       retries: 10
 
   kafka:
-    image: bitnami/kafka:3.7
+    image: bitnamilegacy/kafka:3.7
     environment:
       ALLOW_PLAINTEXT_LISTENER: "yes"
       KAFKA_CFG_NODE_ID: 1
