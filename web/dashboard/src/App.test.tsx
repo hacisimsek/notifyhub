@@ -150,7 +150,7 @@ describe('App dashboard', () => {
 
     expect(window.location.hash).toBe('#history');
     expect(screen.getByRole('heading', { name: 'Notification history' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Notifications' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'History' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Reminders' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /history/i })).toHaveAttribute('aria-current', 'page');
 
@@ -159,7 +159,7 @@ describe('App dashboard', () => {
     expect(window.location.hash).toBe('#reminders');
     expect(screen.getByRole('heading', { name: 'Reminder delivery dashboard' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Reminders' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Notifications' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'History' })).not.toBeInTheDocument();
   });
 
   it('requests filtered reminder and notification views from the gateway API', async () => {

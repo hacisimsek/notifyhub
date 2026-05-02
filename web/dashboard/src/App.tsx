@@ -468,6 +468,7 @@ export function App() {
             <h1>{heading.title}</h1>
           </div>
           <div className="top-actions">
+            <span className="account-chip">{authenticatedUser.email}</span>
             <ThemeToggle theme={theme} onToggle={toggleTheme} />
             <button type="button" className="icon-action" onClick={() => refreshData()} disabled={refreshing} title="Refresh data">
               <RefreshCw className={refreshing ? 'spin' : ''} size={18} aria-hidden="true" />
@@ -501,7 +502,6 @@ export function App() {
               </div>
               <div className="heading-actions">
                 <span className="history-count">{visibleReminders.length} / {reminders.length}</span>
-                <span className="user-pill">{authenticatedUser.email}</span>
               </div>
             </div>
 
@@ -669,7 +669,7 @@ export function App() {
             <div className="panel-heading">
               <div>
                 <p className="eyebrow">Delivery log</p>
-                <h2 id="notifications-title">Notifications</h2>
+                <h2 id="notifications-title">History</h2>
               </div>
               <span className="history-count">{visibleNotifications.length} / {notifications.length}</span>
             </div>
@@ -743,9 +743,11 @@ export function App() {
 function Metric({ label, value, icon, tone }: { label: string; value: number; icon: React.ReactNode; tone: string }) {
   return (
     <article className={`metric-card ${tone}`}>
-      <div>{icon}</div>
-      <span>{label}</span>
-      <strong>{value}</strong>
+      <div className="metric-icon">{icon}</div>
+      <div className="metric-copy">
+        <span>{label}</span>
+        <strong>{value}</strong>
+      </div>
     </article>
   );
 }
