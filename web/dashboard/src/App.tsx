@@ -35,7 +35,7 @@ import {
   register,
   updateReminder
 } from './api';
-import type { DeliveryStatus } from './api';
+import type { DeliveryStatus, NotificationFilters } from './api';
 
 type AuthMode = 'login' | 'register';
 type NotificationStatusFilter = 'ALL' | DeliveryStatus;
@@ -69,6 +69,7 @@ export function App() {
   const [password, setPassword] = useState('');
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [notifications, setNotifications] = useState<NotificationLog[]>([]);
+  const [visibleNotifications, setVisibleNotifications] = useState<NotificationLog[]>([]);
   const [form, setForm] = useState<ReminderForm>(() => emptyReminderForm());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [notificationStatusFilter, setNotificationStatusFilter] = useState<NotificationStatusFilter>('ALL');
@@ -96,6 +97,14 @@ export function App() {
       });
   }, [token]);
 
+  useEffect(() => {
+    if (!token || !user) {
+      return;
+    }
+
+    refreshVisibleNotifications(token);
+  }, [notificationChannelFilter, notificationStatusFilter]);
+
   const metrics = useMemo(() => {
     const scheduled = reminders.filter((reminder) => reminder.status === 'SCHEDULED').length;
     const triggered = reminders.filter((reminder) => reminder.status === 'TRIGGERED').length;
@@ -107,12 +116,6 @@ export function App() {
     return { scheduled, triggered, sent, failed, retrying, totalAttempts };
   }, [reminders, notifications]);
 
-  const filteredNotifications = useMemo(() => notifications.filter((notification) => {
-    const matchesStatus = notificationStatusFilter === 'ALL' || notification.status === notificationStatusFilter;
-    const matchesChannel = notificationChannelFilter === 'ALL' || notification.channel === notificationChannelFilter;
-    return matchesStatus && matchesChannel;
-  }), [notifications, notificationChannelFilter, notificationStatusFilter]);
-
   async function refreshData(authToken = token) {
     if (!authToken) {
       return;
@@ -121,12 +124,36 @@ export function App() {
     setRefreshing(true);
     setError(null);
     try {
-      const [nextReminders, nextNotifications] = await Promise.all([
+      const filters = selectedNotificationFilters();
+      const allNotificationsRequest = listNotifications(authToken);
+      const visibleNotificationsRequest = hasNotificationFilters(filters)
+        ? listNotifications(authToken, filters)
+        : allNotificationsRequest;
+      const [nextReminders, nextNotifications, nextVisibleNotifications] = await Promise.all([
         listReminders(authToken),
-        listNotifications(authToken)
+        allNotificationsRequest,
+        visibleNotificationsRequest
       ]);
       setReminders(nextReminders);
       setNotifications(nextNotifications);
+      setVisibleNotifications(nextVisibleNotifications);
+    } catch (err) {
+      setError(formatError(err));
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  async function refreshVisibleNotifications(authToken = token) {
+    if (!authToken) {
+      return;
+    }
+
+    setRefreshing(true);
+    setError(null);
+    try {
+      const nextNotifications = await listNotifications(authToken, selectedNotificationFilters());
+      setVisibleNotifications(nextNotifications);
     } catch (err) {
       setError(formatError(err));
     } finally {
@@ -223,8 +250,16 @@ export function App() {
     setUser(null);
     setReminders([]);
     setNotifications([]);
+    setVisibleNotifications([]);
     setEditingId(null);
     setForm(emptyReminderForm());
+  }
+
+  function selectedNotificationFilters(): NotificationFilters {
+    return {
+      status: notificationStatusFilter === 'ALL' ? undefined : notificationStatusFilter,
+      channel: notificationChannelFilter === 'ALL' ? undefined : notificationChannelFilter
+    };
   }
 
   if (!isAuthenticated) {
@@ -479,7 +514,7 @@ export function App() {
                 <p className="eyebrow">Delivery log</p>
                 <h2 id="notifications-title">Notifications</h2>
               </div>
-              <span className="history-count">{filteredNotifications.length} / {notifications.length}</span>
+              <span className="history-count">{visibleNotifications.length} / {notifications.length}</span>
             </div>
 
             <div className="notification-toolbar" aria-label="Notification filters">
@@ -516,7 +551,7 @@ export function App() {
             </div>
 
             <div className="notification-list">
-              {filteredNotifications.map((notification) => (
+              {visibleNotifications.map((notification) => (
                 <article className="notification-item" key={notification.id}>
                   <div className="notification-icon">{channelIcon(notification.channel)}</div>
                   <div>
@@ -536,7 +571,7 @@ export function App() {
                 </article>
               ))}
               {notifications.length === 0 ? <div className="empty-state">No delivery history yet.</div> : null}
-              {notifications.length > 0 && filteredNotifications.length === 0 ? (
+              {notifications.length > 0 && visibleNotifications.length === 0 ? (
                 <div className="empty-state">No notifications match the selected filters.</div>
               ) : null}
             </div>
@@ -583,6 +618,10 @@ function recipientPlaceholder(channel: Channel) {
     return '+905551112233';
   }
   return 'push-target-id';
+}
+
+function hasNotificationFilters(filters: NotificationFilters) {
+  return Boolean(filters.status || filters.channel);
 }
 
 function formatDate(value: string) {

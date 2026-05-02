@@ -98,6 +98,35 @@ class NotificationControllerIntegrationTests {
     }
 
     @Test
+    void listNotificationsCanFilterByStatusAndChannel() throws Exception {
+        mockMvc.perform(post("/internal/notifications")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(notificationRequest("invoice-due-email")))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/internal/notifications")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(notificationRequestForChannel("SMS", "+905551112233", "invoice-due-sms")))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/notifications")
+                        .param("status", "SENT")
+                        .param("channel", "SMS")
+                        .header("X-User-Id", USER_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].channel", equalTo("SMS")))
+                .andExpect(jsonPath("$[0].status", equalTo("SENT")))
+                .andExpect(jsonPath("$[0].recipient", equalTo("+905551112233")));
+
+        mockMvc.perform(get("/api/notifications")
+                        .param("status", "FAILED")
+                        .header("X-User-Id", USER_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
     void idempotencyKeyReturnsExistingNotification() throws Exception {
         String idempotencyKey = "invoice-due-idempotent";
 
@@ -121,6 +150,20 @@ class NotificationControllerIntegrationTests {
 
     private String notificationRequest(String idempotencyKey) {
         return notificationRequestForUser(USER_ID, idempotencyKey);
+    }
+
+    private String notificationRequestForChannel(String channel, String recipient, String idempotencyKey) {
+        return """
+                {
+                  "userId": "%s",
+                  "reminderId": "%s",
+                  "channel": "%s",
+                  "recipient": "%s",
+                  "subject": "Invoice due",
+                  "message": "Invoice is due tomorrow",
+                  "idempotencyKey": "%s"
+                }
+                """.formatted(USER_ID, REMINDER_ID, channel, recipient, idempotencyKey);
     }
 
     private String notificationRequestForUser(UUID userId, String idempotencyKey) {
