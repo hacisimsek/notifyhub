@@ -4,6 +4,8 @@ import {
   CalendarClock,
   CheckCircle2,
   Clock3,
+  Code2,
+  Cpu,
   Edit3,
   Filter,
   History,
@@ -18,6 +20,7 @@ import {
   ShieldCheck,
   Smartphone,
   Sun,
+  Terminal,
   Trash2,
   XCircle
 } from 'lucide-react';
@@ -437,6 +440,10 @@ export function App() {
           </div>
           <span>NotifyHub</span>
         </div>
+        <div className="nav-console" aria-hidden="true">
+          <span>$ notifyhub</span>
+          <strong>watch --live</strong>
+        </div>
         <nav>
           <a
             href={DASHBOARD_ROUTES.reminders}
@@ -478,6 +485,23 @@ export function App() {
               <LogOut size={18} aria-hidden="true" />
               <span>Sign out</span>
             </button>
+          </div>
+          <div className="system-strip" aria-label="Runtime signals">
+            <span className="system-pill">
+              <Terminal size={15} aria-hidden="true" />
+              <code>gateway:8080</code>
+              <span className="pulse-dot" />
+            </span>
+            <span className="system-pill">
+              <Cpu size={15} aria-hidden="true" />
+              <code>scheduler:armed</code>
+              <span className="pulse-dot" />
+            </span>
+            <span className="system-pill">
+              <Code2 size={15} aria-hidden="true" />
+              <code>events:streaming</code>
+              <span className="pulse-dot" />
+            </span>
           </div>
         </header>
 
@@ -748,6 +772,12 @@ function Metric({ label, value, icon, tone }: { label: string; value: number; ic
         <span>{label}</span>
         <strong>{value}</strong>
       </div>
+      <span className="metric-spark" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+        <i />
+      </span>
     </article>
   );
 }
