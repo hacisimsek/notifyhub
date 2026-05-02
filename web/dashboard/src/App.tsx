@@ -49,6 +49,24 @@ type NotificationStatusFilter = 'ALL' | DeliveryStatus;
 type NotificationChannelFilter = 'ALL' | Channel;
 type ThemeMode = 'light' | 'dark';
 type DashboardView = 'reminders' | 'history';
+type InspectorTarget = { kind: 'reminder'; item: Reminder } | { kind: 'notification'; item: NotificationLog };
+type CommandItem = {
+  id: string;
+  title: string;
+  hint: string;
+  group: string;
+  shortcut?: string;
+  run: () => void | Promise<void>;
+};
+type EventStreamEntry = {
+  id: string;
+  time: string;
+  command: string;
+  detail: string;
+  tone: string;
+  target?: InspectorTarget;
+};
+type PipelineStageState = 'done' | 'active' | 'queued' | 'error';
 
 type ReminderForm = {
   title: string;
@@ -94,6 +112,9 @@ export function App() {
   const [reminderChannelFilter, setReminderChannelFilter] = useState<ReminderChannelFilter>('ALL');
   const [notificationStatusFilter, setNotificationStatusFilter] = useState<NotificationStatusFilter>('ALL');
   const [notificationChannelFilter, setNotificationChannelFilter] = useState<NotificationChannelFilter>('ALL');
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState('');
+  const [inspectorTarget, setInspectorTarget] = useState<InspectorTarget | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -117,6 +138,26 @@ export function App() {
       window.removeEventListener('popstate', syncRoute);
     };
   }, []);
+
+  useEffect(() => {
+    function handleShortcut(event: KeyboardEvent) {
+      const key = event.key.toLowerCase();
+
+      if (isAuthenticated && (event.metaKey || event.ctrlKey) && key === 'k') {
+        event.preventDefault();
+        setCommandPaletteOpen(true);
+      }
+
+      if (event.key === 'Escape') {
+        setCommandPaletteOpen(false);
+        setInspectorTarget(null);
+      }
+    }
+
+    window.addEventListener('keydown', handleShortcut);
+
+    return () => window.removeEventListener('keydown', handleShortcut);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!token) {
@@ -161,6 +202,103 @@ export function App() {
 
     return { scheduled, triggered, sent, failed, retrying, totalAttempts };
   }, [reminders, notifications]);
+
+  const eventStream = useMemo(() => buildEventStream(reminders, notifications), [reminders, notifications]);
+
+  const commandItems = useMemo<CommandItem[]>(() => [
+    {
+      id: 'open-reminders',
+      title: 'Open reminders',
+      hint: 'Jump to the create and schedule workflow',
+      group: 'Navigation',
+      shortcut: 'G R',
+      run: () => openDashboardView('reminders')
+    },
+    {
+      id: 'open-history',
+      title: 'Open history',
+      hint: 'Inspect delivery events and notification attempts',
+      group: 'Navigation',
+      shortcut: 'G H',
+      run: () => openDashboardView('history')
+    },
+    {
+      id: 'focus-create',
+      title: 'Create reminder',
+      hint: 'Open the reminder form and focus the title field',
+      group: 'Workflow',
+      shortcut: 'N',
+      run: () => {
+        openDashboardView('reminders');
+        window.setTimeout(() => document.getElementById('reminder-title-input')?.focus(), 0);
+      }
+    },
+    {
+      id: 'refresh-data',
+      title: 'Refresh data',
+      hint: 'Pull latest reminders and delivery events',
+      group: 'Runtime',
+      shortcut: 'R',
+      run: () => refreshData()
+    },
+    {
+      id: 'failed-deliveries',
+      title: 'Filter failed deliveries',
+      hint: 'Switch to history and isolate failed notifications',
+      group: 'Debug',
+      shortcut: 'F',
+      run: () => {
+        openDashboardView('history');
+        setNotificationStatusFilter('FAILED');
+      }
+    },
+    {
+      id: 'email-reminders',
+      title: 'Filter email reminders',
+      hint: 'Show EMAIL reminders in the scheduling table',
+      group: 'Debug',
+      shortcut: 'E',
+      run: () => {
+        openDashboardView('reminders');
+        setReminderChannelFilter('EMAIL');
+      }
+    },
+    {
+      id: 'inspect-latest',
+      title: 'Inspect latest event',
+      hint: notifications[0]?.subject ?? reminders[0]?.title ?? 'No payload available yet',
+      group: 'Inspector',
+      shortcut: 'I',
+      run: () => {
+        if (notifications[0]) {
+          setInspectorTarget({ kind: 'notification', item: notifications[0] });
+          return;
+        }
+        if (reminders[0]) {
+          setInspectorTarget({ kind: 'reminder', item: reminders[0] });
+        }
+      }
+    },
+    {
+      id: 'toggle-theme',
+      title: `Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`,
+      hint: 'Flip the dashboard color mode',
+      group: 'Preferences',
+      shortcut: 'T',
+      run: () => toggleTheme()
+    }
+  ], [notifications, reminders, theme]);
+
+  const filteredCommandItems = useMemo(() => {
+    const query = commandQuery.trim().toLowerCase();
+    if (!query) {
+      return commandItems;
+    }
+
+    return commandItems.filter((command) => {
+      return [command.title, command.hint, command.group].join(' ').toLowerCase().includes(query);
+    });
+  }, [commandItems, commandQuery]);
 
   async function refreshData(authToken = token) {
     if (!authToken) {
@@ -339,6 +477,12 @@ export function App() {
     }
   }
 
+  async function runCommand(command: CommandItem) {
+    await command.run();
+    setCommandPaletteOpen(false);
+    setCommandQuery('');
+  }
+
   function selectedReminderFilters(): ReminderFilters {
     return {
       status: reminderStatusFilter === 'ALL' ? undefined : reminderStatusFilter,
@@ -476,6 +620,11 @@ export function App() {
           </div>
           <div className="top-actions">
             <span className="account-chip">{authenticatedUser.email}</span>
+            <button type="button" className="icon-action command-trigger" onClick={() => setCommandPaletteOpen(true)} title="Open command palette">
+              <Terminal size={18} aria-hidden="true" />
+              <span>Command</span>
+              <kbd>⌘K</kbd>
+            </button>
             <ThemeToggle theme={theme} onToggle={toggleTheme} />
             <button type="button" className="icon-action" onClick={() => refreshData()} disabled={refreshing} title="Refresh data">
               <RefreshCw className={refreshing ? 'spin' : ''} size={18} aria-hidden="true" />
@@ -516,6 +665,11 @@ export function App() {
           <Metric label="Attempts" value={metrics.totalAttempts} icon={<Clock3 size={20} />} tone="slate" />
         </section>
 
+        <section className="developer-grid" aria-label="Developer cockpit">
+          <ServiceTopology metrics={metrics} />
+          <LiveEventConsole events={eventStream} onInspect={setInspectorTarget} />
+        </section>
+
         <section className="content-grid">
           {activeView === 'reminders' ? (
           <section className="panel" id="reminders" aria-labelledby="reminders-title">
@@ -534,6 +688,7 @@ export function App() {
                 <label>
                   Title
                   <input
+                    id="reminder-title-input"
                     value={form.title}
                     onChange={(event) => setForm({ ...form, title: event.target.value })}
                     maxLength={140}
@@ -648,6 +803,7 @@ export function App() {
                     <th>Title</th>
                     <th>Channel</th>
                     <th>Scheduled</th>
+                    <th>Pipeline</th>
                     <th>Status</th>
                     <th aria-label="Actions" />
                   </tr>
@@ -661,8 +817,12 @@ export function App() {
                       </td>
                       <td>{channelBadge(reminder.channel)}</td>
                       <td>{formatDate(reminder.scheduledFor)}</td>
+                      <td><PipelineTimeline status={reminder.status} /></td>
                       <td>{statusBadge(reminder.status)}</td>
                       <td className="row-actions">
+                        <button type="button" onClick={() => setInspectorTarget({ kind: 'reminder', item: reminder })} title="Inspect reminder payload">
+                          <Code2 size={16} aria-hidden="true" />
+                        </button>
                         <button type="button" onClick={() => startEditing(reminder)} title="Edit reminder">
                           <Edit3 size={16} aria-hidden="true" />
                         </button>
@@ -674,12 +834,12 @@ export function App() {
                   ))}
                   {reminders.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="empty-state">No reminders yet.</td>
+                      <td colSpan={6} className="empty-state">No reminders yet.</td>
                     </tr>
                   ) : null}
                   {reminders.length > 0 && visibleReminders.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="empty-state">No reminders match the selected filters.</td>
+                      <td colSpan={6} className="empty-state">No reminders match the selected filters.</td>
                     </tr>
                   ) : null}
                 </tbody>
@@ -740,6 +900,7 @@ export function App() {
                       <strong>{notification.subject}</strong>
                       {statusBadge(notification.status)}
                     </div>
+                    <PipelineTimeline deliveryStatus={notification.status} />
                     <p>{notification.message}</p>
                     <div className="notification-meta">
                       <span>
@@ -748,6 +909,9 @@ export function App() {
                       {notification.lastAttemptAt ? <span>Last attempt: {formatDate(notification.lastAttemptAt)}</span> : null}
                       {notification.failureReason ? <span>{notification.failureReason}</span> : null}
                     </div>
+                    <button type="button" className="inline-inspect" onClick={() => setInspectorTarget({ kind: 'notification', item: notification })}>
+                      Inspect payload
+                    </button>
                   </div>
                 </article>
               ))}
@@ -760,7 +924,203 @@ export function App() {
           ) : null}
         </section>
       </section>
+
+      {commandPaletteOpen ? (
+        <CommandPalette
+          query={commandQuery}
+          commands={filteredCommandItems}
+          onQueryChange={setCommandQuery}
+          onRun={runCommand}
+          onClose={() => {
+            setCommandPaletteOpen(false);
+            setCommandQuery('');
+          }}
+        />
+      ) : null}
+
+      {inspectorTarget ? (
+        <InspectorDrawer target={inspectorTarget} onClose={() => setInspectorTarget(null)} />
+      ) : null}
     </main>
+  );
+}
+
+function ServiceTopology({ metrics }: { metrics: { scheduled: number; triggered: number; sent: number; failed: number; retrying: number; totalAttempts: number } }) {
+  const services = [
+    { key: 'gateway', name: 'Gateway', detail: 'REST 8080', meta: `${metrics.totalAttempts} attempts` },
+    { key: 'auth', name: 'Auth', detail: 'JWT', meta: 'identity' },
+    { key: 'reminder', name: 'Reminder', detail: 'Scheduler', meta: `${metrics.scheduled} scheduled` },
+    { key: 'kafka', name: 'Kafka', detail: 'Event bus', meta: `${metrics.triggered} triggered` },
+    { key: 'notification', name: 'Notify', detail: 'Delivery', meta: `${metrics.sent} sent` },
+    { key: 'storage', name: 'Postgres', detail: 'State', meta: `${metrics.failed + metrics.retrying} watch` }
+  ];
+
+  return (
+    <section className="cockpit-card topology-card" aria-labelledby="topology-title">
+      <div className="cockpit-heading">
+        <div>
+          <p className="eyebrow">Runtime map</p>
+          <h2 id="topology-title">Service topology</h2>
+        </div>
+        <span className="live-chip"><span className="pulse-dot" />live</span>
+      </div>
+
+      <div className="topology-map">
+        <svg className="topology-lines" viewBox="0 0 640 300" role="img" aria-label="Service dependencies">
+          <path d="M92 82 C190 42 262 42 322 82" />
+          <path d="M322 82 C418 38 496 44 548 82" />
+          <path d="M322 82 C312 132 312 166 322 214" />
+          <path d="M92 218 C188 260 254 258 322 214" />
+          <path d="M322 214 C418 260 490 256 548 218" />
+          <path d="M548 82 C590 130 590 172 548 218" />
+        </svg>
+        {services.map((service) => (
+          <div className={`topology-node ${service.key}`} key={service.key}>
+            <span className="node-orbit" />
+            <strong>{service.name}</strong>
+            <code>{service.detail}</code>
+            <small>{service.meta}</small>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function LiveEventConsole({ events, onInspect }: { events: EventStreamEntry[]; onInspect: (target: InspectorTarget) => void }) {
+  return (
+    <section className="cockpit-card console-card" aria-labelledby="console-title">
+      <div className="cockpit-heading">
+        <div>
+          <p className="eyebrow">Event stream</p>
+          <h2 id="console-title">Live console</h2>
+        </div>
+        <span className="live-chip"><span className="pulse-dot" />tail -f</span>
+      </div>
+
+      <div className="console-window" role="log" aria-live="polite">
+        {events.map((event) => (
+          <button
+            type="button"
+            className={`console-line ${event.tone}`}
+            key={event.id}
+            onClick={() => event.target ? onInspect(event.target) : undefined}
+            disabled={!event.target}
+          >
+            <code>{formatConsoleTime(event.time)}</code>
+            <strong>{event.command}</strong>
+            <span>{event.detail}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CommandPalette({
+  query,
+  commands,
+  onQueryChange,
+  onRun,
+  onClose
+}: {
+  query: string;
+  commands: CommandItem[];
+  onQueryChange: (query: string) => void;
+  onRun: (command: CommandItem) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="command-backdrop"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <section className="command-palette" role="dialog" aria-modal="true" aria-labelledby="command-title">
+        <div className="command-input">
+          <Terminal size={18} aria-hidden="true" />
+          <input
+            autoFocus
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && commands[0]) {
+                event.preventDefault();
+                onRun(commands[0]);
+              }
+            }}
+            aria-label="Command palette"
+            placeholder="Type a command, route, filter, or payload..."
+          />
+          <kbd>Esc</kbd>
+        </div>
+        <h2 id="command-title">Command palette</h2>
+        <div className="command-list">
+          {commands.map((command) => (
+            <button type="button" className="command-item" key={command.id} onClick={() => onRun(command)}>
+              <span>
+                <strong>{command.title}</strong>
+                <small>{command.group} · {command.hint}</small>
+              </span>
+              {command.shortcut ? <kbd>{command.shortcut}</kbd> : null}
+            </button>
+          ))}
+          {commands.length === 0 ? <div className="empty-state">No command matched.</div> : null}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function InspectorDrawer({ target, onClose }: { target: InspectorTarget; onClose: () => void }) {
+  const title = target.kind === 'reminder' ? target.item.title : target.item.subject;
+  const payload = JSON.stringify(target.item, null, 2);
+
+  return (
+    <aside className="inspector-drawer" role="dialog" aria-modal="true" aria-labelledby="inspector-title">
+      <div className="inspector-heading">
+        <div>
+          <p className="eyebrow">{target.kind} payload</p>
+          <h2 id="inspector-title">{title}</h2>
+        </div>
+        <button type="button" className="row-actions-close" onClick={onClose} aria-label="Close inspector">
+          <XCircle size={18} aria-hidden="true" />
+        </button>
+      </div>
+      {target.kind === 'reminder' ? (
+        <PipelineTimeline status={target.item.status} variant="drawer" />
+      ) : (
+        <PipelineTimeline deliveryStatus={target.item.status} variant="drawer" />
+      )}
+      <pre>{payload}</pre>
+    </aside>
+  );
+}
+
+function PipelineTimeline({
+  status,
+  deliveryStatus,
+  variant
+}: {
+  status?: ReminderStatus;
+  deliveryStatus?: DeliveryStatus;
+  variant?: 'drawer';
+}) {
+  const stages = pipelineStages(status, deliveryStatus);
+
+  return (
+    <div className={`pipeline-timeline ${variant === 'drawer' ? 'drawer' : ''}`} aria-label="Delivery pipeline">
+      {stages.map((stage) => (
+        <span className={stage.state} key={stage.label}>
+          <i />
+          {stage.label}
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -872,6 +1232,94 @@ function currentDashboardView(): DashboardView {
   }
 
   return 'reminders';
+}
+
+function buildEventStream(reminders: Reminder[], notifications: NotificationLog[]): EventStreamEntry[] {
+  const reminderEvents: EventStreamEntry[] = reminders.map((reminder) => ({
+    id: `reminder-${reminder.id}`,
+    time: reminder.updatedAt,
+    command: `reminder.${reminder.status.toLowerCase()}`,
+    detail: `${reminder.title} -> ${reminder.channel.toLowerCase()} ${reminder.recipient}`,
+    tone: reminder.status.toLowerCase(),
+    target: { kind: 'reminder', item: reminder }
+  }));
+  const notificationEvents: EventStreamEntry[] = notifications.map((notification) => ({
+    id: `notification-${notification.id}`,
+    time: notification.updatedAt,
+    command: `notification.${notification.status.toLowerCase()}`,
+    detail: `${notification.subject} -> ${notification.recipient}`,
+    tone: notification.status.toLowerCase(),
+    target: { kind: 'notification', item: notification }
+  }));
+  const combined = [...reminderEvents, ...notificationEvents].sort((left, right) => {
+    return new Date(right.time).getTime() - new Date(left.time).getTime();
+  });
+
+  if (combined.length > 0) {
+    return combined.slice(0, 7);
+  }
+
+  return [
+    {
+      id: 'boot-gateway',
+      time: new Date().toISOString(),
+      command: 'gateway.ready',
+      detail: 'Waiting for authenticated payloads',
+      tone: 'sent'
+    },
+    {
+      id: 'boot-scheduler',
+      time: new Date().toISOString(),
+      command: 'scheduler.idle',
+      detail: 'No reminders in the queue',
+      tone: 'scheduled'
+    }
+  ];
+}
+
+function formatConsoleTime(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  }).format(new Date(value));
+}
+
+function pipelineStages(status?: ReminderStatus, deliveryStatus?: DeliveryStatus): { label: string; state: PipelineStageState }[] {
+  const labels = ['created', 'scheduled', 'queued', 'delivery'];
+  let activeIndex = 1;
+  let failed = false;
+
+  if (status === 'TRIGGERED') {
+    activeIndex = 2;
+  }
+  if (status === 'CANCELLED') {
+    activeIndex = 1;
+    failed = true;
+  }
+  if (deliveryStatus === 'PENDING' || deliveryStatus === 'RETRYING') {
+    activeIndex = 2;
+  }
+  if (deliveryStatus === 'SENT') {
+    activeIndex = 3;
+  }
+  if (deliveryStatus === 'FAILED') {
+    activeIndex = 3;
+    failed = true;
+  }
+
+  return labels.map((label, index) => {
+    if (failed && index === activeIndex) {
+      return { label: status === 'CANCELLED' ? 'cancelled' : 'failed', state: 'error' };
+    }
+    if (index < activeIndex) {
+      return { label, state: 'done' };
+    }
+    if (index === activeIndex) {
+      return { label, state: 'active' };
+    }
+    return { label, state: 'queued' };
+  });
 }
 
 function formatError(error: unknown) {

@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
@@ -143,6 +143,8 @@ describe('App dashboard', () => {
     const actor = userEvent.setup();
     await renderAuthenticatedDashboard();
 
+    expect(screen.getByRole('heading', { name: 'Service topology' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Live console' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Reminders' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Notifications' })).not.toBeInTheDocument();
 
@@ -160,6 +162,25 @@ describe('App dashboard', () => {
     expect(screen.getByRole('heading', { name: 'Reminder delivery dashboard' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Reminders' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'History' })).not.toBeInTheDocument();
+  });
+
+  it('supports command palette navigation and payload inspection', async () => {
+    const actor = userEvent.setup();
+    await renderAuthenticatedDashboard();
+
+    fireEvent.keyDown(window, { key: 'k', metaKey: true });
+    expect(screen.getByRole('dialog', { name: 'Command palette' })).toBeInTheDocument();
+
+    await actor.type(screen.getByRole('textbox', { name: 'Command palette' }), 'history');
+    await actor.click(screen.getByRole('button', { name: /open history/i }));
+
+    expect(window.location.hash).toBe('#history');
+    expect(screen.getByRole('heading', { name: 'Notification history' })).toBeInTheDocument();
+
+    await actor.click(screen.getAllByRole('button', { name: /inspect payload/i })[0]);
+
+    expect(screen.getByRole('dialog', { name: /pay invoice|send report/i })).toBeInTheDocument();
+    expect(screen.getByText(/"recipient"/i)).toBeInTheDocument();
   });
 
   it('requests filtered reminder and notification views from the gateway API', async () => {
