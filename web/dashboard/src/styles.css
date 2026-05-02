@@ -476,9 +476,9 @@ textarea {
 
 .workspace {
   min-width: 0;
-  padding: 28px;
+  padding: 22px;
   display: grid;
-  gap: 20px;
+  gap: 16px;
 }
 
 .top-bar,
@@ -497,7 +497,7 @@ textarea {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  padding: 18px;
+  padding: 16px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background:
@@ -531,7 +531,7 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
 .system-pill {
@@ -591,23 +591,23 @@ textarea {
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
 }
 
 .metric-card {
   position: relative;
   overflow: hidden;
-  min-height: 104px;
+  min-height: 88px;
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr);
+  grid-template-columns: 42px minmax(0, 1fr);
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background:
     linear-gradient(180deg, var(--surface) 0%, var(--surface-muted) 100%);
-  padding: 16px;
+  padding: 14px;
   box-shadow: 0 14px 30px var(--shadow-soft);
   animation: card-enter 520ms ease-out both;
 }
@@ -651,8 +651,8 @@ textarea {
 }
 
 .metric-icon {
-  width: 46px;
-  height: 46px;
+  width: 42px;
+  height: 42px;
   display: grid;
   place-items: center;
   border-radius: 8px;
@@ -744,8 +744,8 @@ textarea {
 
 .developer-grid {
   display: grid;
-  grid-template-columns: minmax(380px, 1.15fr) minmax(320px, 0.85fr);
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
   align-items: stretch;
 }
 
@@ -779,7 +779,7 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 18px 18px 0;
+  padding: 15px 16px 0;
 }
 
 .cockpit-heading h2 {
@@ -804,8 +804,8 @@ textarea {
 
 .topology-map {
   position: relative;
-  min-height: 310px;
-  margin: 8px 18px 18px;
+  min-height: 242px;
+  margin: 6px 16px 14px;
 }
 
 .topology-lines {
@@ -828,14 +828,14 @@ textarea {
 
 .topology-node {
   position: absolute;
-  width: 130px;
-  min-height: 82px;
+  width: 122px;
+  min-height: 70px;
   display: grid;
   place-items: center;
   gap: 4px;
   border: 1px solid var(--border-strong);
   border-radius: 8px;
-  padding: 10px;
+  padding: 8px;
   color: var(--color-text);
   background:
     linear-gradient(180deg, var(--surface-input) 0%, var(--surface-subtle) 100%);
@@ -848,37 +848,37 @@ textarea {
 }
 
 .topology-node.gateway {
-  left: 14%;
-  top: 25%;
+  left: 16%;
+  top: 28%;
 }
 
 .topology-node.auth {
   left: 50%;
-  top: 24%;
+  top: 27%;
   animation-delay: 180ms;
 }
 
 .topology-node.reminder {
-  left: 86%;
-  top: 25%;
+  left: 84%;
+  top: 28%;
   animation-delay: 360ms;
 }
 
 .topology-node.kafka {
   left: 50%;
-  top: 70%;
+  top: 72%;
   animation-delay: 540ms;
 }
 
 .topology-node.notification {
-  left: 86%;
-  top: 70%;
+  left: 84%;
+  top: 72%;
   animation-delay: 720ms;
 }
 
 .topology-node.storage {
-  left: 14%;
-  top: 70%;
+  left: 16%;
+  top: 72%;
   animation-delay: 900ms;
 }
 
@@ -909,11 +909,11 @@ textarea {
 
 .console-window {
   display: grid;
-  gap: 7px;
-  margin: 14px 18px 18px;
+  gap: 6px;
+  margin: 12px 16px 14px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 10px;
+  padding: 8px;
   background:
     linear-gradient(180deg, var(--surface-input) 0%, var(--surface-muted) 100%);
   box-shadow: inset 0 1px 0 var(--border-soft);
@@ -921,10 +921,10 @@ textarea {
 
 .console-line {
   width: 100%;
-  min-height: 36px;
+  min-height: 34px;
   display: grid;
-  grid-template-columns: 76px minmax(130px, 0.7fr) minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: 72px minmax(150px, 190px) minmax(0, 1fr);
+  gap: 8px;
   align-items: center;
   border: 1px solid transparent;
   border-radius: 8px;
@@ -972,7 +972,7 @@ textarea {
 .content-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 18px;
+  gap: 14px;
   align-items: start;
 }
 
@@ -984,7 +984,7 @@ textarea {
   border-radius: 8px;
   background:
     linear-gradient(180deg, var(--surface) 0%, var(--surface-muted) 100%);
-  padding: 22px;
+  padding: 18px;
   box-shadow: 0 18px 48px var(--shadow-soft);
   animation: panel-enter 440ms ease-out both;
 }
@@ -1025,8 +1025,8 @@ textarea {
 }
 
 .reminder-form {
-  margin-top: 20px;
-  padding: 18px;
+  margin-top: 14px;
+  padding: 14px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
@@ -1043,7 +1043,7 @@ textarea {
 
 .form-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.55fr);
   gap: 14px;
 }
 
@@ -1076,7 +1076,7 @@ textarea {
 
 .table-wrap {
   overflow-x: auto;
-  margin-top: 18px;
+  margin-top: 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
@@ -1090,7 +1090,7 @@ table {
 
 th,
 td {
-  padding: 14px 13px;
+  padding: 12px 13px;
   border-bottom: 1px solid var(--border-soft);
   text-align: left;
   vertical-align: middle;
@@ -1176,31 +1176,31 @@ td span {
 .pipeline-timeline {
   display: flex;
   align-items: center;
-  gap: 7px;
-  min-width: 230px;
+  gap: 5px;
+  min-width: 202px;
 }
 
 .pipeline-timeline span {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   color: var(--color-muted-soft);
-  font-size: 0.7rem;
+  font-size: 0.66rem;
   font-weight: 850;
   text-transform: uppercase;
 }
 
 .pipeline-timeline span:not(:last-child)::after {
-  width: 14px;
+  width: 10px;
   height: 1px;
   background: var(--border-strong);
   content: "";
 }
 
 .pipeline-timeline i {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   border: 1px solid var(--border-strong);
   border-radius: 999px;
   background: var(--surface-input);
@@ -1272,15 +1272,15 @@ td span {
 
 .notification-list {
   display: grid;
-  gap: 10px;
-  margin-top: 18px;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .notification-toolbar {
   display: grid;
-  gap: 12px;
-  margin-top: 18px;
-  padding: 14px;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
@@ -1289,7 +1289,7 @@ td span {
 
 .filter-group {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .filter-group > span {
@@ -1304,11 +1304,11 @@ td span {
 .filter-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
 }
 
 .filter-buttons button {
-  min-height: 32px;
+  min-height: 30px;
   border: 1px solid var(--border-strong);
   border-radius: 8px;
   color: var(--color-muted-strong);
@@ -1328,7 +1328,7 @@ td span {
   display: grid;
   grid-template-columns: 38px minmax(0, 1fr);
   gap: 12px;
-  padding: 14px;
+  padding: 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
