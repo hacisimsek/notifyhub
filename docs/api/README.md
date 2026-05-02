@@ -1,6 +1,8 @@
 # API Notes
 
-This directory holds example requests and service-specific API notes for the current MVP surface.
+This directory holds the OpenAPI reference, example requests and service-specific API notes for the current MVP surface.
+
+OpenAPI reference: [openapi.yaml](./openapi.yaml)
 
 External clients should call the Gateway Service on port `8080`. The service-specific notes below describe the exposed API shape; internally, the gateway forwards authenticated requests to backend services and propagates identity with `X-User-Id`, `X-User-Email`, and `X-User-Role`.
 
@@ -28,6 +30,10 @@ Gateway Service is the public entry point for browser and script clients. It for
 | `GET` | `/api/notifications` | Bearer token | Notification Service |
 
 Gateway health is available at `GET /actuator/health`.
+
+## Validation
+
+API documentation changes are checked by API Docs CI, which parses `docs/api/openapi.yaml` as YAML.
 
 ## Auth API
 
