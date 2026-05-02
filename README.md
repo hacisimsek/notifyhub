@@ -131,6 +131,12 @@ Local Minikube manifests live under `deploy/k8s`:
 kubectl apply -k deploy/k8s/base
 ```
 
+To build local images inside Minikube, apply the manifests, wait for rollouts and run the gateway smoke flow:
+
+```bash
+./scripts/k8s-local-verify.sh
+```
+
 ### Dashboard
 
 The dashboard app lives under `web/dashboard` and talks to the Gateway Service through `/api`:

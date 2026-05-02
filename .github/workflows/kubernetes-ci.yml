@@ -4,12 +4,16 @@ on:
   pull_request:
     paths:
       - "deploy/k8s/**"
+      - "scripts/k8s-local-verify.sh"
+      - "scripts/gateway-e2e-smoke.sh"
       - ".github/workflows/kubernetes-ci.yml"
   push:
     branches:
       - main
     paths:
       - "deploy/k8s/**"
+      - "scripts/k8s-local-verify.sh"
+      - "scripts/gateway-e2e-smoke.sh"
       - ".github/workflows/kubernetes-ci.yml"
 
 jobs:
@@ -23,6 +27,9 @@ jobs:
 
       - name: Parse manifest YAML
         run: ruby -e 'require "yaml"; ARGV.each { |file| YAML.load_stream(File.read(file)); puts file }' deploy/k8s/base/*.yaml
+
+      - name: Check Kubernetes scripts
+        run: bash -n scripts/k8s-local-verify.sh scripts/gateway-e2e-smoke.sh
 
       - name: Render kustomization
         run: kubectl kustomize deploy/k8s/base

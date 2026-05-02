@@ -45,6 +45,16 @@ For a clean local data reset before the check:
 RESET_STACK=true ./scripts/local-stack-e2e.sh
 ```
 
+## Kubernetes Demo Check
+
+With Minikube running, verify the Kubernetes path:
+
+```bash
+./scripts/k8s-local-verify.sh
+```
+
+This builds local images in Minikube, applies the manifests, waits for rollouts, port-forwards Gateway Service and runs the same gateway e2e smoke flow.
+
 ## Manual Dashboard Demo
 
 1. Open `http://localhost:3000`.
