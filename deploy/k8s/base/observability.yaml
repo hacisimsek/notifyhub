@@ -11,6 +11,9 @@ data:
       scrape_interval: 15s
       evaluation_interval: 15s
 
+    rule_files:
+      - /etc/prometheus/rules/*.yml
+
     scrape_configs:
       - job_name: prometheus
         static_configs:
@@ -40,6 +43,56 @@ data:
         static_configs:
           - targets:
               - notification-service:8083
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-alert-rules
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/part-of: notifyhub
+data:
+  notifyhub-alerts.yml: |
+    groups:
+      - name: notifyhub-service-health
+        rules:
+          - alert: NotifyHubServiceDown
+            expr: up{job=~"gateway-service|auth-service|reminder-service|notification-service"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "{{ $labels.job }} is down"
+              description: "Prometheus has not been able to scrape {{ $labels.job }} for at least 1 minute."
+
+          - alert: NotifyHubHighServerErrorRate
+            expr: sum by (job) (rate(http_server_requests_seconds_count{job=~"gateway-service|auth-service|reminder-service|notification-service", status=~"5.."}[5m])) > 0.1
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "{{ $labels.job }} has elevated 5xx responses"
+              description: "{{ $labels.job }} is returning more than 0.1 5xx responses per second over 5 minutes."
+
+      - name: notifyhub-notification-delivery
+        rules:
+          - alert: NotifyHubNotificationDeliveryFailures
+            expr: increase(notifyhub_notification_delivery_attempts_total{status="FAILED"}[10m]) > 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Notification delivery failures detected"
+              description: "At least one notification delivery attempt exhausted retries and failed in the last 10 minutes."
+
+          - alert: NotifyHubNotificationDeliveryRetries
+            expr: increase(notifyhub_notification_delivery_attempts_total{status="RETRYING"}[10m]) > 3
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Notification delivery retry volume is elevated"
+              description: "More than 3 notification delivery attempts entered retry state in the last 10 minutes."
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -74,10 +127,16 @@ spec:
               mountPath: /etc/prometheus/prometheus.yml
               subPath: prometheus.yml
               readOnly: true
+            - name: prometheus-alert-rules
+              mountPath: /etc/prometheus/rules
+              readOnly: true
       volumes:
         - name: prometheus-config
           configMap:
             name: prometheus-config
+        - name: prometheus-alert-rules
+          configMap:
+            name: prometheus-alert-rules
 ---
 apiVersion: v1
 kind: Service
