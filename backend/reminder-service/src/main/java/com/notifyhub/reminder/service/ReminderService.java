@@ -1,9 +1,11 @@
 package com.notifyhub.reminder.service;
 
+import com.notifyhub.common.notifications.NotificationChannel;
 import com.notifyhub.reminder.api.CreateReminderRequest;
 import com.notifyhub.reminder.api.ReminderResponse;
 import com.notifyhub.reminder.api.UpdateReminderRequest;
 import com.notifyhub.reminder.domain.Reminder;
+import com.notifyhub.reminder.domain.ReminderStatus;
 import com.notifyhub.reminder.repository.ReminderRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -37,7 +39,12 @@ public class ReminderService {
 
     @Transactional(readOnly = true)
     public List<ReminderResponse> list(UUID ownerId) {
-        return reminderRepository.findByOwnerIdOrderByScheduledForAsc(ownerId)
+        return list(ownerId, null, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReminderResponse> list(UUID ownerId, ReminderStatus status, NotificationChannel channel) {
+        return reminderRepository.findOwnerReminders(ownerId, status, channel)
                 .stream()
                 .map(ReminderResponse::from)
                 .toList();

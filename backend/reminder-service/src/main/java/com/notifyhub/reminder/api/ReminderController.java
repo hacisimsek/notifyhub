@@ -1,5 +1,7 @@
 package com.notifyhub.reminder.api;
 
+import com.notifyhub.common.notifications.NotificationChannel;
+import com.notifyhub.reminder.domain.ReminderStatus;
 import com.notifyhub.reminder.service.ReminderService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -37,8 +40,12 @@ class ReminderController {
     }
 
     @GetMapping
-    List<ReminderResponse> list(@RequestHeader("X-User-Id") UUID userId) {
-        return reminderService.list(userId);
+    List<ReminderResponse> list(
+            @RequestHeader("X-User-Id") UUID userId,
+            @RequestParam(required = false) ReminderStatus status,
+            @RequestParam(required = false) NotificationChannel channel
+    ) {
+        return reminderService.list(userId, status, channel);
     }
 
     @GetMapping("/{id}")

@@ -345,6 +345,15 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.heading-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
 .history-count {
   border: 1px solid #dbe4d8;
   border-radius: 999px;
@@ -646,6 +655,7 @@ td span {
   }
 
   .panel-heading,
+  .heading-actions,
   .form-actions,
   .notification-title {
     align-items: flex-start;

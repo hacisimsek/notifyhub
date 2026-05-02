@@ -35,9 +35,11 @@ import {
   register,
   updateReminder
 } from './api';
-import type { DeliveryStatus, NotificationFilters } from './api';
+import type { DeliveryStatus, NotificationFilters, ReminderFilters, ReminderStatus } from './api';
 
 type AuthMode = 'login' | 'register';
+type ReminderStatusFilter = 'ALL' | ReminderStatus;
+type ReminderChannelFilter = 'ALL' | Channel;
 type NotificationStatusFilter = 'ALL' | DeliveryStatus;
 type NotificationChannelFilter = 'ALL' | Channel;
 
@@ -51,6 +53,7 @@ type ReminderForm = {
 
 const TOKEN_KEY = 'notifyhub.dashboard.token';
 const CHANNELS: Channel[] = ['EMAIL', 'SMS', 'PUSH'];
+const REMINDER_STATUSES: ReminderStatus[] = ['SCHEDULED', 'TRIGGERED', 'CANCELLED'];
 const DELIVERY_STATUSES: DeliveryStatus[] = ['PENDING', 'SENT', 'FAILED', 'RETRYING'];
 
 const emptyReminderForm = (): ReminderForm => ({
@@ -68,10 +71,13 @@ export function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [visibleReminders, setVisibleReminders] = useState<Reminder[]>([]);
   const [notifications, setNotifications] = useState<NotificationLog[]>([]);
   const [visibleNotifications, setVisibleNotifications] = useState<NotificationLog[]>([]);
   const [form, setForm] = useState<ReminderForm>(() => emptyReminderForm());
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [reminderStatusFilter, setReminderStatusFilter] = useState<ReminderStatusFilter>('ALL');
+  const [reminderChannelFilter, setReminderChannelFilter] = useState<ReminderChannelFilter>('ALL');
   const [notificationStatusFilter, setNotificationStatusFilter] = useState<NotificationStatusFilter>('ALL');
   const [notificationChannelFilter, setNotificationChannelFilter] = useState<NotificationChannelFilter>('ALL');
   const [loading, setLoading] = useState(false);
@@ -102,6 +108,14 @@ export function App() {
       return;
     }
 
+    refreshVisibleReminders(token);
+  }, [reminderChannelFilter, reminderStatusFilter]);
+
+  useEffect(() => {
+    if (!token || !user) {
+      return;
+    }
+
     refreshVisibleNotifications(token);
   }, [notificationChannelFilter, notificationStatusFilter]);
 
@@ -124,19 +138,43 @@ export function App() {
     setRefreshing(true);
     setError(null);
     try {
-      const filters = selectedNotificationFilters();
+      const reminderFilters = selectedReminderFilters();
+      const notificationFilters = selectedNotificationFilters();
+      const allRemindersRequest = listReminders(authToken);
+      const visibleRemindersRequest = hasReminderFilters(reminderFilters)
+        ? listReminders(authToken, reminderFilters)
+        : allRemindersRequest;
       const allNotificationsRequest = listNotifications(authToken);
-      const visibleNotificationsRequest = hasNotificationFilters(filters)
-        ? listNotifications(authToken, filters)
+      const visibleNotificationsRequest = hasNotificationFilters(notificationFilters)
+        ? listNotifications(authToken, notificationFilters)
         : allNotificationsRequest;
-      const [nextReminders, nextNotifications, nextVisibleNotifications] = await Promise.all([
-        listReminders(authToken),
+      const [nextReminders, nextVisibleReminders, nextNotifications, nextVisibleNotifications] = await Promise.all([
+        allRemindersRequest,
+        visibleRemindersRequest,
         allNotificationsRequest,
         visibleNotificationsRequest
       ]);
       setReminders(nextReminders);
+      setVisibleReminders(nextVisibleReminders);
       setNotifications(nextNotifications);
       setVisibleNotifications(nextVisibleNotifications);
+    } catch (err) {
+      setError(formatError(err));
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  async function refreshVisibleReminders(authToken = token) {
+    if (!authToken) {
+      return;
+    }
+
+    setRefreshing(true);
+    setError(null);
+    try {
+      const nextReminders = await listReminders(authToken, selectedReminderFilters());
+      setVisibleReminders(nextReminders);
     } catch (err) {
       setError(formatError(err));
     } finally {
@@ -249,10 +287,18 @@ export function App() {
     setToken(null);
     setUser(null);
     setReminders([]);
+    setVisibleReminders([]);
     setNotifications([]);
     setVisibleNotifications([]);
     setEditingId(null);
     setForm(emptyReminderForm());
+  }
+
+  function selectedReminderFilters(): ReminderFilters {
+    return {
+      status: reminderStatusFilter === 'ALL' ? undefined : reminderStatusFilter,
+      channel: reminderChannelFilter === 'ALL' ? undefined : reminderChannelFilter
+    };
   }
 
   function selectedNotificationFilters(): NotificationFilters {
@@ -385,7 +431,10 @@ export function App() {
                 <p className="eyebrow">Create and manage</p>
                 <h2 id="reminders-title">Reminders</h2>
               </div>
-              <span className="user-pill">{authenticatedUser.email}</span>
+              <div className="heading-actions">
+                <span className="history-count">{visibleReminders.length} / {reminders.length}</span>
+                <span className="user-pill">{authenticatedUser.email}</span>
+              </div>
             </div>
 
             <form className="reminder-form" onSubmit={submitReminder}>
@@ -467,6 +516,39 @@ export function App() {
               </div>
             </form>
 
+            <div className="notification-toolbar" aria-label="Reminder filters">
+              <div className="filter-group">
+                <span><Filter size={15} aria-hidden="true" />Status</span>
+                <div className="filter-buttons">
+                  {(['ALL', ...REMINDER_STATUSES] as ReminderStatusFilter[]).map((status) => (
+                    <button
+                      type="button"
+                      key={status}
+                      className={reminderStatusFilter === status ? 'active' : ''}
+                      onClick={() => setReminderStatusFilter(status)}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="filter-group">
+                <span>{channelIcon('EMAIL')}Channel</span>
+                <div className="filter-buttons">
+                  {(['ALL', ...CHANNELS] as ReminderChannelFilter[]).map((channel) => (
+                    <button
+                      type="button"
+                      key={channel}
+                      className={reminderChannelFilter === channel ? 'active' : ''}
+                      onClick={() => setReminderChannelFilter(channel)}
+                    >
+                      {channel}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             <div className="table-wrap">
               <table>
                 <thead>
@@ -479,7 +561,7 @@ export function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {reminders.map((reminder) => (
+                  {visibleReminders.map((reminder) => (
                     <tr key={reminder.id}>
                       <td>
                         <strong>{reminder.title}</strong>
@@ -501,6 +583,11 @@ export function App() {
                   {reminders.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="empty-state">No reminders yet.</td>
+                    </tr>
+                  ) : null}
+                  {reminders.length > 0 && visibleReminders.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="empty-state">No reminders match the selected filters.</td>
                     </tr>
                   ) : null}
                 </tbody>
@@ -618,6 +705,10 @@ function recipientPlaceholder(channel: Channel) {
     return '+905551112233';
   }
   return 'push-target-id';
+}
+
+function hasReminderFilters(filters: ReminderFilters) {
+  return Boolean(filters.status || filters.channel);
 }
 
 function hasNotificationFilters(filters: NotificationFilters) {
