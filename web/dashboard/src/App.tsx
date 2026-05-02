@@ -3,7 +3,9 @@ import {
   Bell,
   CalendarClock,
   CheckCircle2,
+  Clock3,
   Edit3,
+  Filter,
   History,
   Loader2,
   LogOut,
@@ -33,8 +35,11 @@ import {
   register,
   updateReminder
 } from './api';
+import type { DeliveryStatus } from './api';
 
 type AuthMode = 'login' | 'register';
+type NotificationStatusFilter = 'ALL' | DeliveryStatus;
+type NotificationChannelFilter = 'ALL' | Channel;
 
 type ReminderForm = {
   title: string;
@@ -46,6 +51,7 @@ type ReminderForm = {
 
 const TOKEN_KEY = 'notifyhub.dashboard.token';
 const CHANNELS: Channel[] = ['EMAIL', 'SMS', 'PUSH'];
+const DELIVERY_STATUSES: DeliveryStatus[] = ['PENDING', 'SENT', 'FAILED', 'RETRYING'];
 
 const emptyReminderForm = (): ReminderForm => ({
   title: '',
@@ -65,6 +71,8 @@ export function App() {
   const [notifications, setNotifications] = useState<NotificationLog[]>([]);
   const [form, setForm] = useState<ReminderForm>(() => emptyReminderForm());
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [notificationStatusFilter, setNotificationStatusFilter] = useState<NotificationStatusFilter>('ALL');
+  const [notificationChannelFilter, setNotificationChannelFilter] = useState<NotificationChannelFilter>('ALL');
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -93,9 +101,17 @@ export function App() {
     const triggered = reminders.filter((reminder) => reminder.status === 'TRIGGERED').length;
     const sent = notifications.filter((notification) => notification.status === 'SENT').length;
     const failed = notifications.filter((notification) => notification.status === 'FAILED').length;
+    const retrying = notifications.filter((notification) => notification.status === 'RETRYING').length;
+    const totalAttempts = notifications.reduce((sum, notification) => sum + notification.attemptCount, 0);
 
-    return { scheduled, triggered, sent, failed };
+    return { scheduled, triggered, sent, failed, retrying, totalAttempts };
   }, [reminders, notifications]);
+
+  const filteredNotifications = useMemo(() => notifications.filter((notification) => {
+    const matchesStatus = notificationStatusFilter === 'ALL' || notification.status === notificationStatusFilter;
+    const matchesChannel = notificationChannelFilter === 'ALL' || notification.channel === notificationChannelFilter;
+    return matchesStatus && matchesChannel;
+  }), [notifications, notificationChannelFilter, notificationStatusFilter]);
 
   async function refreshData(authToken = token) {
     if (!authToken) {
@@ -323,6 +339,8 @@ export function App() {
           <Metric label="Triggered" value={metrics.triggered} icon={<Send size={20} />} tone="purple" />
           <Metric label="Sent" value={metrics.sent} icon={<CheckCircle2 size={20} />} tone="green" />
           <Metric label="Failed" value={metrics.failed} icon={<XCircle size={20} />} tone="red" />
+          <Metric label="Retrying" value={metrics.retrying} icon={<RefreshCw size={20} />} tone="amber" />
+          <Metric label="Attempts" value={metrics.totalAttempts} icon={<Clock3 size={20} />} tone="slate" />
         </section>
 
         <section className="content-grid">
@@ -461,10 +479,44 @@ export function App() {
                 <p className="eyebrow">Delivery log</p>
                 <h2 id="notifications-title">Notifications</h2>
               </div>
+              <span className="history-count">{filteredNotifications.length} / {notifications.length}</span>
+            </div>
+
+            <div className="notification-toolbar" aria-label="Notification filters">
+              <div className="filter-group">
+                <span><Filter size={15} aria-hidden="true" />Status</span>
+                <div className="filter-buttons">
+                  {(['ALL', ...DELIVERY_STATUSES] as NotificationStatusFilter[]).map((status) => (
+                    <button
+                      type="button"
+                      key={status}
+                      className={notificationStatusFilter === status ? 'active' : ''}
+                      onClick={() => setNotificationStatusFilter(status)}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="filter-group">
+                <span>{channelIcon('EMAIL')}Channel</span>
+                <div className="filter-buttons">
+                  {(['ALL', ...CHANNELS] as NotificationChannelFilter[]).map((channel) => (
+                    <button
+                      type="button"
+                      key={channel}
+                      className={notificationChannelFilter === channel ? 'active' : ''}
+                      onClick={() => setNotificationChannelFilter(channel)}
+                    >
+                      {channel}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className="notification-list">
-              {notifications.map((notification) => (
+              {filteredNotifications.map((notification) => (
                 <article className="notification-item" key={notification.id}>
                   <div className="notification-icon">{channelIcon(notification.channel)}</div>
                   <div>
@@ -477,12 +529,16 @@ export function App() {
                       <span>
                         {notification.recipient} · {formatDate(notification.createdAt)} · Attempts: {notification.attemptCount}
                       </span>
+                      {notification.lastAttemptAt ? <span>Last attempt: {formatDate(notification.lastAttemptAt)}</span> : null}
                       {notification.failureReason ? <span>{notification.failureReason}</span> : null}
                     </div>
                   </div>
                 </article>
               ))}
               {notifications.length === 0 ? <div className="empty-state">No delivery history yet.</div> : null}
+              {notifications.length > 0 && filteredNotifications.length === 0 ? (
+                <div className="empty-state">No notifications match the selected filters.</div>
+              ) : null}
             </div>
           </section>
         </section>
