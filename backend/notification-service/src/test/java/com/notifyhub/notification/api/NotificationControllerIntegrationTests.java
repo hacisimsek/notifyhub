@@ -2,6 +2,7 @@ package com.notifyhub.notification.api;
 
 import com.notifyhub.notification.repository.NotificationDeliveryAttemptRepository;
 import com.notifyhub.notification.repository.NotificationLogRepository;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +41,9 @@ class NotificationControllerIntegrationTests {
     @Autowired
     private NotificationLogRepository notificationLogRepository;
 
+    @Autowired
+    private MeterRegistry meterRegistry;
+
     @BeforeEach
     void cleanDatabase() {
         notificationDeliveryAttemptRepository.deleteAll();
@@ -48,6 +52,8 @@ class NotificationControllerIntegrationTests {
 
     @Test
     void createNotificationDispatchesWithMockSender() throws Exception {
+        double sentAttemptsBefore = deliveryAttemptCount("EMAIL", "SENT");
+
         mockMvc.perform(post("/internal/notifications")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(notificationRequest("invoice-due-1")))
@@ -67,6 +73,7 @@ class NotificationControllerIntegrationTests {
         assertThat(attempts).hasSize(1);
         assertThat(attempts.getFirst().getAttemptNumber()).isEqualTo(1);
         assertThat(attempts.getFirst().getStatus().name()).isEqualTo("SENT");
+        assertThat(deliveryAttemptCount("EMAIL", "SENT")).isEqualTo(sentAttemptsBefore + 1);
     }
 
     @Test
@@ -128,5 +135,13 @@ class NotificationControllerIntegrationTests {
                   "idempotencyKey": "%s"
                 }
                 """.formatted(userId, REMINDER_ID, idempotencyKey);
+    }
+
+    private double deliveryAttemptCount(String channel, String status) {
+        var counter = meterRegistry.find("notifyhub.notification.delivery.attempts")
+                .tag("channel", channel)
+                .tag("status", status)
+                .counter();
+        return counter == null ? 0 : counter.count();
     }
 }

@@ -31,3 +31,12 @@ Notification delivery uses RabbitMQ in the local Docker stack. The key queues ar
 
 The retry queue uses a TTL and dead-letters work back to the delivery exchange. When the configured attempt limit is reached, Notification Service marks the notification log as `FAILED` and publishes the work item to the DLQ.
 Every send attempt is recorded in `notification_delivery_attempts`; the parent notification log keeps `attempt_count` and `last_attempt_at` for quick history views.
+
+## Alert Response
+
+Prometheus loads alert rules from `observability/prometheus/rules`.
+
+- `NotifyHubServiceDown`: check the target service container or pod, then inspect `/actuator/health`.
+- `NotifyHubHighServerErrorRate`: inspect gateway and service logs for repeated 5xx responses.
+- `NotifyHubNotificationDeliveryFailures`: inspect `notification_delivery_attempts` for failed attempts and check RabbitMQ DLQ messages.
+- `NotifyHubNotificationDeliveryRetries`: inspect provider/mock sender failures and RabbitMQ retry queue health.

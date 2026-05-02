@@ -34,3 +34,19 @@ jobs:
 
       - name: List compose services
         run: docker compose --env-file deploy/docker/.env.example -f deploy/docker/compose.yml config --services
+
+      - name: Check Prometheus config
+        run: >
+          docker run --rm
+          --entrypoint promtool
+          -v "${{ github.workspace }}/observability/prometheus:/etc/prometheus:ro"
+          prom/prometheus:v2.54.1
+          check config /etc/prometheus/prometheus.yml
+
+      - name: Check Prometheus alert rules
+        run: >
+          docker run --rm
+          --entrypoint promtool
+          -v "${{ github.workspace }}/observability/prometheus:/etc/prometheus:ro"
+          prom/prometheus:v2.54.1
+          check rules /etc/prometheus/rules/notifyhub-alerts.yml
