@@ -54,6 +54,11 @@ export type NotificationLog = {
   sentAt: string | null;
 };
 
+export type NotificationFilters = {
+  status?: DeliveryStatus;
+  channel?: Channel;
+};
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
 type RequestOptions = {
@@ -137,6 +142,16 @@ export function deleteReminder(token: string, id: string): Promise<void> {
   });
 }
 
-export function listNotifications(token: string): Promise<NotificationLog[]> {
-  return request<NotificationLog[]>('/api/notifications', { token });
+export function listNotifications(token: string, filters: NotificationFilters = {}): Promise<NotificationLog[]> {
+  const params = new URLSearchParams();
+  if (filters.status) {
+    params.set('status', filters.status);
+  }
+  if (filters.channel) {
+    params.set('channel', filters.channel);
+  }
+
+  const queryString = params.toString();
+  const query = queryString ? `?${queryString}` : '';
+  return request<NotificationLog[]>(`/api/notifications${query}`, { token });
 }

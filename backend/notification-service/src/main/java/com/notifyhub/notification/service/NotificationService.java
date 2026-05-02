@@ -1,5 +1,7 @@
 package com.notifyhub.notification.service;
 
+import com.notifyhub.common.notifications.DeliveryStatus;
+import com.notifyhub.common.notifications.NotificationChannel;
 import com.notifyhub.notification.api.CreateNotificationRequest;
 import com.notifyhub.notification.api.NotificationResponse;
 import com.notifyhub.notification.delivery.NotificationDeliveryDispatcher;
@@ -40,7 +42,12 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public List<NotificationResponse> list(UUID userId) {
-        return notificationLogRepository.findByUserIdOrderByCreatedAtDesc(userId)
+        return list(userId, null, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<NotificationResponse> list(UUID userId, DeliveryStatus status, NotificationChannel channel) {
+        return notificationLogRepository.findUserHistory(userId, status, channel)
                 .stream()
                 .map(NotificationResponse::from)
                 .toList();

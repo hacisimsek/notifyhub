@@ -126,3 +126,14 @@ Returns notification logs ordered by creation time. Each item includes final sta
 - `attemptCount`
 - `lastAttemptAt`
 - `failureReason`
+
+Optional query filters:
+
+- `status`: `PENDING`, `SENT`, `FAILED` or `RETRYING`
+- `channel`: `EMAIL`, `SMS` or `PUSH`
+
+Example:
+
+```text
+GET /api/notifications?status=SENT&channel=EMAIL
+```
