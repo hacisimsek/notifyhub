@@ -75,6 +75,17 @@ Supported channels are `EMAIL`, `SMS` and `PUSH`. `recipient` is channel-specifi
 
 Returns reminders for the current owner ordered by scheduled time.
 
+Optional query filters:
+
+- `status`: `SCHEDULED`, `TRIGGERED` or `CANCELLED`
+- `channel`: `EMAIL`, `SMS` or `PUSH`
+
+Example:
+
+```text
+GET /api/reminders?status=SCHEDULED&channel=EMAIL
+```
+
 ### Update Reminder
 
 `PUT /api/reminders/{id}`

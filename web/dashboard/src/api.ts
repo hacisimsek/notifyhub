@@ -36,6 +36,11 @@ export type ReminderPayload = {
   recipient: string;
 };
 
+export type ReminderFilters = {
+  status?: ReminderStatus;
+  channel?: Channel;
+};
+
 export type NotificationLog = {
   id: string;
   userId: string;
@@ -115,8 +120,8 @@ export function currentUser(token: string): Promise<UserSummary> {
   return request<UserSummary>('/api/auth/me', { token });
 }
 
-export function listReminders(token: string): Promise<Reminder[]> {
-  return request<Reminder[]>('/api/reminders', { token });
+export function listReminders(token: string, filters: ReminderFilters = {}): Promise<Reminder[]> {
+  return request<Reminder[]>(`/api/reminders${queryString(filters)}`, { token });
 }
 
 export function createReminder(token: string, payload: ReminderPayload): Promise<Reminder> {
@@ -143,6 +148,10 @@ export function deleteReminder(token: string, id: string): Promise<void> {
 }
 
 export function listNotifications(token: string, filters: NotificationFilters = {}): Promise<NotificationLog[]> {
+  return request<NotificationLog[]>(`/api/notifications${queryString(filters)}`, { token });
+}
+
+function queryString(filters: ReminderFilters | NotificationFilters) {
   const params = new URLSearchParams();
   if (filters.status) {
     params.set('status', filters.status);
@@ -151,7 +160,6 @@ export function listNotifications(token: string, filters: NotificationFilters = 
     params.set('channel', filters.channel);
   }
 
-  const queryString = params.toString();
-  const query = queryString ? `?${queryString}` : '';
-  return request<NotificationLog[]>(`/api/notifications${query}`, { token });
+  const encoded = params.toString();
+  return encoded ? `?${encoded}` : '';
 }

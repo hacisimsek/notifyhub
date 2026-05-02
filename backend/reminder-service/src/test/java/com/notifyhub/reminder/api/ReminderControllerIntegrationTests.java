@@ -78,6 +78,35 @@ class ReminderControllerIntegrationTests {
     }
 
     @Test
+    void listRemindersCanFilterByStatusAndChannel() throws Exception {
+        String emailReminderId = createReminder(USER_ID, "Email reminder", "EMAIL", "user@example.com");
+        createReminder(USER_ID, "Sms reminder", "SMS", "+905551112233");
+        createReminder(OTHER_USER_ID, "Other user reminder", "SMS", "+905551112244");
+
+        var emailReminder = reminderRepository.findById(UUID.fromString(emailReminderId)).orElseThrow();
+        emailReminder.markTriggered();
+        reminderRepository.save(emailReminder);
+
+        mockMvc.perform(get("/api/reminders")
+                        .param("status", "SCHEDULED")
+                        .param("channel", "SMS")
+                        .header("X-User-Id", USER_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].title", equalTo("Sms reminder")))
+                .andExpect(jsonPath("$[0].channel", equalTo("SMS")))
+                .andExpect(jsonPath("$[0].status", equalTo("SCHEDULED")));
+
+        mockMvc.perform(get("/api/reminders")
+                        .param("status", "TRIGGERED")
+                        .header("X-User-Id", USER_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].title", equalTo("Email reminder")))
+                .andExpect(jsonPath("$[0].status", equalTo("TRIGGERED")));
+    }
+
+    @Test
     void updateReminderOwnedByUser() throws Exception {
         String id = createReminder(USER_ID, "Initial reminder");
         String scheduledFor = Instant.now().plus(3, ChronoUnit.DAYS).toString();
@@ -143,6 +172,10 @@ class ReminderControllerIntegrationTests {
     }
 
     private String createReminder(UUID userId, String title) throws Exception {
+        return createReminder(userId, title, "EMAIL", "user@example.com");
+    }
+
+    private String createReminder(UUID userId, String title, String channel, String recipient) throws Exception {
         String scheduledFor = Instant.now().plus(2, ChronoUnit.DAYS).toString();
         String response = mockMvc.perform(post("/api/reminders")
                         .header("X-User-Id", userId)
@@ -152,10 +185,10 @@ class ReminderControllerIntegrationTests {
                                   "title": "%s",
                                   "message": "Message",
                                   "scheduledFor": "%s",
-                                  "channel": "EMAIL",
-                                  "recipient": "user@example.com"
+                                  "channel": "%s",
+                                  "recipient": "%s"
                                 }
-                                """.formatted(title, scheduledFor)))
+                                """.formatted(title, scheduledFor, channel, recipient)))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
