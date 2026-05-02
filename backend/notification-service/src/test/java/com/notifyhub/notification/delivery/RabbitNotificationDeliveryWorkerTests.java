@@ -31,6 +31,9 @@ class RabbitNotificationDeliveryWorkerTests {
     private NotificationSender notificationSender;
 
     @Mock
+    private NotificationDeliveryAttemptRecorder attemptRecorder;
+
+    @Mock
     private RabbitNotificationDeliveryPublisher publisher;
 
     private RabbitNotificationDeliveryWorker worker;
@@ -42,6 +45,7 @@ class RabbitNotificationDeliveryWorkerTests {
         worker = new RabbitNotificationDeliveryWorker(
                 notificationLogRepository,
                 notificationSender,
+                attemptRecorder,
                 properties,
                 publisher
         );
@@ -57,6 +61,7 @@ class RabbitNotificationDeliveryWorkerTests {
 
         assertThat(notificationLog.getStatus()).isEqualTo(DeliveryStatus.SENT);
         assertThat(notificationLog.getSentAt()).isNotNull();
+        verify(attemptRecorder).record(notificationLog, 1, DeliveryStatus.SENT, null);
         verifyNoInteractions(publisher);
     }
 
@@ -70,6 +75,7 @@ class RabbitNotificationDeliveryWorkerTests {
 
         assertThat(notificationLog.getStatus()).isEqualTo(DeliveryStatus.RETRYING);
         assertThat(notificationLog.getFailureReason()).isEqualTo("smtp unavailable");
+        verify(attemptRecorder).record(notificationLog, 1, DeliveryStatus.RETRYING, "smtp unavailable");
         verify(publisher).publishRetry(new NotificationDeliveryWork(NOTIFICATION_ID, 2));
     }
 
@@ -84,6 +90,7 @@ class RabbitNotificationDeliveryWorkerTests {
 
         assertThat(notificationLog.getStatus()).isEqualTo(DeliveryStatus.FAILED);
         assertThat(notificationLog.getFailureReason()).isEqualTo("provider rejected");
+        verify(attemptRecorder).record(notificationLog, 3, DeliveryStatus.FAILED, "provider rejected");
         verify(publisher).publishDeadLetter(finalAttempt);
     }
 

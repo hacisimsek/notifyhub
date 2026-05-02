@@ -30,3 +30,4 @@ Notification delivery uses RabbitMQ in the local Docker stack. The key queues ar
 - `notifyhub.notifications.delivery.dlq`
 
 The retry queue uses a TTL and dead-letters work back to the delivery exchange. When the configured attempt limit is reached, Notification Service marks the notification log as `FAILED` and publishes the work item to the DLQ.
+Every send attempt is recorded in `notification_delivery_attempts`; the parent notification log keeps `attempt_count` and `last_attempt_at` for quick history views.

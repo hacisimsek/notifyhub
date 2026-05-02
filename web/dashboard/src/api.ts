@@ -47,7 +47,9 @@ export type NotificationLog = {
   status: DeliveryStatus;
   failureReason: string | null;
   idempotencyKey: string | null;
+  attemptCount: number;
   createdAt: string;
+  lastAttemptAt: string | null;
   updatedAt: string;
   sentAt: string | null;
 };

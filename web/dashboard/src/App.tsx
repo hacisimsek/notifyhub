@@ -473,7 +473,12 @@ export function App() {
                       {statusBadge(notification.status)}
                     </div>
                     <p>{notification.message}</p>
-                    <span>{notification.recipient} · {formatDate(notification.createdAt)}</span>
+                    <div className="notification-meta">
+                      <span>
+                        {notification.recipient} · {formatDate(notification.createdAt)} · Attempts: {notification.attemptCount}
+                      </span>
+                      {notification.failureReason ? <span>{notification.failureReason}</span> : null}
+                    </div>
                   </div>
                 </article>
               ))}
