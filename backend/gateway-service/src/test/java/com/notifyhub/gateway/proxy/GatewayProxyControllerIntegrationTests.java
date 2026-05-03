@@ -29,6 +29,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -97,6 +98,27 @@ class GatewayProxyControllerIntegrationTests {
                 .andExpect(content().string("proxied"));
 
         assertThat(proxyClient.targetUri).hasToString("http://auth-service.test/api/auth/password");
+        assertThat(proxyClient.request.headers().getFirst(HttpHeaders.AUTHORIZATION)).isEqualTo("Bearer " + token);
+    }
+
+    @Test
+    void profileUpdateRequestForwardsBearerTokenToAuthService() throws Exception {
+        String token = validToken();
+
+        mockMvc.perform(put("/api/auth/profile")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "firstName": "Haci",
+                                  "lastName": "Simsek",
+                                  "phoneNumber": "+905551112233"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(content().string("proxied"));
+
+        assertThat(proxyClient.targetUri).hasToString("http://auth-service.test/api/auth/profile");
         assertThat(proxyClient.request.headers().getFirst(HttpHeaders.AUTHORIZATION)).isEqualTo("Bearer " + token);
     }
 

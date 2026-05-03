@@ -4,6 +4,7 @@ import com.notifyhub.auth.api.AuthResponse;
 import com.notifyhub.auth.api.ChangePasswordRequest;
 import com.notifyhub.auth.api.LoginRequest;
 import com.notifyhub.auth.api.RegisterRequest;
+import com.notifyhub.auth.api.UpdateProfileRequest;
 import com.notifyhub.auth.domain.AuthUser;
 import com.notifyhub.auth.domain.UserRole;
 import com.notifyhub.auth.repository.AuthUserRepository;
@@ -45,7 +46,10 @@ public class AuthService {
         AuthUser user = userRepository.save(new AuthUser(
                 email,
                 passwordEncoder.encode(request.password()),
-                UserRole.USER
+                UserRole.USER,
+                request.firstName(),
+                request.lastName(),
+                request.phoneNumber()
         ));
         return issueToken(user);
     }
@@ -83,6 +87,15 @@ public class AuthService {
         }
 
         user.changePassword(passwordEncoder.encode(request.newPassword()));
+        return issueToken(user);
+    }
+
+    @Transactional
+    public AuthResponse updateProfile(UUID userId, UpdateProfileRequest request) {
+        AuthUser user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User no longer exists"));
+
+        user.updateProfile(request.firstName(), request.lastName(), request.phoneNumber());
         return issueToken(user);
     }
 

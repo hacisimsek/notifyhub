@@ -41,6 +41,7 @@ import {
   listReminders,
   login,
   register,
+  updateProfile,
   updateReminder
 } from './api';
 import type { DeliveryStatus, NotificationFilters, ReminderFilters, ReminderStatus } from './api';
@@ -75,6 +76,12 @@ type PasswordChangeForm = {
   newPassword: string;
   confirmPassword: string;
 };
+type RegistrationProfileForm = {
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+};
+type ProfileForm = RegistrationProfileForm;
 type FormStatus = {
   tone: 'error' | 'success';
   message: string;
@@ -114,6 +121,18 @@ const emptyPasswordChangeForm = (): PasswordChangeForm => ({
   confirmPassword: ''
 });
 
+const emptyRegistrationProfileForm = (): RegistrationProfileForm => ({
+  firstName: '',
+  lastName: '',
+  phoneNumber: ''
+});
+
+const profileFormFromUser = (user: UserSummary): ProfileForm => ({
+  firstName: user.firstName,
+  lastName: user.lastName,
+  phoneNumber: user.phoneNumber
+});
+
 export function App() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
   const [theme, setTheme] = useState<ThemeMode>(() => initialTheme());
@@ -122,6 +141,7 @@ export function App() {
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [registrationProfile, setRegistrationProfile] = useState<RegistrationProfileForm>(() => emptyRegistrationProfileForm());
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [visibleReminders, setVisibleReminders] = useState<Reminder[]>([]);
   const [notifications, setNotifications] = useState<NotificationLog[]>([]);
@@ -138,6 +158,9 @@ export function App() {
   const [passwordChangeForm, setPasswordChangeForm] = useState<PasswordChangeForm>(() => emptyPasswordChangeForm());
   const [passwordChangeStatus, setPasswordChangeStatus] = useState<FormStatus | null>(null);
   const [passwordSubmitting, setPasswordSubmitting] = useState(false);
+  const [profileForm, setProfileForm] = useState<ProfileForm>(() => emptyRegistrationProfileForm());
+  const [profileStatus, setProfileStatus] = useState<FormStatus | null>(null);
+  const [profileSubmitting, setProfileSubmitting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -198,6 +221,12 @@ export function App() {
         setUser(null);
       });
   }, [token]);
+
+  useEffect(() => {
+    if (user) {
+      setProfileForm(profileFormFromUser(user));
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!token || !user) {
@@ -427,11 +456,18 @@ export function App() {
     try {
       const response: AuthResponse = authMode === 'login'
         ? await login(email, password)
-        : await register(email, password);
+        : await register({
+          email,
+          password,
+          firstName: registrationProfile.firstName.trim(),
+          lastName: registrationProfile.lastName.trim(),
+          phoneNumber: registrationProfile.phoneNumber.trim()
+        });
       localStorage.setItem(TOKEN_KEY, response.accessToken);
       setToken(response.accessToken);
       setUser(response.user);
       setPassword('');
+      setRegistrationProfile(emptyRegistrationProfileForm());
       await refreshData(response.accessToken);
     } catch (err) {
       setError(formatError(err));
@@ -503,6 +539,33 @@ export function App() {
       setPasswordChangeStatus({ tone: 'error', message: formatError(err) });
     } finally {
       setPasswordSubmitting(false);
+    }
+  }
+
+  async function submitProfileUpdate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token) {
+      return;
+    }
+
+    setProfileSubmitting(true);
+    setProfileStatus(null);
+    setError(null);
+
+    try {
+      const response = await updateProfile(token, {
+        firstName: profileForm.firstName.trim(),
+        lastName: profileForm.lastName.trim(),
+        phoneNumber: profileForm.phoneNumber.trim()
+      });
+      localStorage.setItem(TOKEN_KEY, response.accessToken);
+      setToken(response.accessToken);
+      setUser(response.user);
+      setProfileStatus({ tone: 'success', message: 'Profile updated.' });
+    } catch (err) {
+      setProfileStatus({ tone: 'error', message: formatError(err) });
+    } finally {
+      setProfileSubmitting(false);
     }
   }
 
@@ -617,6 +680,34 @@ export function App() {
           </div>
 
           <form className="stack-form" onSubmit={submitAuth}>
+            {authMode === 'register' ? (
+              <div className="form-row">
+                <label>
+                  First name
+                  <input
+                    type="text"
+                    value={registrationProfile.firstName}
+                    onChange={(event) => setRegistrationProfile({ ...registrationProfile, firstName: event.target.value })}
+                    placeholder="Haci"
+                    autoComplete="given-name"
+                    maxLength={80}
+                    required
+                  />
+                </label>
+                <label>
+                  Last name
+                  <input
+                    type="text"
+                    value={registrationProfile.lastName}
+                    onChange={(event) => setRegistrationProfile({ ...registrationProfile, lastName: event.target.value })}
+                    placeholder="Simsek"
+                    autoComplete="family-name"
+                    maxLength={80}
+                    required
+                  />
+                </label>
+              </div>
+            ) : null}
             <label>
               Email
               <input
@@ -628,6 +719,20 @@ export function App() {
                 required
               />
             </label>
+            {authMode === 'register' ? (
+              <label>
+                Phone number
+                <input
+                  type="tel"
+                  value={registrationProfile.phoneNumber}
+                  onChange={(event) => setRegistrationProfile({ ...registrationProfile, phoneNumber: event.target.value })}
+                  placeholder="+90 555 111 2233"
+                  autoComplete="tel"
+                  maxLength={32}
+                  required
+                />
+              </label>
+            ) : null}
             <label>
               Password
               <input
@@ -636,7 +741,8 @@ export function App() {
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="secret123"
                 autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
-                minLength={6}
+                minLength={8}
+                maxLength={128}
                 required
               />
             </label>
@@ -1022,11 +1128,16 @@ export function App() {
           {activeView === 'profile' ? (
             <ProfileSettingsPage
               user={authenticatedUser}
-              form={passwordChangeForm}
-              status={passwordChangeStatus}
-              submitting={passwordSubmitting}
-              onChange={setPasswordChangeForm}
-              onSubmit={submitPasswordChange}
+              profileForm={profileForm}
+              profileStatus={profileStatus}
+              profileSubmitting={profileSubmitting}
+              onProfileChange={setProfileForm}
+              onProfileSubmit={submitProfileUpdate}
+              passwordForm={passwordChangeForm}
+              passwordStatus={passwordChangeStatus}
+              passwordSubmitting={passwordSubmitting}
+              onPasswordChange={setPasswordChangeForm}
+              onPasswordSubmit={submitPasswordChange}
             />
           ) : null}
         </section>
@@ -1210,19 +1321,31 @@ function InspectorDrawer({ target, onClose }: { target: InspectorTarget; onClose
 
 function ProfileSettingsPage({
   user,
-  form,
-  status,
-  submitting,
-  onChange,
-  onSubmit
+  profileForm,
+  profileStatus,
+  profileSubmitting,
+  onProfileChange,
+  onProfileSubmit,
+  passwordForm,
+  passwordStatus,
+  passwordSubmitting,
+  onPasswordChange,
+  onPasswordSubmit
 }: {
   user: UserSummary;
-  form: PasswordChangeForm;
-  status: FormStatus | null;
-  submitting: boolean;
-  onChange: (form: PasswordChangeForm) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  profileForm: ProfileForm;
+  profileStatus: FormStatus | null;
+  profileSubmitting: boolean;
+  onProfileChange: (form: ProfileForm) => void;
+  onProfileSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  passwordForm: PasswordChangeForm;
+  passwordStatus: FormStatus | null;
+  passwordSubmitting: boolean;
+  onPasswordChange: (form: PasswordChangeForm) => void;
+  onPasswordSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
+  const displayName = fullName(user);
+
   return (
     <section className="profile-grid" id="profile" aria-label="Profile settings">
       <section className="panel profile-card" aria-labelledby="profile-title">
@@ -1235,12 +1358,55 @@ function ProfileSettingsPage({
         </div>
 
         <div className="profile-identity">
-          <div className="profile-avatar" aria-hidden="true">{profileInitial(user.email)}</div>
+          <div className="profile-avatar" aria-hidden="true">{profileInitial(user)}</div>
           <div>
-            <strong>{user.email}</strong>
+            <strong>{displayName || user.email}</strong>
             <span>{user.role}</span>
           </div>
         </div>
+
+        <form className="profile-form" onSubmit={onProfileSubmit}>
+          <div className="form-row">
+            <label>
+              First name
+              <input
+                type="text"
+                value={profileForm.firstName}
+                onChange={(event) => onProfileChange({ ...profileForm, firstName: event.target.value })}
+                autoComplete="given-name"
+                maxLength={80}
+                required
+              />
+            </label>
+            <label>
+              Last name
+              <input
+                type="text"
+                value={profileForm.lastName}
+                onChange={(event) => onProfileChange({ ...profileForm, lastName: event.target.value })}
+                autoComplete="family-name"
+                maxLength={80}
+                required
+              />
+            </label>
+          </div>
+          <label>
+            Phone number
+            <input
+              type="tel"
+              value={profileForm.phoneNumber}
+              onChange={(event) => onProfileChange({ ...profileForm, phoneNumber: event.target.value })}
+              autoComplete="tel"
+              maxLength={32}
+              required
+            />
+          </label>
+          {profileStatus ? <p className={profileStatus.tone === 'success' ? 'form-success' : 'form-error'}>{profileStatus.message}</p> : null}
+          <button type="submit" className="primary-action" disabled={profileSubmitting}>
+            {profileSubmitting ? <Loader2 className="spin" size={18} aria-hidden="true" /> : <Save size={18} aria-hidden="true" />}
+            Save profile
+          </button>
+        </form>
 
         <dl className="profile-fields">
           <div>
@@ -1272,11 +1438,11 @@ function ProfileSettingsPage({
         </div>
 
         <PasswordChangeFormView
-          form={form}
-          status={status}
-          submitting={submitting}
-          onChange={onChange}
-          onSubmit={onSubmit}
+          form={passwordForm}
+          status={passwordStatus}
+          submitting={passwordSubmitting}
+          onChange={onPasswordChange}
+          onSubmit={onPasswordSubmit}
         />
       </section>
     </section>
@@ -1486,8 +1652,12 @@ function currentDashboardView(): DashboardView {
   return 'overview';
 }
 
-function profileInitial(email: string) {
-  return email.trim().charAt(0).toUpperCase() || 'U';
+function fullName(user: UserSummary) {
+  return [user.firstName, user.lastName].map((part) => part.trim()).filter(Boolean).join(' ');
+}
+
+function profileInitial(user: UserSummary) {
+  return (user.firstName || user.email).trim().charAt(0).toUpperCase() || 'U';
 }
 
 function buildEventStream(reminders: Reminder[], notifications: NotificationLog[]): EventStreamEntry[] {

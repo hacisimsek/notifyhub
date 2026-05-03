@@ -1468,6 +1468,12 @@ td span {
   font-weight: 850;
 }
 
+.profile-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
 .profile-fields {
   display: grid;
   gap: 8px;

@@ -30,11 +30,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AuthCredentials"
+              $ref: "#/components/schemas/RegisterRequest"
             examples:
               default:
                 value:
                   email: user@example.com
+                  firstName: Haci
+                  lastName: Simsek
+                  phoneNumber: "+905551112233"
                   password: secret123
       responses:
         "201":
@@ -106,6 +109,35 @@ paths:
       responses:
         "200":
           description: Password changed and bearer token issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/auth/profile:
+    put:
+      tags:
+        - Auth
+      summary: Update current user profile
+      operationId: updateProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+            examples:
+              default:
+                value:
+                  firstName: Haci
+                  lastName: Simsek
+                  phoneNumber: "+905551112233"
+      responses:
+        "200":
+          description: Profile updated and bearer token issued.
           content:
             application/json:
               schema:
@@ -338,6 +370,10 @@ components:
           maxLength: 128
           format: password
           example: secret123
+    RegisterRequest:
+      allOf:
+        - $ref: "#/components/schemas/AuthCredentials"
+        - $ref: "#/components/schemas/UpdateProfileRequest"
     AuthResponse:
       type: object
       required:
@@ -374,12 +410,34 @@ components:
           maxLength: 128
           format: password
           example: newSecret123
+    UpdateProfileRequest:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - phoneNumber
+      properties:
+        firstName:
+          type: string
+          maxLength: 80
+          example: Haci
+        lastName:
+          type: string
+          maxLength: 80
+          example: Simsek
+        phoneNumber:
+          type: string
+          maxLength: 32
+          example: "+905551112233"
     UserSummary:
       type: object
       required:
         - id
         - email
         - role
+        - firstName
+        - lastName
+        - phoneNumber
       properties:
         id:
           type: string
@@ -390,6 +448,15 @@ components:
         role:
           type: string
           example: USER
+        firstName:
+          type: string
+          example: Haci
+        lastName:
+          type: string
+          example: Simsek
+        phoneNumber:
+          type: string
+          example: "+905551112233"
     CurrentUser:
       allOf:
         - $ref: "#/components/schemas/UserSummary"

@@ -6,6 +6,9 @@ export type UserSummary = {
   id: string;
   email: string;
   role: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
   createdAt?: string;
 };
 
@@ -19,6 +22,20 @@ export type AuthResponse = {
 export type ChangePasswordPayload = {
   currentPassword: string;
   newPassword: string;
+};
+
+export type RegisterPayload = {
+  email: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+  password: string;
+};
+
+export type UpdateProfilePayload = {
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
 };
 
 export type Reminder = {
@@ -108,10 +125,10 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   return response.json() as Promise<T>;
 }
 
-export function register(email: string, password: string): Promise<AuthResponse> {
+export function register(payload: RegisterPayload): Promise<AuthResponse> {
   return request<AuthResponse>('/api/auth/register', {
     method: 'POST',
-    body: { email, password }
+    body: payload
   });
 }
 
@@ -129,6 +146,14 @@ export function currentUser(token: string): Promise<UserSummary> {
 export function changePassword(token: string, payload: ChangePasswordPayload): Promise<AuthResponse> {
   return request<AuthResponse>('/api/auth/password', {
     method: 'POST',
+    token,
+    body: payload
+  });
+}
+
+export function updateProfile(token: string, payload: UpdateProfilePayload): Promise<AuthResponse> {
+  return request<AuthResponse>('/api/auth/profile', {
+    method: 'PUT',
     token,
     body: payload
   });

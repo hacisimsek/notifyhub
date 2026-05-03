@@ -15,9 +15,16 @@ public record AuthResponse(
         return new AuthResponse(accessToken, "Bearer", expiresAt, UserSummary.from(user));
     }
 
-    public record UserSummary(UUID id, String email, String role) {
+    public record UserSummary(UUID id, String email, String role, String firstName, String lastName, String phoneNumber) {
         static UserSummary from(AuthUser user) {
-            return new UserSummary(user.getId(), user.getEmail(), user.getRole().name());
+            return new UserSummary(
+                    user.getId(),
+                    user.getEmail(),
+                    user.getRole().name(),
+                    user.getFirstName(),
+                    user.getLastName(),
+                    user.getPhoneNumber()
+            );
         }
     }
 }

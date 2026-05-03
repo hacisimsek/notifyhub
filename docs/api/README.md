@@ -22,6 +22,7 @@ Gateway Service is the public entry point for browser and script clients. It for
 | `POST` | `/api/auth/register` | No | Auth Service |
 | `POST` | `/api/auth/login` | No | Auth Service |
 | `GET` | `/api/auth/me` | Bearer token | Auth Service |
+| `PUT` | `/api/auth/profile` | Bearer token | Auth Service |
 | `POST` | `/api/auth/password` | Bearer token | Auth Service |
 | `POST` | `/api/reminders` | Bearer token | Reminder Service |
 | `GET` | `/api/reminders` | Bearer token | Reminder Service |
@@ -47,6 +48,9 @@ Base path: `/api/auth`
 ```json
 {
   "email": "user@example.com",
+  "firstName": "Haci",
+  "lastName": "Simsek",
+  "phoneNumber": "+905551112233",
   "password": "secret123"
 }
 ```
@@ -63,6 +67,9 @@ Example response:
   "user": {
     "id": "018f1757-0aa5-7a6a-9a33-e78995f25a21",
     "email": "user@example.com",
+    "firstName": "Haci",
+    "lastName": "Simsek",
+    "phoneNumber": "+905551112233",
     "role": "USER"
   }
 }
@@ -86,6 +93,22 @@ Returns `200 OK` with a bearer access token and user summary.
 `GET /api/auth/me`
 
 Requires `Authorization: Bearer <token>`.
+
+### Update Profile
+
+`PUT /api/auth/profile`
+
+Requires `Authorization: Bearer <token>`.
+
+```json
+{
+  "firstName": "Haci",
+  "lastName": "Simsek",
+  "phoneNumber": "+905551112233"
+}
+```
+
+Returns `200 OK` with a refreshed bearer access token and user summary.
 
 ### Change Password
 
