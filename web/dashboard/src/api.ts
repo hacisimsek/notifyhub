@@ -6,6 +6,7 @@ export type UserSummary = {
   id: string;
   email: string;
   role: string;
+  createdAt?: string;
 };
 
 export type AuthResponse = {
@@ -13,6 +14,11 @@ export type AuthResponse = {
   tokenType: string;
   expiresAt: string;
   user: UserSummary;
+};
+
+export type ChangePasswordPayload = {
+  currentPassword: string;
+  newPassword: string;
 };
 
 export type Reminder = {
@@ -118,6 +124,14 @@ export function login(email: string, password: string): Promise<AuthResponse> {
 
 export function currentUser(token: string): Promise<UserSummary> {
   return request<UserSummary>('/api/auth/me', { token });
+}
+
+export function changePassword(token: string, payload: ChangePasswordPayload): Promise<AuthResponse> {
+  return request<AuthResponse>('/api/auth/password', {
+    method: 'POST',
+    token,
+    body: payload
+  });
 }
 
 export function listReminders(token: string, filters: ReminderFilters = {}): Promise<Reminder[]> {

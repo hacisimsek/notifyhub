@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  changePassword,
   createReminder,
   deleteReminder,
   listNotifications,
@@ -38,6 +39,26 @@ describe('dashboard api client', () => {
     }));
     expect(headersFor(options).get('Accept')).toBe('application/json');
     expect(headersFor(options).get('Authorization')).toBe('Bearer token-1');
+  });
+
+  it('sends password changes with bearer auth and JSON payload', async () => {
+    const fetchMock = mockFetch({ accessToken: 'token-2' });
+
+    await changePassword('token-1', {
+      currentPassword: 'secret123',
+      newPassword: 'newSecret123'
+    });
+
+    const [, options] = fetchMock.mock.calls[0];
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/password', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({
+        currentPassword: 'secret123',
+        newPassword: 'newSecret123'
+      })
+    }));
+    expect(headersFor(options).get('Authorization')).toBe('Bearer token-1');
+    expect(headersFor(options).get('Content-Type')).toBe('application/json');
   });
 
   it('encodes notification filters and handles empty deletes', async () => {

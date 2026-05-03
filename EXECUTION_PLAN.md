@@ -282,3 +282,15 @@ The implementation has moved past the foundation and MVP service phases. The rem
 3. Run `./scripts/k8s-local-verify.sh` with Minikube running.
 4. Capture final demo evidence from the dashboard, notification history, Prometheus and Grafana.
 5. Close any issues found during those environment-dependent checks.
+
+## Auth Password Change Execution Plan
+
+Scope: add an authenticated password change flow without introducing server-side sessions.
+
+1. Add `POST /api/auth/password` to Auth Service with `currentPassword` and `newPassword`.
+2. Require bearer authentication and verify the current password before changing the stored hash.
+3. Return a bearer auth response after a successful change so the dashboard can refresh the stored token.
+4. Expose the same route through Gateway Service while preserving the bearer token for Auth Service validation.
+5. Add dashboard API support and a top-bar Password drawer with current/new/confirm password fields.
+6. Update OpenAPI and README files so local usage and API examples include the new route.
+7. Verify with backend integration tests, dashboard tests and production dashboard build.

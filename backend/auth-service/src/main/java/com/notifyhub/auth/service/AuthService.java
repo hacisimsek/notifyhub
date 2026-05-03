@@ -1,6 +1,7 @@
 package com.notifyhub.auth.service;
 
 import com.notifyhub.auth.api.AuthResponse;
+import com.notifyhub.auth.api.ChangePasswordRequest;
 import com.notifyhub.auth.api.LoginRequest;
 import com.notifyhub.auth.api.RegisterRequest;
 import com.notifyhub.auth.domain.AuthUser;
@@ -66,6 +67,23 @@ public class AuthService {
     public AuthUser getCurrentUser(UUID userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User no longer exists"));
+    }
+
+    @Transactional
+    public AuthResponse changePassword(UUID userId, ChangePasswordRequest request) {
+        AuthUser user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User no longer exists"));
+
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            throw badCredentials();
+        }
+
+        if (request.currentPassword().equals(request.newPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New password must be different");
+        }
+
+        user.changePassword(passwordEncoder.encode(request.newPassword()));
+        return issueToken(user);
     }
 
     private AuthResponse issueToken(AuthUser user) {

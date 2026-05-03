@@ -43,6 +43,12 @@ class GatewayProxyController {
         return forward(properties.services().authUrl(), request, body, HeaderMode.AUTH_SERVICE);
     }
 
+    @RequestMapping(path = "/api/auth/password", method = RequestMethod.POST)
+    ResponseEntity<byte[]> changePassword(HttpServletRequest request, @RequestBody(required = false) byte[] body) {
+        authenticate(request);
+        return forward(properties.services().authUrl(), request, body, HeaderMode.AUTH_SERVICE);
+    }
+
     @RequestMapping(path = "/api/reminders/**")
     ResponseEntity<byte[]> reminders(HttpServletRequest request, @RequestBody(required = false) byte[] body) {
         GatewayPrincipal principal = authenticate(request);

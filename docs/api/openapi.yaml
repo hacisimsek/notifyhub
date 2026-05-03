@@ -86,6 +86,34 @@ paths:
                 $ref: "#/components/schemas/CurrentUser"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /api/auth/password:
+    post:
+      tags:
+        - Auth
+      summary: Change current user password
+      operationId: changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+            examples:
+              default:
+                value:
+                  currentPassword: secret123
+                  newPassword: newSecret123
+      responses:
+        "200":
+          description: Password changed and bearer token issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /api/reminders:
     post:
       tags:
@@ -328,6 +356,24 @@ components:
           format: date-time
         user:
           $ref: "#/components/schemas/UserSummary"
+    ChangePasswordRequest:
+      type: object
+      required:
+        - currentPassword
+        - newPassword
+      properties:
+        currentPassword:
+          type: string
+          minLength: 8
+          maxLength: 128
+          format: password
+          example: secret123
+        newPassword:
+          type: string
+          minLength: 8
+          maxLength: 128
+          format: password
+          example: newSecret123
     UserSummary:
       type: object
       required:

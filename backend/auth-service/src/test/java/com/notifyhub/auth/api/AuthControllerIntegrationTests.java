@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.blankOrNullString;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -110,9 +111,106 @@ class AuthControllerIntegrationTests {
     }
 
     @Test
+    void changePasswordUpdatesCredentialAndIssuesBearerToken() throws Exception {
+        String token = registerAndReturnToken("change-password@example.com", "secret123");
+
+        String response = mockMvc.perform(post("/api/auth/password")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "currentPassword": "secret123",
+                                  "newPassword": "newSecret123"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tokenType", equalTo("Bearer")))
+                .andExpect(jsonPath("$.accessToken", not(blankOrNullString())))
+                .andExpect(jsonPath("$.user.email", equalTo("change-password@example.com")))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        JsonNode body = objectMapper.readTree(response);
+        String nextToken = body.get("accessToken").asText();
+        assertThat(nextToken).isNotEqualTo(token);
+
+        mockMvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer " + nextToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email", equalTo("change-password@example.com")));
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "change-password@example.com",
+                                  "password": "secret123"
+                                }
+                                """))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "change-password@example.com",
+                                  "password": "newSecret123"
+                                }
+                                """))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void changePasswordRejectsWrongCurrentPassword() throws Exception {
+        String token = registerAndReturnToken("wrong-current-password@example.com", "secret123");
+
+        mockMvc.perform(post("/api/auth/password")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "currentPassword": "badsecret",
+                                  "newPassword": "newSecret123"
+                                }
+                                """))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void changePasswordRequiresAuthentication() throws Exception {
+        mockMvc.perform(post("/api/auth/password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "currentPassword": "secret123",
+                                  "newPassword": "newSecret123"
+                                }
+                                """))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void prometheusEndpointIsPublic() throws Exception {
         mockMvc.perform(get("/actuator/prometheus"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("# HELP")));
+    }
+
+    private String registerAndReturnToken(String email, String password) throws Exception {
+        String response = mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "%s",
+                                  "password": "%s"
+                                }
+                                """.formatted(email, password)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        return objectMapper.readTree(response).get("accessToken").asText();
     }
 }

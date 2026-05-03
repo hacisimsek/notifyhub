@@ -9,6 +9,7 @@ vi.mock('./api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./api')>();
   return {
     ...actual,
+    changePassword: vi.fn(),
     createReminder: vi.fn(),
     currentUser: vi.fn(),
     deleteReminder: vi.fn(),
@@ -66,6 +67,7 @@ describe('App dashboard', () => {
   beforeEach(() => {
     vi.setSystemTime(new Date('2026-05-02T12:00:00.000Z'));
     mockedApi.currentUser.mockResolvedValue(user);
+    mockedApi.changePassword.mockResolvedValue(authResponse({ accessToken: 'token-2' }));
     mockedApi.login.mockResolvedValue(authResponse());
     mockedApi.register.mockResolvedValue(authResponse());
     mockedApi.createReminder.mockResolvedValue(reminder({ id: 'created-reminder', title: 'Created reminder' }));
@@ -99,8 +101,10 @@ describe('App dashboard', () => {
     await actor.click(screen.getByRole('button', { name: /sign in/i }));
 
     expect(mockedApi.login).toHaveBeenCalledWith('user@example.com', 'secret123');
-    await screen.findByRole('heading', { name: 'Reminder delivery dashboard' });
+    await screen.findByRole('heading', { name: 'Operations overview' });
     expect(localStorage.getItem('notifyhub.dashboard.token')).toBe('token-1');
+    expect(screen.getByRole('heading', { name: 'Service topology' })).toBeInTheDocument();
+    await actor.click(screen.getByRole('link', { name: /reminders/i }));
     expect(within(remindersPanel()).getByText('Pay invoice')).toBeInTheDocument();
   });
 
@@ -122,6 +126,7 @@ describe('App dashboard', () => {
     await renderAuthenticatedDashboard();
     vi.clearAllMocks();
 
+    await actor.click(screen.getByRole('link', { name: /reminders/i }));
     await actor.type(screen.getByLabelText('Title'), '  Demo reminder  ');
     await actor.type(screen.getByLabelText('Message'), '  Follow up with finance  ');
     await actor.type(screen.getByLabelText('Recipient'), '  demo@example.com  ');
@@ -143,8 +148,17 @@ describe('App dashboard', () => {
     const actor = userEvent.setup();
     await renderAuthenticatedDashboard();
 
-    expect(screen.getByRole('heading', { name: 'Reminders' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Service topology' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Live console' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Reminders' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Notifications' })).not.toBeInTheDocument();
+
+    await actor.click(screen.getByRole('link', { name: /reminders/i }));
+
+    expect(window.location.hash).toBe('#reminders');
+    expect(screen.getAllByRole('heading', { name: 'Reminders' }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('heading', { name: 'Service topology' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Live console' })).not.toBeInTheDocument();
 
     await actor.click(screen.getByRole('link', { name: /history/i }));
 
@@ -152,14 +166,67 @@ describe('App dashboard', () => {
     expect(screen.getByRole('heading', { name: 'Notification history' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'History' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Reminders' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Service topology' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /history/i })).toHaveAttribute('aria-current', 'page');
+
+    await actor.click(screen.getByRole('link', { name: /profile/i }));
+
+    expect(window.location.hash).toBe('#profile');
+    expect(screen.getAllByRole('heading', { name: 'Profile' }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('heading', { name: 'Password' })).toBeInTheDocument();
+    expect(screen.getAllByText('user@example.com').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('heading', { name: 'Service topology' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /profile/i })).toHaveAttribute('aria-current', 'page');
 
     await actor.click(screen.getByRole('link', { name: /reminders/i }));
 
     expect(window.location.hash).toBe('#reminders');
-    expect(screen.getByRole('heading', { name: 'Reminder delivery dashboard' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Reminders' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { name: 'Reminders' }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('heading', { name: 'History' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Service topology' })).not.toBeInTheDocument();
+  });
+
+  it('supports command palette navigation and payload inspection', async () => {
+    const actor = userEvent.setup();
+    await renderAuthenticatedDashboard();
+
+    await actor.click(screen.getByRole('button', { name: /command/i }));
+    expect(screen.getByRole('dialog', { name: 'Command palette' })).toBeInTheDocument();
+
+    await actor.type(screen.getByRole('textbox', { name: 'Command palette' }), 'history');
+    await actor.click(screen.getByRole('button', { name: /open history/i }));
+
+    expect(window.location.hash).toBe('#history');
+    expect(screen.getByRole('heading', { name: 'Notification history' })).toBeInTheDocument();
+
+    await actor.click(screen.getAllByRole('button', { name: /inspect payload/i })[0]);
+
+    expect(screen.getByRole('dialog', { name: /pay invoice|send report/i })).toBeInTheDocument();
+    expect(screen.getByText(/"recipient"/i)).toBeInTheDocument();
+  });
+
+  it('changes the current user password from the profile page', async () => {
+    const actor = userEvent.setup();
+    await renderAuthenticatedDashboard();
+    mockedApi.changePassword.mockClear();
+    mockedApi.changePassword.mockResolvedValue(authResponse({ accessToken: 'token-2' }));
+
+    await actor.click(screen.getByRole('link', { name: /profile/i }));
+    const profilePage = screen.getByLabelText('Profile settings');
+
+    await actor.type(within(profilePage).getByLabelText('Current password'), 'secret123');
+    await actor.type(within(profilePage).getByLabelText('New password'), 'newSecret123');
+    await actor.type(within(profilePage).getByLabelText('Confirm new password'), 'newSecret123');
+    await actor.click(within(profilePage).getByRole('button', { name: /change password/i }));
+
+    await waitFor(() => {
+      expect(mockedApi.changePassword).toHaveBeenCalledWith('token-1', {
+        currentPassword: 'secret123',
+        newPassword: 'newSecret123'
+      });
+    });
+    expect(localStorage.getItem('notifyhub.dashboard.token')).toBe('token-2');
+    expect(within(profilePage).getByText(/password changed/i)).toBeInTheDocument();
   });
 
   it('requests filtered reminder and notification views from the gateway API', async () => {
@@ -167,6 +234,7 @@ describe('App dashboard', () => {
     await renderAuthenticatedDashboard();
     vi.clearAllMocks();
 
+    await actor.click(screen.getByRole('link', { name: /reminders/i }));
     await actor.click(within(screen.getByLabelText('Reminder filters')).getByRole('button', { name: 'SCHEDULED' }));
 
     await waitFor(() => {
@@ -195,19 +263,20 @@ describe('App dashboard', () => {
 async function renderAuthenticatedDashboard() {
   localStorage.setItem('notifyhub.dashboard.token', 'token-1');
   render(<App />);
-  await screen.findByRole('heading', { name: 'Reminder delivery dashboard' });
+  await screen.findByRole('heading', { name: 'Operations overview' });
 }
 
 function remindersPanel() {
-  return screen.getByRole('heading', { name: 'Reminders' }).closest('section') as HTMLElement;
+  return document.getElementById('reminders') as HTMLElement;
 }
 
-function authResponse(): AuthResponse {
+function authResponse(overrides: Partial<AuthResponse> = {}): AuthResponse {
   return {
     accessToken: 'token-1',
     tokenType: 'Bearer',
     expiresAt: '2026-05-02T14:00:00.000Z',
-    user
+    user,
+    ...overrides
   };
 }
 

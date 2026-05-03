@@ -35,10 +35,10 @@ flowchart LR
 ## Service Boundaries
 
 - Gateway Service owns the external API surface, JWT verification and identity header propagation.
-- Auth Service owns registration, login, password hashing, user roles and token issuing.
+- Auth Service owns registration, login, password changes, password hashing, user roles and token issuing.
 - Reminder Service owns reminder CRUD, owner checks, due reminder detection and Kafka event publishing.
 - Notification Service owns notification logs, idempotency, delivery attempts, RabbitMQ dispatch, retry and DLQ handling.
-- Dashboard owns the browser workflow for auth, reminder management, notification history and delivery metrics.
+- Dashboard owns the browser workflow for auth, profile settings, reminder management, notification history and delivery metrics. Runtime topology and event-stream panels are isolated to the Overview page instead of repeating across operational pages.
 
 ## Runtime Flow
 
@@ -57,6 +57,12 @@ sequenceDiagram
   Dashboard->>Gateway: POST /api/auth/login
   Gateway->>Auth: Forward auth request
   Auth-->>Gateway: Bearer token
+  Gateway-->>Dashboard: Auth response
+
+  User->>Dashboard: Change password
+  Dashboard->>Gateway: POST /api/auth/password
+  Gateway->>Auth: Forward bearer token and password payload
+  Auth-->>Gateway: Refreshed bearer token
   Gateway-->>Dashboard: Auth response
 
   User->>Dashboard: Create reminder
