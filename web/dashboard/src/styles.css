@@ -1119,10 +1119,20 @@ textarea {
   align-items: center;
   justify-content: center;
   gap: 6px;
+  border: 1px solid transparent;
   min-height: 34px;
   padding: 0 10px;
   line-height: 1;
   min-width: 0;
+}
+
+.segmented-control button.active {
+  color: var(--primary-contrast);
+  border-color: color-mix(in srgb, var(--primary) 72%, transparent);
+  background: var(--brand-gradient);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--primary-contrast) 24%, transparent),
+    0 8px 20px color-mix(in srgb, var(--primary) 28%, transparent);
 }
 
 .segmented-control button > * {
