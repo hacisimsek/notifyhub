@@ -1122,7 +1122,7 @@ export function App() {
                       onClick={() => setForm({ ...form, channel })}
                     >
                       {channelIcon(channel)}
-                      {channel}
+                      <span>{channel}</span>
                     </button>
                   ))}
                 </fieldset>
