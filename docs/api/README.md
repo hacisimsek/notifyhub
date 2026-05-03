@@ -24,6 +24,7 @@ Gateway Service is the public entry point for browser and script clients. It for
 | `GET` | `/api/auth/me` | Bearer token | Auth Service |
 | `PUT` | `/api/auth/profile` | Bearer token | Auth Service |
 | `POST` | `/api/auth/password` | Bearer token | Auth Service |
+| `GET` | `/api/i18n/messages` | No | Gateway Service |
 | `POST` | `/api/reminders` | Bearer token | Reminder Service |
 | `GET` | `/api/reminders` | Bearer token | Reminder Service |
 | `GET` | `/api/reminders/{id}` | Bearer token | Reminder Service |
@@ -51,6 +52,7 @@ Base path: `/api/auth`
   "firstName": "Haci",
   "lastName": "Simsek",
   "phoneNumber": "+905551112233",
+  "preferredLanguage": "tr",
   "password": "secret123"
 }
 ```
@@ -70,6 +72,7 @@ Example response:
     "firstName": "Haci",
     "lastName": "Simsek",
     "phoneNumber": "+905551112233",
+    "preferredLanguage": "tr",
     "role": "USER"
   }
 }
@@ -104,11 +107,18 @@ Requires `Authorization: Bearer <token>`.
 {
   "firstName": "Haci",
   "lastName": "Simsek",
-  "phoneNumber": "+905551112233"
+  "phoneNumber": "+905551112233",
+  "preferredLanguage": "tr"
 }
 ```
 
 Returns `200 OK` with a refreshed bearer access token and user summary.
+
+### Language Messages
+
+`GET /api/i18n/messages?language=tr`
+
+Returns `200 OK` with the supported UI text map for `en` or `tr`. If `language` is omitted, the gateway falls back to `Accept-Language`.
 
 ### Change Password
 

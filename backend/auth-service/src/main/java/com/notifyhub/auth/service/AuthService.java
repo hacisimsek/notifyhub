@@ -40,7 +40,7 @@ public class AuthService {
     public AuthResponse register(RegisterRequest request) {
         String email = normalizeEmail(request.email());
         if (userRepository.existsByEmail(email)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already registered");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "error.auth.emailAlreadyRegistered");
         }
 
         AuthUser user = userRepository.save(new AuthUser(
@@ -49,7 +49,8 @@ public class AuthService {
                 UserRole.USER,
                 request.firstName(),
                 request.lastName(),
-                request.phoneNumber()
+                request.phoneNumber(),
+                request.preferredLanguage()
         ));
         return issueToken(user);
     }
@@ -70,20 +71,20 @@ public class AuthService {
     @Transactional(readOnly = true)
     public AuthUser getCurrentUser(UUID userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User no longer exists"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "error.auth.userNoLongerExists"));
     }
 
     @Transactional
     public AuthResponse changePassword(UUID userId, ChangePasswordRequest request) {
         AuthUser user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User no longer exists"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "error.auth.userNoLongerExists"));
 
         if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
             throw badCredentials();
         }
 
         if (request.currentPassword().equals(request.newPassword())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New password must be different");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "error.auth.newPasswordMustDiffer");
         }
 
         user.changePassword(passwordEncoder.encode(request.newPassword()));
@@ -93,9 +94,9 @@ public class AuthService {
     @Transactional
     public AuthResponse updateProfile(UUID userId, UpdateProfileRequest request) {
         AuthUser user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User no longer exists"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "error.auth.userNoLongerExists"));
 
-        user.updateProfile(request.firstName(), request.lastName(), request.phoneNumber());
+        user.updateProfile(request.firstName(), request.lastName(), request.phoneNumber(), request.preferredLanguage());
         return issueToken(user);
     }
 
@@ -105,7 +106,7 @@ public class AuthService {
     }
 
     private ResponseStatusException badCredentials() {
-        return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
+        return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "error.auth.invalidCredentials");
     }
 
     private String normalizeEmail(String email) {

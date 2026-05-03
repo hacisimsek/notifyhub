@@ -1,6 +1,7 @@
 export type Channel = 'EMAIL' | 'SMS' | 'PUSH';
 export type ReminderStatus = 'SCHEDULED' | 'TRIGGERED' | 'CANCELLED';
 export type DeliveryStatus = 'PENDING' | 'SENT' | 'FAILED' | 'RETRYING';
+export type LanguageCode = 'en' | 'tr';
 
 export type UserSummary = {
   id: string;
@@ -9,6 +10,7 @@ export type UserSummary = {
   firstName: string;
   lastName: string;
   phoneNumber: string;
+  preferredLanguage: LanguageCode;
   createdAt?: string;
 };
 
@@ -29,6 +31,7 @@ export type RegisterPayload = {
   firstName: string;
   lastName: string;
   phoneNumber: string;
+  preferredLanguage: LanguageCode;
   password: string;
 };
 
@@ -36,6 +39,12 @@ export type UpdateProfilePayload = {
   firstName: string;
   lastName: string;
   phoneNumber: string;
+  preferredLanguage: LanguageCode;
+};
+
+export type LanguageMessagesResponse = {
+  language: LanguageCode;
+  messages: Record<string, string>;
 };
 
 export type Reminder = {
@@ -115,7 +124,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(errorText || `Request failed with ${response.status}`);
+    throw new Error(errorMessage(errorText) || `Request failed with ${response.status}`);
   }
 
   if (response.status === 204) {
@@ -159,8 +168,24 @@ export function updateProfile(token: string, payload: UpdateProfilePayload): Pro
   });
 }
 
+export function getLanguageMessages(language: LanguageCode): Promise<LanguageMessagesResponse> {
+  return request<LanguageMessagesResponse>(`/api/i18n/messages?language=${language}`);
+}
+
 export function listReminders(token: string, filters: ReminderFilters = {}): Promise<Reminder[]> {
   return request<Reminder[]>(`/api/reminders${queryString(filters)}`, { token });
+}
+
+function errorMessage(errorText: string) {
+  if (!errorText) {
+    return '';
+  }
+  try {
+    const parsed = JSON.parse(errorText) as { message?: string; error?: string };
+    return parsed.message || parsed.error || errorText;
+  } catch {
+    return errorText;
+  }
 }
 
 export function createReminder(token: string, payload: ReminderPayload): Promise<Reminder> {

@@ -43,23 +43,23 @@ public class GatewayJwtVerifier {
     public GatewayPrincipal verify(String token) {
         String[] parts = token.split("\\.");
         if (parts.length != 3) {
-            throw new UnauthorizedException("Invalid bearer token");
+            throw new UnauthorizedException("error.auth.invalidOrExpiredToken");
         }
 
         String unsignedToken = parts[0] + "." + parts[1];
         if (!MessageDigest.isEqual(sign(unsignedToken).getBytes(StandardCharsets.UTF_8),
                 parts[2].getBytes(StandardCharsets.UTF_8))) {
-            throw new UnauthorizedException("Invalid bearer token");
+            throw new UnauthorizedException("error.auth.invalidOrExpiredToken");
         }
 
         Map<String, Object> claims = decode(parts[1]);
         if (!properties.jwt().issuer().equals(claims.get("iss"))) {
-            throw new UnauthorizedException("Invalid bearer token issuer");
+            throw new UnauthorizedException("error.auth.invalidOrExpiredToken");
         }
 
         Instant expiresAt = Instant.ofEpochSecond(asLong(claims.get("exp")));
         if (!expiresAt.isAfter(Instant.now(clock))) {
-            throw new UnauthorizedException("Expired bearer token");
+            throw new UnauthorizedException("error.auth.invalidOrExpiredToken");
         }
 
         return new GatewayPrincipal(
@@ -73,7 +73,7 @@ public class GatewayJwtVerifier {
         try {
             return objectMapper.readValue(DECODER.decode(value), MAP_TYPE);
         } catch (Exception ex) {
-            throw new UnauthorizedException("Invalid bearer token");
+            throw new UnauthorizedException("error.auth.invalidOrExpiredToken");
         }
     }
 
@@ -91,6 +91,6 @@ public class GatewayJwtVerifier {
         if (value instanceof Number number) {
             return number.longValue();
         }
-        throw new UnauthorizedException("Invalid bearer token expiration");
+        throw new UnauthorizedException("error.auth.invalidOrExpiredToken");
     }
 }

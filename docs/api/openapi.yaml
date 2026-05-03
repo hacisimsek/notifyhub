@@ -15,6 +15,8 @@ tags:
     description: Authenticated reminder management routes.
   - name: Notifications
     description: Authenticated notification history routes.
+  - name: I18n
+    description: Localized UI labels and error-code messages.
   - name: Internal
     description: Service-to-service notification work route.
 paths:
@@ -38,6 +40,7 @@ paths:
                   firstName: Haci
                   lastName: Simsek
                   phoneNumber: "+905551112233"
+                  preferredLanguage: tr
                   password: secret123
       responses:
         "201":
@@ -135,6 +138,7 @@ paths:
                   firstName: Haci
                   lastName: Simsek
                   phoneNumber: "+905551112233"
+                  preferredLanguage: tr
       responses:
         "200":
           description: Profile updated and bearer token issued.
@@ -146,6 +150,29 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /api/i18n/messages:
+    get:
+      tags:
+        - I18n
+      summary: Get localized UI messages
+      operationId: getLanguageMessages
+      security: []
+      parameters:
+        - name: language
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - en
+              - tr
+      responses:
+        "200":
+          description: Localized message map.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LanguageMessages"
   /api/reminders:
     post:
       tags:
@@ -416,6 +443,7 @@ components:
         - firstName
         - lastName
         - phoneNumber
+        - preferredLanguage
       properties:
         firstName:
           type: string
@@ -429,6 +457,12 @@ components:
           type: string
           maxLength: 32
           example: "+905551112233"
+        preferredLanguage:
+          type: string
+          enum:
+            - en
+            - tr
+          example: tr
     UserSummary:
       type: object
       required:
@@ -438,6 +472,7 @@ components:
         - firstName
         - lastName
         - phoneNumber
+        - preferredLanguage
       properties:
         id:
           type: string
@@ -457,6 +492,27 @@ components:
         phoneNumber:
           type: string
           example: "+905551112233"
+        preferredLanguage:
+          type: string
+          enum:
+            - en
+            - tr
+          example: tr
+    LanguageMessages:
+      type: object
+      required:
+        - language
+        - messages
+      properties:
+        language:
+          type: string
+          enum:
+            - en
+            - tr
+        messages:
+          type: object
+          additionalProperties:
+            type: string
     CurrentUser:
       allOf:
         - $ref: "#/components/schemas/UserSummary"

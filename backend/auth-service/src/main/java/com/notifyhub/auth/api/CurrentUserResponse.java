@@ -12,6 +12,7 @@ record CurrentUserResponse(
         String firstName,
         String lastName,
         String phoneNumber,
+        String preferredLanguage,
         Instant createdAt
 ) {
     static CurrentUserResponse from(AuthUser user) {
@@ -22,6 +23,7 @@ record CurrentUserResponse(
                 user.getFirstName(),
                 user.getLastName(),
                 user.getPhoneNumber(),
+                user.getPreferredLanguage(),
                 user.getCreatedAt()
         );
     }

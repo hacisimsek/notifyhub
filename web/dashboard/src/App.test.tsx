@@ -13,6 +13,7 @@ vi.mock('./api', async (importOriginal) => {
     createReminder: vi.fn(),
     currentUser: vi.fn(),
     deleteReminder: vi.fn(),
+    getLanguageMessages: vi.fn(),
     listNotifications: vi.fn(),
     listReminders: vi.fn(),
     login: vi.fn(),
@@ -30,7 +31,8 @@ const user: UserSummary = {
   role: 'USER',
   firstName: 'Haci',
   lastName: 'Simsek',
-  phoneNumber: '+905551112233'
+  phoneNumber: '+905551112233',
+  preferredLanguage: 'en'
 };
 
 const reminders: Reminder[] = [
@@ -71,6 +73,7 @@ describe('App dashboard', () => {
   beforeEach(() => {
     vi.setSystemTime(new Date('2026-05-02T12:00:00.000Z'));
     mockedApi.currentUser.mockResolvedValue(user);
+    mockedApi.getLanguageMessages.mockResolvedValue({ language: 'en', messages: {} });
     mockedApi.changePassword.mockResolvedValue(authResponse({ accessToken: 'token-2' }));
     mockedApi.login.mockResolvedValue(authResponse());
     mockedApi.register.mockResolvedValue(authResponse());
@@ -130,6 +133,7 @@ describe('App dashboard', () => {
       firstName: 'Haci',
       lastName: 'Simsek',
       phoneNumber: '+905551112233',
+      preferredLanguage: 'en',
       password: 'secret123'
     });
     await screen.findByRole('heading', { name: 'Operations overview' });
@@ -266,7 +270,8 @@ describe('App dashboard', () => {
         ...user,
         firstName: 'Updated',
         lastName: 'User',
-        phoneNumber: '+905559998877'
+        phoneNumber: '+905559998877',
+        preferredLanguage: 'tr'
       }
     }));
 
@@ -285,7 +290,8 @@ describe('App dashboard', () => {
       expect(mockedApi.updateProfile).toHaveBeenCalledWith('token-1', {
         firstName: 'Updated',
         lastName: 'User',
-        phoneNumber: '+905559998877'
+        phoneNumber: '+905559998877',
+        preferredLanguage: 'en'
       });
     });
     expect(localStorage.getItem('notifyhub.dashboard.token')).toBe('token-3');

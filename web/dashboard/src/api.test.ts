@@ -3,6 +3,7 @@ import {
   changePassword,
   createReminder,
   deleteReminder,
+  getLanguageMessages,
   listNotifications,
   listReminders,
   login,
@@ -37,6 +38,7 @@ describe('dashboard api client', () => {
       firstName: 'Haci',
       lastName: 'Simsek',
       phoneNumber: '+905551112233',
+      preferredLanguage: 'en',
       password: 'secret123'
     });
 
@@ -48,6 +50,7 @@ describe('dashboard api client', () => {
         firstName: 'Haci',
         lastName: 'Simsek',
         phoneNumber: '+905551112233',
+        preferredLanguage: 'en',
         password: 'secret123'
       })
     }));
@@ -94,7 +97,8 @@ describe('dashboard api client', () => {
     await updateProfile('token-1', {
       firstName: 'Haci',
       lastName: 'Simsek',
-      phoneNumber: '+905551112233'
+      phoneNumber: '+905551112233',
+      preferredLanguage: 'tr'
     });
 
     const [, options] = fetchMock.mock.calls[0];
@@ -103,11 +107,23 @@ describe('dashboard api client', () => {
       body: JSON.stringify({
         firstName: 'Haci',
         lastName: 'Simsek',
-        phoneNumber: '+905551112233'
+        phoneNumber: '+905551112233',
+        preferredLanguage: 'tr'
       })
     }));
     expect(headersFor(options).get('Authorization')).toBe('Bearer token-1');
     expect(headersFor(options).get('Content-Type')).toBe('application/json');
+  });
+
+  it('fetches backend language messages', async () => {
+    const fetchMock = mockFetch({ language: 'tr', messages: { 'auth.login': 'Giriş' } });
+
+    await getLanguageMessages('tr');
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/i18n/messages?language=tr', expect.objectContaining({
+      method: 'GET',
+      body: undefined
+    }));
   });
 
   it('encodes notification filters and handles empty deletes', async () => {

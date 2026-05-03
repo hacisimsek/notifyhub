@@ -37,6 +37,7 @@ import {
   createReminder,
   currentUser,
   deleteReminder,
+  getLanguageMessages,
   listNotifications,
   listReminders,
   login,
@@ -44,7 +45,7 @@ import {
   updateProfile,
   updateReminder
 } from './api';
-import type { DeliveryStatus, NotificationFilters, ReminderFilters, ReminderStatus } from './api';
+import type { DeliveryStatus, LanguageCode, NotificationFilters, ReminderFilters, ReminderStatus } from './api';
 
 type AuthMode = 'login' | 'register';
 type ReminderStatusFilter = 'ALL' | ReminderStatus;
@@ -80,6 +81,7 @@ type RegistrationProfileForm = {
   firstName: string;
   lastName: string;
   phoneNumber: string;
+  preferredLanguage: LanguageCode;
 };
 type ProfileForm = RegistrationProfileForm;
 type FormStatus = {
@@ -97,6 +99,7 @@ type ReminderForm = {
 
 const TOKEN_KEY = 'notifyhub.dashboard.token';
 const THEME_KEY = 'notifyhub.dashboard.theme';
+const LANGUAGE_KEY = 'notifyhub.dashboard.language';
 const CHANNELS: Channel[] = ['EMAIL', 'SMS', 'PUSH'];
 const REMINDER_STATUSES: ReminderStatus[] = ['SCHEDULED', 'TRIGGERED', 'CANCELLED'];
 const DELIVERY_STATUSES: DeliveryStatus[] = ['PENDING', 'SENT', 'FAILED', 'RETRYING'];
@@ -105,6 +108,143 @@ const DASHBOARD_ROUTES: Record<DashboardView, string> = {
   reminders: '#reminders',
   history: '#history',
   profile: '#profile'
+};
+
+const DEFAULT_MESSAGES: Record<string, string> = {
+  'app.name': 'NotifyHub',
+  'auth.subtitle': 'Reminder operations dashboard',
+  'auth.login': 'Login',
+  'auth.register': 'Register',
+  'auth.email': 'Email',
+  'auth.password': 'Password',
+  'auth.firstName': 'First name',
+  'auth.lastName': 'Last name',
+  'auth.phoneNumber': 'Phone number',
+  'auth.signIn': 'Sign in',
+  'auth.createAccount': 'Create account',
+  'nav.overview': 'Overview',
+  'nav.reminders': 'Reminders',
+  'nav.history': 'History',
+  'nav.profile': 'Profile',
+  'actions.command': 'Command',
+  'actions.refresh': 'Refresh',
+  'actions.signOut': 'Sign out',
+  'actions.saveProfile': 'Save profile',
+  'actions.changePassword': 'Change password',
+  'actions.addReminder': 'Add reminder',
+  'actions.updateReminder': 'Update reminder',
+  'actions.cancelEdit': 'Cancel edit',
+  'actions.inspectPayload': 'Inspect payload',
+  'actions.openCommandPalette': 'Open command palette',
+  'actions.refreshData': 'Refresh data',
+  'actions.inspectReminder': 'Inspect reminder payload',
+  'actions.editReminder': 'Edit reminder',
+  'actions.deleteReminder': 'Delete reminder',
+  'actions.closeInspector': 'Close inspector',
+  'theme.dark': 'Dark',
+  'theme.light': 'Light',
+  'theme.switchDark': 'Switch to dark theme',
+  'theme.switchLight': 'Switch to light theme',
+  'heading.overview.eyebrow': 'Runtime overview',
+  'heading.overview.title': 'Operations overview',
+  'heading.reminders.eyebrow': 'Create and manage',
+  'heading.reminders.title': 'Reminders',
+  'heading.history.eyebrow': 'Delivery log',
+  'heading.history.title': 'Notification history',
+  'heading.profile.eyebrow': 'Account settings',
+  'heading.profile.title': 'Profile',
+  'metrics.scheduled': 'Scheduled',
+  'metrics.triggered': 'Triggered',
+  'metrics.sent': 'Sent',
+  'metrics.failed': 'Failed',
+  'metrics.retrying': 'Retrying',
+  'metrics.attempts': 'Attempts',
+  'overview.topology.eyebrow': 'Runtime map',
+  'overview.topology.title': 'Service topology',
+  'overview.console.eyebrow': 'Event stream',
+  'overview.console.title': 'Live console',
+  'profile.userInfo': 'User info',
+  'profile.security': 'Account security',
+  'profile.password': 'Password',
+  'profile.userId': 'User ID',
+  'profile.role': 'Role',
+  'profile.created': 'Created',
+  'profile.activeSession': 'Active session',
+  'profile.language': 'Language',
+  'profile.languageEnglish': 'English',
+  'profile.languageTurkish': 'Turkish',
+  'password.current': 'Current password',
+  'password.new': 'New password',
+  'password.confirm': 'Confirm new password',
+  'status.profileUpdated': 'Profile updated.',
+  'status.passwordChanged': 'Password changed. Your session has been refreshed.',
+  'error.passwordMismatch': 'New passwords do not match.',
+  'error.unexpected': 'Unexpected error',
+  'error.auth.emailAlreadyRegistered': 'Email is already registered.',
+  'error.auth.invalidCredentials': 'Invalid email or password.',
+  'error.auth.invalidOrExpiredToken': 'Invalid or expired token.',
+  'error.auth.newPasswordMustDiffer': 'New password must be different.',
+  'error.auth.userNoLongerExists': 'User no longer exists.',
+  'error.validation.invalid': 'Please check the highlighted fields.',
+  'reminder.title': 'Title',
+  'reminder.message': 'Message',
+  'reminder.scheduledFor': 'Scheduled for',
+  'reminder.channel': 'Channel',
+  'reminder.recipient': 'Recipient',
+  'reminder.filters': 'Reminder filters',
+  'reminder.noItems': 'No reminders yet.',
+  'reminder.noMatches': 'No reminders match the selected filters.',
+  'history.filters': 'Notification filters',
+  'history.noItems': 'No delivery history yet.',
+  'history.noMatches': 'No notifications match the selected filters.',
+  'table.title': 'Title',
+  'table.channel': 'Channel',
+  'table.scheduled': 'Scheduled',
+  'table.pipeline': 'Pipeline',
+  'table.status': 'Status',
+  'table.actions': 'Actions',
+  'history.attempts': 'Attempts',
+  'history.lastAttempt': 'Last attempt',
+  'command.title': 'Command palette',
+  'command.placeholder': 'Type a command, route, filter, or payload...',
+  'command.noMatch': 'No command matched.',
+  'command.openOverview.title': 'Open overview',
+  'command.openOverview.hint': 'Inspect runtime topology and live event stream',
+  'command.openReminders.title': 'Open reminders',
+  'command.openReminders.hint': 'Jump to the create and schedule workflow',
+  'command.openHistory.title': 'Open history',
+  'command.openHistory.hint': 'Inspect delivery events and notification attempts',
+  'command.openProfile.title': 'Open profile',
+  'command.openProfile.hint': 'Review account details and security settings',
+  'command.createReminder.title': 'Create reminder',
+  'command.createReminder.hint': 'Open the reminder form and focus the title field',
+  'command.refreshData.title': 'Refresh data',
+  'command.refreshData.hint': 'Pull latest reminders and delivery events',
+  'command.failedDeliveries.title': 'Filter failed deliveries',
+  'command.failedDeliveries.hint': 'Switch to history and isolate failed notifications',
+  'command.emailReminders.title': 'Filter email reminders',
+  'command.emailReminders.hint': 'Show EMAIL reminders in the scheduling table',
+  'command.inspectLatest.title': 'Inspect latest event',
+  'command.inspectLatest.empty': 'No payload available yet',
+  'command.changePassword.title': 'Change password',
+  'command.changePassword.hint': 'Open profile security and focus the password form',
+  'command.toggleTheme.hint': 'Flip the dashboard color mode',
+  'command.group.navigation': 'Navigation',
+  'command.group.workflow': 'Workflow',
+  'command.group.runtime': 'Runtime',
+  'command.group.debug': 'Debug',
+  'command.group.inspector': 'Inspector',
+  'command.group.account': 'Account',
+  'command.group.preferences': 'Preferences',
+  'inspector.payload': 'Payload',
+  'aria.primaryNavigation': 'Primary navigation',
+  'aria.deliveryMetrics': 'Delivery metrics',
+  'aria.developerCockpit': 'Developer cockpit',
+  'aria.serviceDependencies': 'Service dependencies',
+  'aria.liveEventStream': 'Live event stream',
+  'aria.profileSettings': 'Profile settings',
+  'aria.authenticationMode': 'Authentication mode',
+  'aria.deliveryPipeline': 'Delivery pipeline',
 };
 
 const emptyReminderForm = (): ReminderForm => ({
@@ -124,18 +264,22 @@ const emptyPasswordChangeForm = (): PasswordChangeForm => ({
 const emptyRegistrationProfileForm = (): RegistrationProfileForm => ({
   firstName: '',
   lastName: '',
-  phoneNumber: ''
+  phoneNumber: '',
+  preferredLanguage: initialLanguage()
 });
 
 const profileFormFromUser = (user: UserSummary): ProfileForm => ({
   firstName: user.firstName,
   lastName: user.lastName,
-  phoneNumber: user.phoneNumber
+  phoneNumber: user.phoneNumber,
+  preferredLanguage: user.preferredLanguage
 });
 
 export function App() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
   const [theme, setTheme] = useState<ThemeMode>(() => initialTheme());
+  const [language, setLanguage] = useState<LanguageCode>(() => initialLanguage());
+  const [messages, setMessages] = useState<Record<string, string>>(DEFAULT_MESSAGES);
   const [activeView, setActiveView] = useState<DashboardView>(() => currentDashboardView());
   const [user, setUser] = useState<UserSummary | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode>('login');
@@ -166,12 +310,21 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
 
   const isAuthenticated = Boolean(token && user);
+  const t = (key: string) => messages[key] ?? DEFAULT_MESSAGES[key] ?? key;
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.setProperty('color-scheme', theme);
     localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+    localStorage.setItem(LANGUAGE_KEY, language);
+    getLanguageMessages(language)
+      .then((response) => setMessages({ ...DEFAULT_MESSAGES, ...response.messages }))
+      .catch(() => setMessages(DEFAULT_MESSAGES));
+  }, [language]);
 
   useEffect(() => {
     const syncRoute = () => setActiveView(currentDashboardView());
@@ -225,6 +378,7 @@ export function App() {
   useEffect(() => {
     if (user) {
       setProfileForm(profileFormFromUser(user));
+      setLanguage(user.preferredLanguage);
     }
   }, [user]);
 
@@ -260,41 +414,41 @@ export function App() {
   const commandItems = useMemo<CommandItem[]>(() => [
     {
       id: 'open-overview',
-      title: 'Open overview',
-      hint: 'Inspect runtime topology and live event stream',
-      group: 'Navigation',
+      title: t('command.openOverview.title'),
+      hint: t('command.openOverview.hint'),
+      group: t('command.group.navigation'),
       shortcut: 'G O',
       run: () => openDashboardView('overview')
     },
     {
       id: 'open-reminders',
-      title: 'Open reminders',
-      hint: 'Jump to the create and schedule workflow',
-      group: 'Navigation',
+      title: t('command.openReminders.title'),
+      hint: t('command.openReminders.hint'),
+      group: t('command.group.navigation'),
       shortcut: 'G R',
       run: () => openDashboardView('reminders')
     },
     {
       id: 'open-history',
-      title: 'Open history',
-      hint: 'Inspect delivery events and notification attempts',
-      group: 'Navigation',
+      title: t('command.openHistory.title'),
+      hint: t('command.openHistory.hint'),
+      group: t('command.group.navigation'),
       shortcut: 'G H',
       run: () => openDashboardView('history')
     },
     {
       id: 'open-profile',
-      title: 'Open profile',
-      hint: 'Review account details and security settings',
-      group: 'Navigation',
+      title: t('command.openProfile.title'),
+      hint: t('command.openProfile.hint'),
+      group: t('command.group.navigation'),
       shortcut: 'G P',
       run: () => openDashboardView('profile')
     },
     {
       id: 'focus-create',
-      title: 'Create reminder',
-      hint: 'Open the reminder form and focus the title field',
-      group: 'Workflow',
+      title: t('command.createReminder.title'),
+      hint: t('command.createReminder.hint'),
+      group: t('command.group.workflow'),
       shortcut: 'N',
       run: () => {
         openDashboardView('reminders');
@@ -303,17 +457,17 @@ export function App() {
     },
     {
       id: 'refresh-data',
-      title: 'Refresh data',
-      hint: 'Pull latest reminders and delivery events',
-      group: 'Runtime',
+      title: t('command.refreshData.title'),
+      hint: t('command.refreshData.hint'),
+      group: t('command.group.runtime'),
       shortcut: 'R',
       run: () => refreshData()
     },
     {
       id: 'failed-deliveries',
-      title: 'Filter failed deliveries',
-      hint: 'Switch to history and isolate failed notifications',
-      group: 'Debug',
+      title: t('command.failedDeliveries.title'),
+      hint: t('command.failedDeliveries.hint'),
+      group: t('command.group.debug'),
       shortcut: 'F',
       run: () => {
         openDashboardView('history');
@@ -322,9 +476,9 @@ export function App() {
     },
     {
       id: 'email-reminders',
-      title: 'Filter email reminders',
-      hint: 'Show EMAIL reminders in the scheduling table',
-      group: 'Debug',
+      title: t('command.emailReminders.title'),
+      hint: t('command.emailReminders.hint'),
+      group: t('command.group.debug'),
       shortcut: 'E',
       run: () => {
         openDashboardView('reminders');
@@ -333,9 +487,9 @@ export function App() {
     },
     {
       id: 'inspect-latest',
-      title: 'Inspect latest event',
-      hint: notifications[0]?.subject ?? reminders[0]?.title ?? 'No payload available yet',
-      group: 'Inspector',
+      title: t('command.inspectLatest.title'),
+      hint: notifications[0]?.subject ?? reminders[0]?.title ?? t('command.inspectLatest.empty'),
+      group: t('command.group.inspector'),
       shortcut: 'I',
       run: () => {
         if (notifications[0]) {
@@ -349,9 +503,9 @@ export function App() {
     },
     {
       id: 'change-password',
-      title: 'Change password',
-      hint: 'Open profile security and focus the password form',
-      group: 'Account',
+      title: t('command.changePassword.title'),
+      hint: t('command.changePassword.hint'),
+      group: t('command.group.account'),
       shortcut: 'P',
       run: () => {
         openDashboardView('profile');
@@ -360,13 +514,13 @@ export function App() {
     },
     {
       id: 'toggle-theme',
-      title: `Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`,
-      hint: 'Flip the dashboard color mode',
-      group: 'Preferences',
+      title: theme === 'dark' ? t('theme.switchLight') : t('theme.switchDark'),
+      hint: t('command.toggleTheme.hint'),
+      group: t('command.group.preferences'),
       shortcut: 'T',
       run: () => toggleTheme()
     }
-  ], [notifications, reminders, theme]);
+  ], [messages, notifications, reminders, theme]);
 
   const filteredCommandItems = useMemo(() => {
     const query = commandQuery.trim().toLowerCase();
@@ -408,7 +562,7 @@ export function App() {
       setNotifications(nextNotifications);
       setVisibleNotifications(nextVisibleNotifications);
     } catch (err) {
-      setError(formatError(err));
+      setError(formatError(err, t));
     } finally {
       setRefreshing(false);
     }
@@ -425,7 +579,7 @@ export function App() {
       const nextReminders = await listReminders(authToken, selectedReminderFilters());
       setVisibleReminders(nextReminders);
     } catch (err) {
-      setError(formatError(err));
+      setError(formatError(err, t));
     } finally {
       setRefreshing(false);
     }
@@ -442,7 +596,7 @@ export function App() {
       const nextNotifications = await listNotifications(authToken, selectedNotificationFilters());
       setVisibleNotifications(nextNotifications);
     } catch (err) {
-      setError(formatError(err));
+      setError(formatError(err, t));
     } finally {
       setRefreshing(false);
     }
@@ -461,7 +615,8 @@ export function App() {
           password,
           firstName: registrationProfile.firstName.trim(),
           lastName: registrationProfile.lastName.trim(),
-          phoneNumber: registrationProfile.phoneNumber.trim()
+          phoneNumber: registrationProfile.phoneNumber.trim(),
+          preferredLanguage: language
         });
       localStorage.setItem(TOKEN_KEY, response.accessToken);
       setToken(response.accessToken);
@@ -470,7 +625,7 @@ export function App() {
       setRegistrationProfile(emptyRegistrationProfileForm());
       await refreshData(response.accessToken);
     } catch (err) {
-      setError(formatError(err));
+      setError(formatError(err, t));
     } finally {
       setLoading(false);
     }
@@ -503,7 +658,7 @@ export function App() {
       setEditingId(null);
       await refreshData(token);
     } catch (err) {
-      setError(formatError(err));
+      setError(formatError(err, t));
     } finally {
       setLoading(false);
     }
@@ -520,7 +675,7 @@ export function App() {
     const confirmPassword = passwordChangeForm.confirmPassword;
 
     if (newPassword !== confirmPassword) {
-      setPasswordChangeStatus({ tone: 'error', message: 'New passwords do not match.' });
+      setPasswordChangeStatus({ tone: 'error', message: t('error.passwordMismatch') });
       return;
     }
 
@@ -534,9 +689,9 @@ export function App() {
       setToken(response.accessToken);
       setUser(response.user);
       setPasswordChangeForm(emptyPasswordChangeForm());
-      setPasswordChangeStatus({ tone: 'success', message: 'Password changed. Your session has been refreshed.' });
+      setPasswordChangeStatus({ tone: 'success', message: t('status.passwordChanged') });
     } catch (err) {
-      setPasswordChangeStatus({ tone: 'error', message: formatError(err) });
+      setPasswordChangeStatus({ tone: 'error', message: formatError(err, t) });
     } finally {
       setPasswordSubmitting(false);
     }
@@ -556,14 +711,16 @@ export function App() {
       const response = await updateProfile(token, {
         firstName: profileForm.firstName.trim(),
         lastName: profileForm.lastName.trim(),
-        phoneNumber: profileForm.phoneNumber.trim()
+        phoneNumber: profileForm.phoneNumber.trim(),
+        preferredLanguage: profileForm.preferredLanguage
       });
       localStorage.setItem(TOKEN_KEY, response.accessToken);
       setToken(response.accessToken);
       setUser(response.user);
-      setProfileStatus({ tone: 'success', message: 'Profile updated.' });
+      setLanguage(response.user.preferredLanguage);
+      setProfileStatus({ tone: 'success', message: t('status.profileUpdated') });
     } catch (err) {
-      setProfileStatus({ tone: 'error', message: formatError(err) });
+      setProfileStatus({ tone: 'error', message: formatError(err, t) });
     } finally {
       setProfileSubmitting(false);
     }
@@ -583,7 +740,7 @@ export function App() {
       }
       await refreshData(token);
     } catch (err) {
-      setError(formatError(err));
+      setError(formatError(err, t));
     }
   }
 
@@ -655,27 +812,27 @@ export function App() {
                 <Bell size={22} aria-hidden="true" />
               </div>
               <div>
-                <h1 id="auth-title">NotifyHub</h1>
-                <p>Reminder operations dashboard</p>
+                <h1 id="auth-title">{t('app.name')}</h1>
+                <p>{t('auth.subtitle')}</p>
               </div>
             </div>
-            <ThemeToggle theme={theme} onToggle={toggleTheme} />
+            <ThemeToggle theme={theme} onToggle={toggleTheme} t={t} />
           </div>
 
-          <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
+          <div className="auth-tabs" role="tablist" aria-label={t('aria.authenticationMode')}>
             <button
               type="button"
               className={authMode === 'login' ? 'active' : ''}
               onClick={() => setAuthMode('login')}
             >
-              Login
+              {t('auth.login')}
             </button>
             <button
               type="button"
               className={authMode === 'register' ? 'active' : ''}
               onClick={() => setAuthMode('register')}
             >
-              Register
+              {t('auth.register')}
             </button>
           </div>
 
@@ -683,7 +840,7 @@ export function App() {
             {authMode === 'register' ? (
               <div className="form-row">
                 <label>
-                  First name
+                  {t('auth.firstName')}
                   <input
                     type="text"
                     value={registrationProfile.firstName}
@@ -695,7 +852,7 @@ export function App() {
                   />
                 </label>
                 <label>
-                  Last name
+                  {t('auth.lastName')}
                   <input
                     type="text"
                     value={registrationProfile.lastName}
@@ -709,7 +866,7 @@ export function App() {
               </div>
             ) : null}
             <label>
-              Email
+              {t('auth.email')}
               <input
                 type="email"
                 value={email}
@@ -721,7 +878,7 @@ export function App() {
             </label>
             {authMode === 'register' ? (
               <label>
-                Phone number
+                {t('auth.phoneNumber')}
                 <input
                   type="tel"
                   value={registrationProfile.phoneNumber}
@@ -734,7 +891,7 @@ export function App() {
               </label>
             ) : null}
             <label>
-              Password
+              {t('auth.password')}
               <input
                 type="password"
                 value={password}
@@ -749,7 +906,7 @@ export function App() {
             {error ? <p className="form-error">{error}</p> : null}
             <button type="submit" className="primary-action" disabled={loading}>
               {loading ? <Loader2 className="spin" size={18} aria-hidden="true" /> : <ShieldCheck size={18} aria-hidden="true" />}
-              {authMode === 'login' ? 'Sign in' : 'Create account'}
+              {authMode === 'login' ? t('auth.signIn') : t('auth.createAccount')}
             </button>
           </form>
         </section>
@@ -763,21 +920,21 @@ export function App() {
 
   const authenticatedUser = user;
   const heading = activeView === 'history'
-    ? { eyebrow: 'Delivery log', title: 'Notification history' }
+    ? { eyebrow: t('heading.history.eyebrow'), title: t('heading.history.title') }
     : activeView === 'profile'
-      ? { eyebrow: 'Account settings', title: 'Profile' }
+      ? { eyebrow: t('heading.profile.eyebrow'), title: t('heading.profile.title') }
       : activeView === 'reminders'
-        ? { eyebrow: 'Create and manage', title: 'Reminders' }
-        : { eyebrow: 'Runtime overview', title: 'Operations overview' };
+        ? { eyebrow: t('heading.reminders.eyebrow'), title: t('heading.reminders.title') }
+        : { eyebrow: t('heading.overview.eyebrow'), title: t('heading.overview.title') };
 
   return (
     <main className="app-shell">
-      <aside className="side-nav" aria-label="Primary">
+      <aside className="side-nav" aria-label={t('aria.primaryNavigation')}>
         <div className="brand-row compact">
           <div className="brand-mark">
             <Bell size={20} aria-hidden="true" />
           </div>
-          <span>NotifyHub</span>
+          <span>{t('app.name')}</span>
         </div>
         <div className="nav-console" aria-hidden="true">
           <span>$ notifyhub</span>
@@ -792,7 +949,7 @@ export function App() {
               openDashboardView('overview');
             }}
           >
-            <LayoutDashboard size={18} aria-hidden="true" />Overview
+            <LayoutDashboard size={18} aria-hidden="true" />{t('nav.overview')}
           </a>
           <a
             href={DASHBOARD_ROUTES.reminders}
@@ -802,7 +959,7 @@ export function App() {
               openDashboardView('reminders');
             }}
           >
-            <CalendarClock size={18} aria-hidden="true" />Reminders
+            <CalendarClock size={18} aria-hidden="true" />{t('nav.reminders')}
           </a>
           <a
             href={DASHBOARD_ROUTES.history}
@@ -812,7 +969,7 @@ export function App() {
               openDashboardView('history');
             }}
           >
-            <History size={18} aria-hidden="true" />History
+            <History size={18} aria-hidden="true" />{t('nav.history')}
           </a>
           <a
             href={DASHBOARD_ROUTES.profile}
@@ -822,24 +979,24 @@ export function App() {
               openDashboardView('profile');
             }}
           >
-            <User size={18} aria-hidden="true" />Profile
+            <User size={18} aria-hidden="true" />{t('nav.profile')}
           </a>
         </nav>
         <div className="side-actions">
           <span className="account-chip">{authenticatedUser.email}</span>
-          <button type="button" className="icon-action command-trigger" onClick={() => setCommandPaletteOpen(true)} title="Open command palette">
+          <button type="button" className="icon-action command-trigger" onClick={() => setCommandPaletteOpen(true)} title={t('actions.openCommandPalette')}>
             <Terminal size={18} aria-hidden="true" />
-            <span>Command</span>
+            <span>{t('actions.command')}</span>
             <kbd>⌘K</kbd>
           </button>
-          <ThemeToggle theme={theme} onToggle={toggleTheme} />
-          <button type="button" className="icon-action" onClick={() => refreshData()} disabled={refreshing} title="Refresh data">
+          <ThemeToggle theme={theme} onToggle={toggleTheme} t={t} />
+          <button type="button" className="icon-action" onClick={() => refreshData()} disabled={refreshing} title={t('actions.refreshData')}>
             <RefreshCw className={refreshing ? 'spin' : ''} size={18} aria-hidden="true" />
-            <span>Refresh</span>
+            <span>{t('actions.refresh')}</span>
           </button>
-          <button type="button" className="icon-action" onClick={signOut} title="Sign out">
+          <button type="button" className="icon-action" onClick={signOut} title={t('actions.signOut')}>
             <LogOut size={18} aria-hidden="true" />
-            <span>Sign out</span>
+            <span>{t('actions.signOut')}</span>
           </button>
         </div>
       </aside>
@@ -856,18 +1013,18 @@ export function App() {
 
         {activeView === 'overview' ? (
           <>
-            <section className="metric-grid" aria-label="Delivery metrics">
-              <Metric label="Scheduled" value={metrics.scheduled} icon={<CalendarClock size={20} />} tone="blue" />
-              <Metric label="Triggered" value={metrics.triggered} icon={<Send size={20} />} tone="purple" />
-              <Metric label="Sent" value={metrics.sent} icon={<CheckCircle2 size={20} />} tone="green" />
-              <Metric label="Failed" value={metrics.failed} icon={<XCircle size={20} />} tone="red" />
-              <Metric label="Retrying" value={metrics.retrying} icon={<RefreshCw size={20} />} tone="amber" />
-              <Metric label="Attempts" value={metrics.totalAttempts} icon={<Clock3 size={20} />} tone="slate" />
+            <section className="metric-grid" aria-label={t('aria.deliveryMetrics')}>
+              <Metric label={t('metrics.scheduled')} value={metrics.scheduled} icon={<CalendarClock size={20} />} tone="blue" />
+              <Metric label={t('metrics.triggered')} value={metrics.triggered} icon={<Send size={20} />} tone="purple" />
+              <Metric label={t('metrics.sent')} value={metrics.sent} icon={<CheckCircle2 size={20} />} tone="green" />
+              <Metric label={t('metrics.failed')} value={metrics.failed} icon={<XCircle size={20} />} tone="red" />
+              <Metric label={t('metrics.retrying')} value={metrics.retrying} icon={<RefreshCw size={20} />} tone="amber" />
+              <Metric label={t('metrics.attempts')} value={metrics.totalAttempts} icon={<Clock3 size={20} />} tone="slate" />
             </section>
 
-            <section className="developer-grid" aria-label="Developer cockpit">
-              <ServiceTopology metrics={metrics} />
-              <LiveEventConsole events={eventStream} onInspect={setInspectorTarget} />
+            <section className="developer-grid" aria-label={t('aria.developerCockpit')}>
+              <ServiceTopology metrics={metrics} t={t} />
+              <LiveEventConsole events={eventStream} onInspect={setInspectorTarget} t={t} />
             </section>
           </>
         ) : null}
@@ -877,8 +1034,8 @@ export function App() {
           <section className="panel" id="reminders" aria-labelledby="reminders-title">
             <div className="panel-heading">
               <div>
-                <p className="eyebrow">Create and manage</p>
-                <h2 id="reminders-title">Reminders</h2>
+                <p className="eyebrow">{t('heading.reminders.eyebrow')}</p>
+                <h2 id="reminders-title">{t('heading.reminders.title')}</h2>
               </div>
               <div className="heading-actions">
                 <span className="history-count">{visibleReminders.length} / {reminders.length}</span>
@@ -888,7 +1045,7 @@ export function App() {
             <form className="reminder-form" onSubmit={submitReminder}>
               <div className="form-row">
                 <label>
-                  Title
+                  {t('reminder.title')}
                   <input
                     id="reminder-title-input"
                     value={form.title}
@@ -898,7 +1055,7 @@ export function App() {
                   />
                 </label>
                 <label>
-                  Scheduled for
+                  {t('reminder.scheduledFor')}
                   <input
                     type="datetime-local"
                     value={form.scheduledFor}
@@ -909,7 +1066,7 @@ export function App() {
               </div>
 
               <label>
-                Message
+                {t('reminder.message')}
                 <textarea
                   value={form.message}
                   onChange={(event) => setForm({ ...form, message: event.target.value })}
@@ -920,7 +1077,7 @@ export function App() {
 
               <div className="form-row">
                 <fieldset className="segmented-control">
-                  <legend>Channel</legend>
+                  <legend>{t('reminder.channel')}</legend>
                   {CHANNELS.map((channel) => (
                     <button
                       type="button"
@@ -934,7 +1091,7 @@ export function App() {
                   ))}
                 </fieldset>
                 <label>
-                  Recipient
+                  {t('reminder.recipient')}
                   <input
                     value={form.recipient}
                     onChange={(event) => setForm({ ...form, recipient: event.target.value })}
@@ -955,19 +1112,19 @@ export function App() {
                       setForm(emptyReminderForm());
                     }}
                   >
-                    Cancel edit
+                    {t('actions.cancelEdit')}
                   </button>
                 ) : null}
                 <button type="submit" className="primary-action" disabled={loading}>
                   {editingId ? <Save size={18} aria-hidden="true" /> : <Plus size={18} aria-hidden="true" />}
-                  {editingId ? 'Save reminder' : 'Add reminder'}
+                  {editingId ? t('actions.updateReminder') : t('actions.addReminder')}
                 </button>
               </div>
             </form>
 
-            <div className="notification-toolbar" aria-label="Reminder filters">
+            <div className="notification-toolbar" aria-label={t('reminder.filters')}>
               <div className="filter-group">
-                <span><Filter size={15} aria-hidden="true" />Status</span>
+                <span><Filter size={15} aria-hidden="true" />{t('table.status')}</span>
                 <div className="filter-buttons">
                   {(['ALL', ...REMINDER_STATUSES] as ReminderStatusFilter[]).map((status) => (
                     <button
@@ -982,7 +1139,7 @@ export function App() {
                 </div>
               </div>
               <div className="filter-group">
-                <span>{channelIcon('EMAIL')}Channel</span>
+                <span>{channelIcon('EMAIL')}{t('reminder.channel')}</span>
                 <div className="filter-buttons">
                   {(['ALL', ...CHANNELS] as ReminderChannelFilter[]).map((channel) => (
                     <button
@@ -1002,12 +1159,12 @@ export function App() {
               <table>
                 <thead>
                   <tr>
-                    <th>Title</th>
-                    <th>Channel</th>
-                    <th>Scheduled</th>
-                    <th>Pipeline</th>
-                    <th>Status</th>
-                    <th aria-label="Actions" />
+                    <th>{t('table.title')}</th>
+                    <th>{t('table.channel')}</th>
+                    <th>{t('table.scheduled')}</th>
+                    <th>{t('table.pipeline')}</th>
+                    <th>{t('table.status')}</th>
+                    <th aria-label={t('table.actions')} />
                   </tr>
                 </thead>
                 <tbody>
@@ -1019,16 +1176,16 @@ export function App() {
                       </td>
                       <td>{channelBadge(reminder.channel)}</td>
                       <td>{formatDate(reminder.scheduledFor)}</td>
-                      <td><PipelineTimeline status={reminder.status} /></td>
+                      <td><PipelineTimeline status={reminder.status} ariaLabel={t('aria.deliveryPipeline')} /></td>
                       <td>{statusBadge(reminder.status)}</td>
                       <td className="row-actions">
-                        <button type="button" onClick={() => setInspectorTarget({ kind: 'reminder', item: reminder })} title="Inspect reminder payload">
+                        <button type="button" onClick={() => setInspectorTarget({ kind: 'reminder', item: reminder })} title={t('actions.inspectReminder')}>
                           <Code2 size={16} aria-hidden="true" />
                         </button>
-                        <button type="button" onClick={() => startEditing(reminder)} title="Edit reminder">
+                        <button type="button" onClick={() => startEditing(reminder)} title={t('actions.editReminder')}>
                           <Edit3 size={16} aria-hidden="true" />
                         </button>
-                        <button type="button" onClick={() => removeReminder(reminder.id)} title="Delete reminder">
+                        <button type="button" onClick={() => removeReminder(reminder.id)} title={t('actions.deleteReminder')}>
                           <Trash2 size={16} aria-hidden="true" />
                         </button>
                       </td>
@@ -1036,12 +1193,12 @@ export function App() {
                   ))}
                   {reminders.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="empty-state">No reminders yet.</td>
+                      <td colSpan={6} className="empty-state">{t('reminder.noItems')}</td>
                     </tr>
                   ) : null}
                   {reminders.length > 0 && visibleReminders.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="empty-state">No reminders match the selected filters.</td>
+                      <td colSpan={6} className="empty-state">{t('reminder.noMatches')}</td>
                     </tr>
                   ) : null}
                 </tbody>
@@ -1054,15 +1211,15 @@ export function App() {
           <section className="panel" id="history" aria-labelledby="notifications-title">
             <div className="panel-heading">
               <div>
-                <p className="eyebrow">Delivery log</p>
-                <h2 id="notifications-title">History</h2>
+                <p className="eyebrow">{t('heading.history.eyebrow')}</p>
+                <h2 id="notifications-title">{t('nav.history')}</h2>
               </div>
               <span className="history-count">{visibleNotifications.length} / {notifications.length}</span>
             </div>
 
-            <div className="notification-toolbar" aria-label="Notification filters">
+            <div className="notification-toolbar" aria-label={t('history.filters')}>
               <div className="filter-group">
-                <span><Filter size={15} aria-hidden="true" />Status</span>
+                <span><Filter size={15} aria-hidden="true" />{t('table.status')}</span>
                 <div className="filter-buttons">
                   {(['ALL', ...DELIVERY_STATUSES] as NotificationStatusFilter[]).map((status) => (
                     <button
@@ -1077,7 +1234,7 @@ export function App() {
                 </div>
               </div>
               <div className="filter-group">
-                <span>{channelIcon('EMAIL')}Channel</span>
+                <span>{channelIcon('EMAIL')}{t('reminder.channel')}</span>
                 <div className="filter-buttons">
                   {(['ALL', ...CHANNELS] as NotificationChannelFilter[]).map((channel) => (
                     <button
@@ -1102,24 +1259,24 @@ export function App() {
                       <strong>{notification.subject}</strong>
                       {statusBadge(notification.status)}
                     </div>
-                    <PipelineTimeline deliveryStatus={notification.status} />
+                    <PipelineTimeline deliveryStatus={notification.status} ariaLabel={t('aria.deliveryPipeline')} />
                     <p>{notification.message}</p>
                     <div className="notification-meta">
                       <span>
-                        {notification.recipient} · {formatDate(notification.createdAt)} · Attempts: {notification.attemptCount}
+                        {notification.recipient} · {formatDate(notification.createdAt)} · {t('history.attempts')}: {notification.attemptCount}
                       </span>
-                      {notification.lastAttemptAt ? <span>Last attempt: {formatDate(notification.lastAttemptAt)}</span> : null}
+                      {notification.lastAttemptAt ? <span>{t('history.lastAttempt')}: {formatDate(notification.lastAttemptAt)}</span> : null}
                       {notification.failureReason ? <span>{notification.failureReason}</span> : null}
                     </div>
                     <button type="button" className="inline-inspect" onClick={() => setInspectorTarget({ kind: 'notification', item: notification })}>
-                      Inspect payload
+                      {t('actions.inspectPayload')}
                     </button>
                   </div>
                 </article>
               ))}
-              {notifications.length === 0 ? <div className="empty-state">No delivery history yet.</div> : null}
+              {notifications.length === 0 ? <div className="empty-state">{t('history.noItems')}</div> : null}
               {notifications.length > 0 && visibleNotifications.length === 0 ? (
-                <div className="empty-state">No notifications match the selected filters.</div>
+                <div className="empty-state">{t('history.noMatches')}</div>
               ) : null}
             </div>
           </section>
@@ -1138,6 +1295,7 @@ export function App() {
               passwordSubmitting={passwordSubmitting}
               onPasswordChange={setPasswordChangeForm}
               onPasswordSubmit={submitPasswordChange}
+              t={t}
             />
           ) : null}
         </section>
@@ -1153,18 +1311,25 @@ export function App() {
             setCommandPaletteOpen(false);
             setCommandQuery('');
           }}
+          t={t}
         />
       ) : null}
 
       {inspectorTarget ? (
-        <InspectorDrawer target={inspectorTarget} onClose={() => setInspectorTarget(null)} />
+        <InspectorDrawer target={inspectorTarget} onClose={() => setInspectorTarget(null)} t={t} />
       ) : null}
 
     </main>
   );
 }
 
-function ServiceTopology({ metrics }: { metrics: { scheduled: number; triggered: number; sent: number; failed: number; retrying: number; totalAttempts: number } }) {
+function ServiceTopology({
+  metrics,
+  t
+}: {
+  metrics: { scheduled: number; triggered: number; sent: number; failed: number; retrying: number; totalAttempts: number };
+  t: (key: string) => string;
+}) {
   const services = [
     { key: 'gateway', name: 'Gateway', detail: 'REST 8080', meta: `${metrics.totalAttempts} attempts` },
     { key: 'auth', name: 'Auth', detail: 'JWT', meta: 'identity' },
@@ -1178,14 +1343,14 @@ function ServiceTopology({ metrics }: { metrics: { scheduled: number; triggered:
     <section className="cockpit-card topology-card" aria-labelledby="topology-title">
       <div className="cockpit-heading">
         <div>
-          <p className="eyebrow">Runtime map</p>
-          <h2 id="topology-title">Service topology</h2>
+          <p className="eyebrow">{t('overview.topology.eyebrow')}</p>
+          <h2 id="topology-title">{t('overview.topology.title')}</h2>
         </div>
         <span className="live-chip"><span className="pulse-dot" />live</span>
       </div>
 
       <div className="topology-map">
-        <svg className="topology-lines" viewBox="0 0 640 300" role="img" aria-label="Service dependencies">
+        <svg className="topology-lines" viewBox="0 0 640 300" role="img" aria-label={t('aria.serviceDependencies')}>
           <path d="M92 82 C190 42 262 42 322 82" />
           <path d="M322 82 C418 38 496 44 548 82" />
           <path d="M322 82 C312 132 312 166 322 214" />
@@ -1206,17 +1371,25 @@ function ServiceTopology({ metrics }: { metrics: { scheduled: number; triggered:
   );
 }
 
-function LiveEventConsole({ events, onInspect }: { events: EventStreamEntry[]; onInspect: (target: InspectorTarget) => void }) {
+function LiveEventConsole({
+  events,
+  onInspect,
+  t
+}: {
+  events: EventStreamEntry[];
+  onInspect: (target: InspectorTarget) => void;
+  t: (key: string) => string;
+}) {
   return (
     <section className="cockpit-card console-card" aria-labelledby="console-title">
       <div className="cockpit-heading">
         <div>
-          <p className="eyebrow">Event stream</p>
-          <h2 id="console-title">Live console</h2>
+          <p className="eyebrow">{t('overview.console.eyebrow')}</p>
+          <h2 id="console-title">{t('overview.console.title')}</h2>
         </div>
       </div>
 
-      <div className="console-window" role="log" aria-live="polite" aria-label="Live event stream" tabIndex={0}>
+      <div className="console-window" role="log" aria-live="polite" aria-label={t('aria.liveEventStream')} tabIndex={0}>
         {events.map((event) => (
           <button
             type="button"
@@ -1240,13 +1413,15 @@ function CommandPalette({
   commands,
   onQueryChange,
   onRun,
-  onClose
+  onClose,
+  t
 }: {
   query: string;
   commands: CommandItem[];
   onQueryChange: (query: string) => void;
   onRun: (command: CommandItem) => void;
   onClose: () => void;
+  t: (key: string) => string;
 }) {
   return (
     <div
@@ -1271,12 +1446,12 @@ function CommandPalette({
                 onRun(commands[0]);
               }
             }}
-            aria-label="Command palette"
-            placeholder="Type a command, route, filter, or payload..."
+            aria-label={t('command.title')}
+            placeholder={t('command.placeholder')}
           />
           <kbd>Esc</kbd>
         </div>
-        <h2 id="command-title">Command palette</h2>
+        <h2 id="command-title">{t('command.title')}</h2>
         <div className="command-list">
           {commands.map((command) => (
             <button type="button" className="command-item" key={command.id} onClick={() => onRun(command)}>
@@ -1287,14 +1462,22 @@ function CommandPalette({
               {command.shortcut ? <kbd>{command.shortcut}</kbd> : null}
             </button>
           ))}
-          {commands.length === 0 ? <div className="empty-state">No command matched.</div> : null}
+          {commands.length === 0 ? <div className="empty-state">{t('command.noMatch')}</div> : null}
         </div>
       </section>
     </div>
   );
 }
 
-function InspectorDrawer({ target, onClose }: { target: InspectorTarget; onClose: () => void }) {
+function InspectorDrawer({
+  target,
+  onClose,
+  t
+}: {
+  target: InspectorTarget;
+  onClose: () => void;
+  t: (key: string) => string;
+}) {
   const title = target.kind === 'reminder' ? target.item.title : target.item.subject;
   const payload = JSON.stringify(target.item, null, 2);
 
@@ -1302,17 +1485,17 @@ function InspectorDrawer({ target, onClose }: { target: InspectorTarget; onClose
     <aside className="inspector-drawer" role="dialog" aria-modal="true" aria-labelledby="inspector-title">
       <div className="inspector-heading">
         <div>
-          <p className="eyebrow">{target.kind} payload</p>
+          <p className="eyebrow">{target.kind} {t('inspector.payload').toLowerCase()}</p>
           <h2 id="inspector-title">{title}</h2>
         </div>
-        <button type="button" className="row-actions-close" onClick={onClose} aria-label="Close inspector">
+        <button type="button" className="row-actions-close" onClick={onClose} aria-label={t('actions.closeInspector')}>
           <XCircle size={18} aria-hidden="true" />
         </button>
       </div>
       {target.kind === 'reminder' ? (
-        <PipelineTimeline status={target.item.status} variant="drawer" />
+        <PipelineTimeline status={target.item.status} variant="drawer" ariaLabel={t('aria.deliveryPipeline')} />
       ) : (
-        <PipelineTimeline deliveryStatus={target.item.status} variant="drawer" />
+        <PipelineTimeline deliveryStatus={target.item.status} variant="drawer" ariaLabel={t('aria.deliveryPipeline')} />
       )}
       <pre>{payload}</pre>
     </aside>
@@ -1330,7 +1513,8 @@ function ProfileSettingsPage({
   passwordStatus,
   passwordSubmitting,
   onPasswordChange,
-  onPasswordSubmit
+  onPasswordSubmit,
+  t
 }: {
   user: UserSummary;
   profileForm: ProfileForm;
@@ -1343,16 +1527,17 @@ function ProfileSettingsPage({
   passwordSubmitting: boolean;
   onPasswordChange: (form: PasswordChangeForm) => void;
   onPasswordSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  t: (key: string) => string;
 }) {
   const displayName = fullName(user);
 
   return (
-    <section className="profile-grid" id="profile" aria-label="Profile settings">
+    <section className="profile-grid" id="profile" aria-label={t('aria.profileSettings')}>
       <section className="panel profile-card" aria-labelledby="profile-title">
         <div className="panel-heading">
           <div>
-            <p className="eyebrow">User info</p>
-            <h2 id="profile-title">Profile</h2>
+            <p className="eyebrow">{t('profile.userInfo')}</p>
+            <h2 id="profile-title">{t('heading.profile.title')}</h2>
           </div>
           {statusBadge(user.role)}
         </div>
@@ -1368,7 +1553,7 @@ function ProfileSettingsPage({
         <form className="profile-form" onSubmit={onProfileSubmit}>
           <div className="form-row">
             <label>
-              First name
+              {t('auth.firstName')}
               <input
                 type="text"
                 value={profileForm.firstName}
@@ -1379,7 +1564,7 @@ function ProfileSettingsPage({
               />
             </label>
             <label>
-              Last name
+              {t('auth.lastName')}
               <input
                 type="text"
                 value={profileForm.lastName}
@@ -1391,7 +1576,7 @@ function ProfileSettingsPage({
             </label>
           </div>
           <label>
-            Phone number
+            {t('auth.phoneNumber')}
             <input
               type="tel"
               value={profileForm.phoneNumber}
@@ -1401,29 +1586,39 @@ function ProfileSettingsPage({
               required
             />
           </label>
+          <label>
+            {t('profile.language')}
+            <select
+              value={profileForm.preferredLanguage}
+              onChange={(event) => onProfileChange({ ...profileForm, preferredLanguage: event.target.value as LanguageCode })}
+            >
+              <option value="en">{t('profile.languageEnglish')}</option>
+              <option value="tr">{t('profile.languageTurkish')}</option>
+            </select>
+          </label>
           {profileStatus ? <p className={profileStatus.tone === 'success' ? 'form-success' : 'form-error'}>{profileStatus.message}</p> : null}
           <button type="submit" className="primary-action" disabled={profileSubmitting}>
             {profileSubmitting ? <Loader2 className="spin" size={18} aria-hidden="true" /> : <Save size={18} aria-hidden="true" />}
-            Save profile
+            {t('actions.saveProfile')}
           </button>
         </form>
 
         <dl className="profile-fields">
           <div>
-            <dt>Email</dt>
+            <dt>{t('auth.email')}</dt>
             <dd>{user.email}</dd>
           </div>
           <div>
-            <dt>User ID</dt>
+            <dt>{t('profile.userId')}</dt>
             <dd>{user.id}</dd>
           </div>
           <div>
-            <dt>Role</dt>
+            <dt>{t('profile.role')}</dt>
             <dd>{user.role}</dd>
           </div>
           <div>
-            <dt>Created</dt>
-            <dd>{user.createdAt ? formatDate(user.createdAt) : 'Active session'}</dd>
+            <dt>{t('profile.created')}</dt>
+            <dd>{user.createdAt ? formatDate(user.createdAt) : t('profile.activeSession')}</dd>
           </div>
         </dl>
       </section>
@@ -1431,8 +1626,8 @@ function ProfileSettingsPage({
       <section className="panel security-panel" aria-labelledby="security-title">
         <div className="panel-heading">
           <div>
-            <p className="eyebrow">Account security</p>
-            <h2 id="security-title">Password</h2>
+            <p className="eyebrow">{t('profile.security')}</p>
+            <h2 id="security-title">{t('profile.password')}</h2>
           </div>
           <KeyRound size={20} aria-hidden="true" />
         </div>
@@ -1443,6 +1638,7 @@ function ProfileSettingsPage({
           submitting={passwordSubmitting}
           onChange={onPasswordChange}
           onSubmit={onPasswordSubmit}
+          t={t}
         />
       </section>
     </section>
@@ -1454,18 +1650,20 @@ function PasswordChangeFormView({
   status,
   submitting,
   onChange,
-  onSubmit
+  onSubmit,
+  t
 }: {
   form: PasswordChangeForm;
   status: FormStatus | null;
   submitting: boolean;
   onChange: (form: PasswordChangeForm) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  t: (key: string) => string;
 }) {
   return (
     <form className="security-form" onSubmit={onSubmit}>
       <label>
-        Current password
+        {t('password.current')}
         <input
           id="current-password-input"
           type="password"
@@ -1478,7 +1676,7 @@ function PasswordChangeFormView({
         />
       </label>
       <label>
-        New password
+        {t('password.new')}
         <input
           type="password"
           value={form.newPassword}
@@ -1490,7 +1688,7 @@ function PasswordChangeFormView({
         />
       </label>
       <label>
-        Confirm new password
+        {t('password.confirm')}
         <input
           type="password"
           value={form.confirmPassword}
@@ -1504,7 +1702,7 @@ function PasswordChangeFormView({
       {status ? <p className={status.tone === 'success' ? 'form-success' : 'form-error'}>{status.message}</p> : null}
       <button type="submit" className="primary-action" disabled={submitting}>
         {submitting ? <Loader2 className="spin" size={18} aria-hidden="true" /> : <KeyRound size={18} aria-hidden="true" />}
-        Change password
+        {t('actions.changePassword')}
       </button>
     </form>
   );
@@ -1513,16 +1711,18 @@ function PasswordChangeFormView({
 function PipelineTimeline({
   status,
   deliveryStatus,
-  variant
+  variant,
+  ariaLabel
 }: {
   status?: ReminderStatus;
   deliveryStatus?: DeliveryStatus;
   variant?: 'drawer';
+  ariaLabel?: string;
 }) {
   const stages = pipelineStages(status, deliveryStatus);
 
   return (
-    <div className={`pipeline-timeline ${variant === 'drawer' ? 'drawer' : ''}`} aria-label="Delivery pipeline">
+    <div className={`pipeline-timeline ${variant === 'drawer' ? 'drawer' : ''}`} aria-label={ariaLabel ?? 'Delivery pipeline'}>
       {stages.map((stage) => (
         <span className={stage.state} key={stage.label}>
           <i />
@@ -1551,19 +1751,20 @@ function Metric({ label, value, icon, tone }: { label: string; value: number; ic
   );
 }
 
-function ThemeToggle({ theme, onToggle }: { theme: ThemeMode; onToggle: () => void }) {
+function ThemeToggle({ theme, onToggle, t }: { theme: ThemeMode; onToggle: () => void; t: (key: string) => string }) {
   const nextTheme = theme === 'dark' ? 'light' : 'dark';
+  const title = nextTheme === 'dark' ? t('theme.switchDark') : t('theme.switchLight');
 
   return (
     <button
       type="button"
       className="icon-action theme-toggle"
       onClick={onToggle}
-      title={`Switch to ${nextTheme} theme`}
-      aria-label={`Switch to ${nextTheme} theme`}
+      title={title}
+      aria-label={title}
     >
       {theme === 'dark' ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
-      <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
+      <span>{theme === 'dark' ? t('theme.light') : t('theme.dark')}</span>
     </button>
   );
 }
@@ -1628,6 +1829,19 @@ function initialTheme(): ThemeMode {
   }
 
   return 'light';
+}
+
+function initialLanguage(): LanguageCode {
+  const storedLanguage = localStorage.getItem(LANGUAGE_KEY);
+  if (storedLanguage === 'en' || storedLanguage === 'tr') {
+    return storedLanguage;
+  }
+
+  if (typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('tr')) {
+    return 'tr';
+  }
+
+  return 'en';
 }
 
 function currentDashboardView(): DashboardView {
@@ -1748,9 +1962,11 @@ function pipelineStages(status?: ReminderStatus, deliveryStatus?: DeliveryStatus
   });
 }
 
-function formatError(error: unknown) {
+function formatError(error: unknown, translate: (key: string) => string) {
   if (error instanceof Error) {
-    return error.message;
+    return translate(error.message) === error.message && error.message.startsWith('error.')
+      ? error.message
+      : translate(error.message);
   }
-  return 'Unexpected error';
+  return translate('error.unexpected');
 }

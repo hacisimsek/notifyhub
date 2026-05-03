@@ -43,6 +43,7 @@ class AuthControllerIntegrationTests {
                                   "firstName": "Haci",
                                   "lastName": "Simsek",
                                   "phoneNumber": "+905551112233",
+                                  "preferredLanguage": "tr",
                                   "password": "secret123"
                                 }
                                 """))
@@ -53,6 +54,7 @@ class AuthControllerIntegrationTests {
                 .andExpect(jsonPath("$.user.firstName", equalTo("Haci")))
                 .andExpect(jsonPath("$.user.lastName", equalTo("Simsek")))
                 .andExpect(jsonPath("$.user.phoneNumber", equalTo("+905551112233")))
+                .andExpect(jsonPath("$.user.preferredLanguage", equalTo("tr")))
                 .andExpect(jsonPath("$.user.role", equalTo("USER")))
                 .andReturn()
                 .getResponse()
@@ -68,6 +70,7 @@ class AuthControllerIntegrationTests {
                 .andExpect(jsonPath("$.firstName", equalTo("Haci")))
                 .andExpect(jsonPath("$.lastName", equalTo("Simsek")))
                 .andExpect(jsonPath("$.phoneNumber", equalTo("+905551112233")))
+                .andExpect(jsonPath("$.preferredLanguage", equalTo("tr")))
                 .andExpect(jsonPath("$.role", equalTo("USER")));
     }
 
@@ -81,6 +84,7 @@ class AuthControllerIntegrationTests {
                                   "firstName": "Wrong",
                                   "lastName": "Password",
                                   "phoneNumber": "+905551110000",
+                                  "preferredLanguage": "en",
                                   "password": "secret123"
                                 }
                                 """))
@@ -105,6 +109,7 @@ class AuthControllerIntegrationTests {
                   "firstName": "Duplicate",
                   "lastName": "User",
                   "phoneNumber": "+905551110001",
+                  "preferredLanguage": "en",
                   "password": "secret123"
                 }
                 """;
@@ -217,7 +222,8 @@ class AuthControllerIntegrationTests {
                                 {
                                   "firstName": "Updated",
                                   "lastName": "User",
-                                  "phoneNumber": "+905559998877"
+                                  "phoneNumber": "+905559998877",
+                                  "preferredLanguage": "tr"
                                 }
                                 """))
                 .andExpect(status().isOk())
@@ -225,6 +231,7 @@ class AuthControllerIntegrationTests {
                 .andExpect(jsonPath("$.user.firstName", equalTo("Updated")))
                 .andExpect(jsonPath("$.user.lastName", equalTo("User")))
                 .andExpect(jsonPath("$.user.phoneNumber", equalTo("+905559998877")))
+                .andExpect(jsonPath("$.user.preferredLanguage", equalTo("tr")))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -236,7 +243,8 @@ class AuthControllerIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.firstName", equalTo("Updated")))
                 .andExpect(jsonPath("$.lastName", equalTo("User")))
-                .andExpect(jsonPath("$.phoneNumber", equalTo("+905559998877")));
+                .andExpect(jsonPath("$.phoneNumber", equalTo("+905559998877")))
+                .andExpect(jsonPath("$.preferredLanguage", equalTo("tr")));
     }
 
     @Test
@@ -255,6 +263,7 @@ class AuthControllerIntegrationTests {
                                   "firstName": "Test",
                                   "lastName": "User",
                                   "phoneNumber": "+905551112233",
+                                  "preferredLanguage": "en",
                                   "password": "%s"
                                 }
                                 """.formatted(email, password)))
