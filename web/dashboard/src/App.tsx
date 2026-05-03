@@ -720,6 +720,23 @@ export function App() {
             <User size={18} aria-hidden="true" />Profile
           </a>
         </nav>
+        <div className="side-actions">
+          <span className="account-chip">{authenticatedUser.email}</span>
+          <button type="button" className="icon-action command-trigger" onClick={() => setCommandPaletteOpen(true)} title="Open command palette">
+            <Terminal size={18} aria-hidden="true" />
+            <span>Command</span>
+            <kbd>⌘K</kbd>
+          </button>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
+          <button type="button" className="icon-action" onClick={() => refreshData()} disabled={refreshing} title="Refresh data">
+            <RefreshCw className={refreshing ? 'spin' : ''} size={18} aria-hidden="true" />
+            <span>Refresh</span>
+          </button>
+          <button type="button" className="icon-action" onClick={signOut} title="Sign out">
+            <LogOut size={18} aria-hidden="true" />
+            <span>Sign out</span>
+          </button>
+        </div>
       </aside>
 
       <section className="workspace">
@@ -727,23 +744,6 @@ export function App() {
           <div>
             <p className="eyebrow">{heading.eyebrow}</p>
             <h1>{heading.title}</h1>
-          </div>
-          <div className="top-actions">
-            <span className="account-chip">{authenticatedUser.email}</span>
-            <button type="button" className="icon-action command-trigger" onClick={() => setCommandPaletteOpen(true)} title="Open command palette">
-              <Terminal size={18} aria-hidden="true" />
-              <span>Command</span>
-              <kbd>⌘K</kbd>
-            </button>
-            <ThemeToggle theme={theme} onToggle={toggleTheme} />
-            <button type="button" className="icon-action" onClick={() => refreshData()} disabled={refreshing} title="Refresh data">
-              <RefreshCw className={refreshing ? 'spin' : ''} size={18} aria-hidden="true" />
-              <span>Refresh</span>
-            </button>
-            <button type="button" className="icon-action" onClick={signOut} title="Sign out">
-              <LogOut size={18} aria-hidden="true" />
-              <span>Sign out</span>
-            </button>
           </div>
           <div className="system-strip" aria-label="Runtime signals">
             <span className="system-pill">
