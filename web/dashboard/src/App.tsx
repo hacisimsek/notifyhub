@@ -245,6 +245,37 @@ const DEFAULT_MESSAGES: Record<string, string> = {
   'aria.profileSettings': 'Profile settings',
   'aria.authenticationMode': 'Authentication mode',
   'aria.deliveryPipeline': 'Delivery pipeline',
+  'runtime.live': 'Live',
+  'filters.all': 'All',
+  'status.scheduled': 'Scheduled',
+  'status.triggered': 'Triggered',
+  'status.cancelled': 'Cancelled',
+  'status.pending': 'Pending',
+  'status.sent': 'Sent',
+  'status.failed': 'Failed',
+  'status.retrying': 'Retrying',
+  'status.user': 'User',
+  'status.admin': 'Admin',
+  'pipeline.created': 'Created',
+  'pipeline.scheduled': 'Scheduled',
+  'pipeline.queued': 'Queued',
+  'pipeline.delivery': 'Delivery',
+  'pipeline.cancelled': 'Cancelled',
+  'pipeline.failed': 'Failed',
+  'topology.gateway.detail': 'REST 8080',
+  'topology.gateway.meta': 'attempts',
+  'topology.auth.detail': 'JWT',
+  'topology.auth.meta': 'identity',
+  'topology.reminder.detail': 'Scheduler',
+  'topology.reminder.meta': 'scheduled',
+  'topology.kafka.detail': 'Event bus',
+  'topology.kafka.meta': 'triggered',
+  'topology.notification.detail': 'Delivery',
+  'topology.notification.meta': 'sent',
+  'topology.storage.detail': 'State',
+  'topology.storage.meta': 'watch',
+  'event.waitingPayloads': 'Waiting for authenticated payloads',
+  'event.noRemindersQueued': 'No reminders in the queue',
 };
 
 const emptyReminderForm = (): ReminderForm => ({
@@ -409,7 +440,7 @@ export function App() {
     return { scheduled, triggered, sent, failed, retrying, totalAttempts };
   }, [reminders, notifications]);
 
-  const eventStream = useMemo(() => buildEventStream(reminders, notifications), [reminders, notifications]);
+  const eventStream = useMemo(() => buildEventStream(reminders, notifications, t), [messages, reminders, notifications]);
 
   const commandItems = useMemo<CommandItem[]>(() => [
     {
@@ -773,6 +804,11 @@ export function App() {
     setTheme((currentTheme) => currentTheme === 'dark' ? 'light' : 'dark');
   }
 
+  function changeProfileLanguage(nextLanguage: LanguageCode) {
+    setProfileForm((currentForm) => ({ ...currentForm, preferredLanguage: nextLanguage }));
+    setLanguage(nextLanguage);
+  }
+
   function openDashboardView(nextView: DashboardView) {
     setActiveView(nextView);
     const nextRoute = DASHBOARD_ROUTES[nextView];
@@ -1133,7 +1169,7 @@ export function App() {
                       className={reminderStatusFilter === status ? 'active' : ''}
                       onClick={() => setReminderStatusFilter(status)}
                     >
-                      {status}
+                      {statusFilterLabel(status, t)}
                     </button>
                   ))}
                 </div>
@@ -1176,8 +1212,8 @@ export function App() {
                       </td>
                       <td>{channelBadge(reminder.channel)}</td>
                       <td>{formatDate(reminder.scheduledFor)}</td>
-                      <td><PipelineTimeline status={reminder.status} ariaLabel={t('aria.deliveryPipeline')} /></td>
-                      <td>{statusBadge(reminder.status)}</td>
+                      <td><PipelineTimeline status={reminder.status} ariaLabel={t('aria.deliveryPipeline')} t={t} /></td>
+                      <td>{statusBadge(reminder.status, t)}</td>
                       <td className="row-actions">
                         <button type="button" onClick={() => setInspectorTarget({ kind: 'reminder', item: reminder })} title={t('actions.inspectReminder')}>
                           <Code2 size={16} aria-hidden="true" />
@@ -1228,7 +1264,7 @@ export function App() {
                       className={notificationStatusFilter === status ? 'active' : ''}
                       onClick={() => setNotificationStatusFilter(status)}
                     >
-                      {status}
+                      {statusFilterLabel(status, t)}
                     </button>
                   ))}
                 </div>
@@ -1257,9 +1293,9 @@ export function App() {
                   <div>
                     <div className="notification-title">
                       <strong>{notification.subject}</strong>
-                      {statusBadge(notification.status)}
+                      {statusBadge(notification.status, t)}
                     </div>
-                    <PipelineTimeline deliveryStatus={notification.status} ariaLabel={t('aria.deliveryPipeline')} />
+                    <PipelineTimeline deliveryStatus={notification.status} ariaLabel={t('aria.deliveryPipeline')} t={t} />
                     <p>{notification.message}</p>
                     <div className="notification-meta">
                       <span>
@@ -1289,6 +1325,7 @@ export function App() {
               profileStatus={profileStatus}
               profileSubmitting={profileSubmitting}
               onProfileChange={setProfileForm}
+              onLanguageChange={changeProfileLanguage}
               onProfileSubmit={submitProfileUpdate}
               passwordForm={passwordChangeForm}
               passwordStatus={passwordChangeStatus}
@@ -1331,12 +1368,12 @@ function ServiceTopology({
   t: (key: string) => string;
 }) {
   const services = [
-    { key: 'gateway', name: 'Gateway', detail: 'REST 8080', meta: `${metrics.totalAttempts} attempts` },
-    { key: 'auth', name: 'Auth', detail: 'JWT', meta: 'identity' },
-    { key: 'reminder', name: 'Reminder', detail: 'Scheduler', meta: `${metrics.scheduled} scheduled` },
-    { key: 'kafka', name: 'Kafka', detail: 'Event bus', meta: `${metrics.triggered} triggered` },
-    { key: 'notification', name: 'Notify', detail: 'Delivery', meta: `${metrics.sent} sent` },
-    { key: 'storage', name: 'Postgres', detail: 'State', meta: `${metrics.failed + metrics.retrying} watch` }
+    { key: 'gateway', name: 'Gateway', detail: t('topology.gateway.detail'), meta: `${metrics.totalAttempts} ${t('topology.gateway.meta')}` },
+    { key: 'auth', name: 'Auth', detail: t('topology.auth.detail'), meta: t('topology.auth.meta') },
+    { key: 'reminder', name: 'Reminder', detail: t('topology.reminder.detail'), meta: `${metrics.scheduled} ${t('topology.reminder.meta')}` },
+    { key: 'kafka', name: 'Kafka', detail: t('topology.kafka.detail'), meta: `${metrics.triggered} ${t('topology.kafka.meta')}` },
+    { key: 'notification', name: 'Notify', detail: t('topology.notification.detail'), meta: `${metrics.sent} ${t('topology.notification.meta')}` },
+    { key: 'storage', name: 'Postgres', detail: t('topology.storage.detail'), meta: `${metrics.failed + metrics.retrying} ${t('topology.storage.meta')}` }
   ];
 
   return (
@@ -1346,7 +1383,7 @@ function ServiceTopology({
           <p className="eyebrow">{t('overview.topology.eyebrow')}</p>
           <h2 id="topology-title">{t('overview.topology.title')}</h2>
         </div>
-        <span className="live-chip"><span className="pulse-dot" />live</span>
+        <span className="live-chip"><span className="pulse-dot" />{t('runtime.live')}</span>
       </div>
 
       <div className="topology-map">
@@ -1493,9 +1530,9 @@ function InspectorDrawer({
         </button>
       </div>
       {target.kind === 'reminder' ? (
-        <PipelineTimeline status={target.item.status} variant="drawer" ariaLabel={t('aria.deliveryPipeline')} />
+        <PipelineTimeline status={target.item.status} variant="drawer" ariaLabel={t('aria.deliveryPipeline')} t={t} />
       ) : (
-        <PipelineTimeline deliveryStatus={target.item.status} variant="drawer" ariaLabel={t('aria.deliveryPipeline')} />
+        <PipelineTimeline deliveryStatus={target.item.status} variant="drawer" ariaLabel={t('aria.deliveryPipeline')} t={t} />
       )}
       <pre>{payload}</pre>
     </aside>
@@ -1508,6 +1545,7 @@ function ProfileSettingsPage({
   profileStatus,
   profileSubmitting,
   onProfileChange,
+  onLanguageChange,
   onProfileSubmit,
   passwordForm,
   passwordStatus,
@@ -1521,6 +1559,7 @@ function ProfileSettingsPage({
   profileStatus: FormStatus | null;
   profileSubmitting: boolean;
   onProfileChange: (form: ProfileForm) => void;
+  onLanguageChange: (language: LanguageCode) => void;
   onProfileSubmit: (event: FormEvent<HTMLFormElement>) => void;
   passwordForm: PasswordChangeForm;
   passwordStatus: FormStatus | null;
@@ -1539,7 +1578,7 @@ function ProfileSettingsPage({
             <p className="eyebrow">{t('profile.userInfo')}</p>
             <h2 id="profile-title">{t('heading.profile.title')}</h2>
           </div>
-          {statusBadge(user.role)}
+          {statusBadge(user.role, t)}
         </div>
 
         <div className="profile-identity">
@@ -1590,7 +1629,7 @@ function ProfileSettingsPage({
             {t('profile.language')}
             <select
               value={profileForm.preferredLanguage}
-              onChange={(event) => onProfileChange({ ...profileForm, preferredLanguage: event.target.value as LanguageCode })}
+              onChange={(event) => onLanguageChange(event.target.value as LanguageCode)}
             >
               <option value="en">{t('profile.languageEnglish')}</option>
               <option value="tr">{t('profile.languageTurkish')}</option>
@@ -1712,21 +1751,23 @@ function PipelineTimeline({
   status,
   deliveryStatus,
   variant,
-  ariaLabel
+  ariaLabel,
+  t
 }: {
   status?: ReminderStatus;
   deliveryStatus?: DeliveryStatus;
   variant?: 'drawer';
   ariaLabel?: string;
+  t?: (key: string) => string;
 }) {
   const stages = pipelineStages(status, deliveryStatus);
 
   return (
     <div className={`pipeline-timeline ${variant === 'drawer' ? 'drawer' : ''}`} aria-label={ariaLabel ?? 'Delivery pipeline'}>
       {stages.map((stage) => (
-        <span className={stage.state} key={stage.label}>
+        <span className={stage.state} key={stage.labelKey}>
           <i />
-          {stage.label}
+          {t ? t(stage.labelKey) : stage.labelKey}
         </span>
       ))}
     </div>
@@ -1783,8 +1824,18 @@ function channelBadge(channel: Channel) {
   return <span className={`badge channel ${channel.toLowerCase()}`}>{channelIcon(channel)}{channel}</span>;
 }
 
-function statusBadge(status: string) {
-  return <span className={`badge status ${status.toLowerCase()}`}>{status}</span>;
+function statusBadge(status: string, t: (key: string) => string) {
+  return <span className={`badge status ${status.toLowerCase()}`}>{statusLabel(status, t)}</span>;
+}
+
+function statusFilterLabel(status: ReminderStatusFilter | NotificationStatusFilter, t: (key: string) => string) {
+  return status === 'ALL' ? t('filters.all') : statusLabel(status, t);
+}
+
+function statusLabel(status: string, t: (key: string) => string) {
+  const key = `status.${status.toLowerCase()}`;
+  const translated = t(key);
+  return translated === key ? status : translated;
 }
 
 function recipientPlaceholder(channel: Channel) {
@@ -1874,7 +1925,7 @@ function profileInitial(user: UserSummary) {
   return (user.firstName || user.email).trim().charAt(0).toUpperCase() || 'U';
 }
 
-function buildEventStream(reminders: Reminder[], notifications: NotificationLog[]): EventStreamEntry[] {
+function buildEventStream(reminders: Reminder[], notifications: NotificationLog[], t: (key: string) => string): EventStreamEntry[] {
   const reminderEvents: EventStreamEntry[] = reminders.map((reminder) => ({
     id: `reminder-${reminder.id}`,
     time: reminder.updatedAt,
@@ -1904,14 +1955,14 @@ function buildEventStream(reminders: Reminder[], notifications: NotificationLog[
       id: 'boot-gateway',
       time: new Date().toISOString(),
       command: 'gateway.ready',
-      detail: 'Waiting for authenticated payloads',
+      detail: t('event.waitingPayloads'),
       tone: 'sent'
     },
     {
       id: 'boot-scheduler',
       time: new Date().toISOString(),
       command: 'scheduler.idle',
-      detail: 'No reminders in the queue',
+      detail: t('event.noRemindersQueued'),
       tone: 'scheduled'
     }
   ];
@@ -1925,8 +1976,8 @@ function formatConsoleTime(value: string) {
   }).format(new Date(value));
 }
 
-function pipelineStages(status?: ReminderStatus, deliveryStatus?: DeliveryStatus): { label: string; state: PipelineStageState }[] {
-  const labels = ['created', 'scheduled', 'queued', 'delivery'];
+function pipelineStages(status?: ReminderStatus, deliveryStatus?: DeliveryStatus): { labelKey: string; state: PipelineStageState }[] {
+  const labelKeys = ['pipeline.created', 'pipeline.scheduled', 'pipeline.queued', 'pipeline.delivery'];
   let activeIndex = 1;
   let failed = false;
 
@@ -1948,17 +1999,17 @@ function pipelineStages(status?: ReminderStatus, deliveryStatus?: DeliveryStatus
     failed = true;
   }
 
-  return labels.map((label, index) => {
+  return labelKeys.map((labelKey, index) => {
     if (failed && index === activeIndex) {
-      return { label: status === 'CANCELLED' ? 'cancelled' : 'failed', state: 'error' };
+      return { labelKey: status === 'CANCELLED' ? 'pipeline.cancelled' : 'pipeline.failed', state: 'error' };
     }
     if (index < activeIndex) {
-      return { label, state: 'done' };
+      return { labelKey, state: 'done' };
     }
     if (index === activeIndex) {
-      return { label, state: 'active' };
+      return { labelKey, state: 'active' };
     }
-    return { label, state: 'queued' };
+    return { labelKey, state: 'queued' };
   });
 }
 
