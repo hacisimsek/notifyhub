@@ -1098,9 +1098,20 @@ textarea {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
+  min-height: 44px;
   padding: 4px;
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
-  background: var(--surface-control);
+  background: var(--surface-input);
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.segmented-control:focus-within .segmented-options {
+  border-color: var(--primary-hover);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .segmented-control button {
@@ -1108,14 +1119,14 @@ textarea {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 38px;
+  min-height: 34px;
   padding: 0 10px;
   line-height: 1;
   min-width: 0;
 }
 
 .segmented-control button > * {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
 .segmented-control button svg {
