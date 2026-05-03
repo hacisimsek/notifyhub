@@ -1103,10 +1103,9 @@ function LiveEventConsole({ events, onInspect }: { events: EventStreamEntry[]; o
           <p className="eyebrow">Event stream</p>
           <h2 id="console-title">Live console</h2>
         </div>
-        <span className="live-chip"><span className="pulse-dot" />tail -f</span>
       </div>
 
-      <div className="console-window" role="log" aria-live="polite">
+      <div className="console-window" role="log" aria-live="polite" aria-label="Live event stream" tabIndex={0}>
         {events.map((event) => (
           <button
             type="button"
