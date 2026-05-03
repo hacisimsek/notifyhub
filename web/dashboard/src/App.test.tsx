@@ -17,6 +17,7 @@ vi.mock('./api', async (importOriginal) => {
     listReminders: vi.fn(),
     login: vi.fn(),
     register: vi.fn(),
+    updateProfile: vi.fn(),
     updateReminder: vi.fn()
   };
 });
@@ -26,7 +27,10 @@ const mockedApi = vi.mocked(api);
 const user: UserSummary = {
   id: 'user-1',
   email: 'user@example.com',
-  role: 'USER'
+  role: 'USER',
+  firstName: 'Haci',
+  lastName: 'Simsek',
+  phoneNumber: '+905551112233'
 };
 
 const reminders: Reminder[] = [
@@ -70,6 +74,7 @@ describe('App dashboard', () => {
     mockedApi.changePassword.mockResolvedValue(authResponse({ accessToken: 'token-2' }));
     mockedApi.login.mockResolvedValue(authResponse());
     mockedApi.register.mockResolvedValue(authResponse());
+    mockedApi.updateProfile.mockResolvedValue(authResponse());
     mockedApi.createReminder.mockResolvedValue(reminder({ id: 'created-reminder', title: 'Created reminder' }));
     mockedApi.updateReminder.mockResolvedValue(reminder({ id: 'updated-reminder', title: 'Updated reminder' }));
     mockedApi.deleteReminder.mockResolvedValue();
@@ -106,6 +111,28 @@ describe('App dashboard', () => {
     expect(screen.getByRole('heading', { name: 'Service topology' })).toBeInTheDocument();
     await actor.click(screen.getByRole('link', { name: /reminders/i }));
     expect(within(remindersPanel()).getByText('Pay invoice')).toBeInTheDocument();
+  });
+
+  it('registers with profile details', async () => {
+    const actor = userEvent.setup();
+    render(<App />);
+
+    await actor.click(screen.getByRole('button', { name: /register/i }));
+    await actor.type(screen.getByLabelText('First name'), 'Haci');
+    await actor.type(screen.getByLabelText('Last name'), 'Simsek');
+    await actor.type(screen.getByLabelText('Email'), 'user@example.com');
+    await actor.type(screen.getByLabelText('Phone number'), '+905551112233');
+    await actor.type(screen.getByLabelText('Password'), 'secret123');
+    await actor.click(screen.getByRole('button', { name: /create account/i }));
+
+    expect(mockedApi.register).toHaveBeenCalledWith({
+      email: 'user@example.com',
+      firstName: 'Haci',
+      lastName: 'Simsek',
+      phoneNumber: '+905551112233',
+      password: 'secret123'
+    });
+    await screen.findByRole('heading', { name: 'Operations overview' });
   });
 
   it('toggles and persists the dark theme preference', async () => {
@@ -227,6 +254,42 @@ describe('App dashboard', () => {
     });
     expect(localStorage.getItem('notifyhub.dashboard.token')).toBe('token-2');
     expect(within(profilePage).getByText(/password changed/i)).toBeInTheDocument();
+  });
+
+  it('updates profile details from the profile page', async () => {
+    const actor = userEvent.setup();
+    await renderAuthenticatedDashboard();
+    mockedApi.updateProfile.mockClear();
+    mockedApi.updateProfile.mockResolvedValue(authResponse({
+      accessToken: 'token-3',
+      user: {
+        ...user,
+        firstName: 'Updated',
+        lastName: 'User',
+        phoneNumber: '+905559998877'
+      }
+    }));
+
+    await actor.click(screen.getByRole('link', { name: /profile/i }));
+    const profilePage = screen.getByLabelText('Profile settings');
+
+    await actor.clear(within(profilePage).getByLabelText('First name'));
+    await actor.type(within(profilePage).getByLabelText('First name'), 'Updated');
+    await actor.clear(within(profilePage).getByLabelText('Last name'));
+    await actor.type(within(profilePage).getByLabelText('Last name'), 'User');
+    await actor.clear(within(profilePage).getByLabelText('Phone number'));
+    await actor.type(within(profilePage).getByLabelText('Phone number'), '+905559998877');
+    await actor.click(within(profilePage).getByRole('button', { name: /save profile/i }));
+
+    await waitFor(() => {
+      expect(mockedApi.updateProfile).toHaveBeenCalledWith('token-1', {
+        firstName: 'Updated',
+        lastName: 'User',
+        phoneNumber: '+905559998877'
+      });
+    });
+    expect(localStorage.getItem('notifyhub.dashboard.token')).toBe('token-3');
+    expect(within(profilePage).getByText(/profile updated/i)).toBeInTheDocument();
   });
 
   it('requests filtered reminder and notification views from the gateway API', async () => {

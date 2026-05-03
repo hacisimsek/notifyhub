@@ -27,6 +27,15 @@ public class AuthUser {
     @Column(nullable = false)
     private String passwordHash;
 
+    @Column(nullable = false, length = 80)
+    private String firstName = "";
+
+    @Column(nullable = false, length = 80)
+    private String lastName = "";
+
+    @Column(nullable = false, length = 32)
+    private String phoneNumber = "";
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private UserRole role = UserRole.USER;
@@ -40,10 +49,11 @@ public class AuthUser {
     protected AuthUser() {
     }
 
-    public AuthUser(String email, String passwordHash, UserRole role) {
+    public AuthUser(String email, String passwordHash, UserRole role, String firstName, String lastName, String phoneNumber) {
         this.email = email;
         this.passwordHash = passwordHash;
         this.role = role;
+        updateProfile(firstName, lastName, phoneNumber);
     }
 
     @PrePersist
@@ -70,6 +80,18 @@ public class AuthUser {
         return passwordHash;
     }
 
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
     public UserRole getRole() {
         return role;
     }
@@ -84,5 +106,11 @@ public class AuthUser {
 
     public void changePassword(String passwordHash) {
         this.passwordHash = passwordHash;
+    }
+
+    public void updateProfile(String firstName, String lastName, String phoneNumber) {
+        this.firstName = firstName.trim();
+        this.lastName = lastName.trim();
+        this.phoneNumber = phoneNumber.trim();
     }
 }

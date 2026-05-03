@@ -17,6 +17,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -39,6 +40,9 @@ class AuthControllerIntegrationTests {
                         .content("""
                                 {
                                   "email": "User@Example.com",
+                                  "firstName": "Haci",
+                                  "lastName": "Simsek",
+                                  "phoneNumber": "+905551112233",
                                   "password": "secret123"
                                 }
                                 """))
@@ -46,6 +50,9 @@ class AuthControllerIntegrationTests {
                 .andExpect(jsonPath("$.tokenType", equalTo("Bearer")))
                 .andExpect(jsonPath("$.accessToken", not(blankOrNullString())))
                 .andExpect(jsonPath("$.user.email", equalTo("user@example.com")))
+                .andExpect(jsonPath("$.user.firstName", equalTo("Haci")))
+                .andExpect(jsonPath("$.user.lastName", equalTo("Simsek")))
+                .andExpect(jsonPath("$.user.phoneNumber", equalTo("+905551112233")))
                 .andExpect(jsonPath("$.user.role", equalTo("USER")))
                 .andReturn()
                 .getResponse()
@@ -58,6 +65,9 @@ class AuthControllerIntegrationTests {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email", equalTo("user@example.com")))
+                .andExpect(jsonPath("$.firstName", equalTo("Haci")))
+                .andExpect(jsonPath("$.lastName", equalTo("Simsek")))
+                .andExpect(jsonPath("$.phoneNumber", equalTo("+905551112233")))
                 .andExpect(jsonPath("$.role", equalTo("USER")));
     }
 
@@ -68,6 +78,9 @@ class AuthControllerIntegrationTests {
                         .content("""
                                 {
                                   "email": "wrong-password@example.com",
+                                  "firstName": "Wrong",
+                                  "lastName": "Password",
+                                  "phoneNumber": "+905551110000",
                                   "password": "secret123"
                                 }
                                 """))
@@ -89,6 +102,9 @@ class AuthControllerIntegrationTests {
         String request = """
                 {
                   "email": "duplicate@example.com",
+                  "firstName": "Duplicate",
+                  "lastName": "User",
+                  "phoneNumber": "+905551110001",
                   "password": "secret123"
                 }
                 """;
@@ -191,6 +207,39 @@ class AuthControllerIntegrationTests {
     }
 
     @Test
+    void updateProfilePersistsCurrentUserDetailsAndIssuesBearerToken() throws Exception {
+        String token = registerAndReturnToken("profile-update@example.com", "secret123");
+
+        String response = mockMvc.perform(put("/api/auth/profile")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "firstName": "Updated",
+                                  "lastName": "User",
+                                  "phoneNumber": "+905559998877"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken", not(blankOrNullString())))
+                .andExpect(jsonPath("$.user.firstName", equalTo("Updated")))
+                .andExpect(jsonPath("$.user.lastName", equalTo("User")))
+                .andExpect(jsonPath("$.user.phoneNumber", equalTo("+905559998877")))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String nextToken = objectMapper.readTree(response).get("accessToken").asText();
+
+        mockMvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer " + nextToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.firstName", equalTo("Updated")))
+                .andExpect(jsonPath("$.lastName", equalTo("User")))
+                .andExpect(jsonPath("$.phoneNumber", equalTo("+905559998877")));
+    }
+
+    @Test
     void prometheusEndpointIsPublic() throws Exception {
         mockMvc.perform(get("/actuator/prometheus"))
                 .andExpect(status().isOk())
@@ -203,6 +252,9 @@ class AuthControllerIntegrationTests {
                         .content("""
                                 {
                                   "email": "%s",
+                                  "firstName": "Test",
+                                  "lastName": "User",
+                                  "phoneNumber": "+905551112233",
                                   "password": "%s"
                                 }
                                 """.formatted(email, password)))

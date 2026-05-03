@@ -5,7 +5,9 @@ import {
   deleteReminder,
   listNotifications,
   listReminders,
-  login
+  login,
+  register,
+  updateProfile
 } from './api';
 
 describe('dashboard api client', () => {
@@ -24,6 +26,31 @@ describe('dashboard api client', () => {
       body: JSON.stringify({ email: 'user@example.com', password: 'secret123' })
     }));
     expect(headersFor(options).get('Accept')).toBe('application/json');
+    expect(headersFor(options).get('Content-Type')).toBe('application/json');
+  });
+
+  it('sends registration profile fields', async () => {
+    const fetchMock = mockFetch({ accessToken: 'token-1' });
+
+    await register({
+      email: 'user@example.com',
+      firstName: 'Haci',
+      lastName: 'Simsek',
+      phoneNumber: '+905551112233',
+      password: 'secret123'
+    });
+
+    const [, options] = fetchMock.mock.calls[0];
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/register', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({
+        email: 'user@example.com',
+        firstName: 'Haci',
+        lastName: 'Simsek',
+        phoneNumber: '+905551112233',
+        password: 'secret123'
+      })
+    }));
     expect(headersFor(options).get('Content-Type')).toBe('application/json');
   });
 
@@ -55,6 +82,28 @@ describe('dashboard api client', () => {
       body: JSON.stringify({
         currentPassword: 'secret123',
         newPassword: 'newSecret123'
+      })
+    }));
+    expect(headersFor(options).get('Authorization')).toBe('Bearer token-1');
+    expect(headersFor(options).get('Content-Type')).toBe('application/json');
+  });
+
+  it('updates profile details with bearer auth', async () => {
+    const fetchMock = mockFetch({ accessToken: 'token-2' });
+
+    await updateProfile('token-1', {
+      firstName: 'Haci',
+      lastName: 'Simsek',
+      phoneNumber: '+905551112233'
+    });
+
+    const [, options] = fetchMock.mock.calls[0];
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/profile', expect.objectContaining({
+      method: 'PUT',
+      body: JSON.stringify({
+        firstName: 'Haci',
+        lastName: 'Simsek',
+        phoneNumber: '+905551112233'
       })
     }));
     expect(headersFor(options).get('Authorization')).toBe('Bearer token-1');
