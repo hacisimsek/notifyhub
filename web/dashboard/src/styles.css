@@ -1081,6 +1081,8 @@ textarea {
 .segmented-control {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-content: start;
+  align-items: stretch;
   gap: 4px;
   margin: 0;
   padding: 4px;
@@ -1102,7 +1104,15 @@ textarea {
   align-items: center;
   justify-content: center;
   gap: 6px;
+  height: 34px;
+  padding: 0 10px;
+  line-height: 1;
   min-width: 0;
+}
+
+.segmented-control button svg {
+  display: block;
+  flex: 0 0 auto;
 }
 
 .table-wrap {
