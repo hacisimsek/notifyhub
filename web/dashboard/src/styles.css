@@ -415,6 +415,8 @@ textarea {
   position: sticky;
   top: 0;
   height: 100vh;
+  display: flex;
+  flex-direction: column;
   padding: 24px;
   border-right: 1px solid var(--border);
   background:
@@ -426,7 +428,9 @@ textarea {
 .side-nav nav {
   display: grid;
   gap: 8px;
-  margin-top: 28px;
+  width: 100%;
+  margin-top: auto;
+  padding-top: 28px;
 }
 
 .nav-console {
@@ -1834,6 +1838,7 @@ td span {
     position: static;
     height: auto;
     display: flex;
+    flex-direction: row;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
@@ -1846,6 +1851,8 @@ td span {
     display: flex;
     flex-wrap: wrap;
     margin-top: 0;
+    padding-top: 0;
+    width: auto;
   }
 
   .nav-console {
