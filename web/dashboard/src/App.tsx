@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   Clock3,
   Code2,
-  Cpu,
   Edit3,
   Filter,
   History,
@@ -744,23 +743,6 @@ export function App() {
           <div>
             <p className="eyebrow">{heading.eyebrow}</p>
             <h1>{heading.title}</h1>
-          </div>
-          <div className="system-strip" aria-label="Runtime signals">
-            <span className="system-pill">
-              <Terminal size={15} aria-hidden="true" />
-              <code>gateway:8080</code>
-              <span className="pulse-dot" />
-            </span>
-            <span className="system-pill">
-              <Cpu size={15} aria-hidden="true" />
-              <code>scheduler:armed</code>
-              <span className="pulse-dot" />
-            </span>
-            <span className="system-pill">
-              <Code2 size={15} aria-hidden="true" />
-              <code>events:streaming</code>
-              <span className="pulse-dot" />
-            </span>
           </div>
         </header>
 
