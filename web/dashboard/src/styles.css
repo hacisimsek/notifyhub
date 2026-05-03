@@ -1080,21 +1080,38 @@ textarea {
 
 .segmented-control {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
+  gap: 7px;
   margin: 0;
-  padding: 4px;
+  padding: 0;
   border: 0;
-  border-radius: 8px;
-  background: var(--surface-control);
+  background: transparent;
 }
 
-.segmented-control legend {
-  grid-column: 1 / -1;
-  padding: 0 0 4px;
+.control-label {
+  padding: 0;
   color: var(--color-muted-strong);
   font-size: 0.9rem;
   font-weight: 750;
+}
+
+.segmented-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  min-height: 44px;
+  padding: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.segmented-control:focus-within .segmented-options {
+  border-color: var(--primary-hover);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .segmented-control button {
@@ -1102,7 +1119,34 @@ textarea {
   align-items: center;
   justify-content: center;
   gap: 6px;
+  border: 1px solid transparent;
+  min-height: 34px;
+  padding: 0 10px;
+  line-height: 1;
   min-width: 0;
+}
+
+.segmented-control button.active {
+  color: var(--primary-contrast);
+  border-color: color-mix(in srgb, var(--primary) 72%, transparent);
+  background: var(--brand-gradient);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--primary-contrast) 24%, transparent),
+    0 8px 20px color-mix(in srgb, var(--primary) 28%, transparent);
+}
+
+.segmented-control button > * {
+  transform: translateY(-1px);
+}
+
+.segmented-control button svg {
+  display: block;
+  flex: 0 0 auto;
+}
+
+.segmented-control button span {
+  display: block;
+  line-height: 1;
 }
 
 .table-wrap {
