@@ -1102,7 +1102,15 @@ textarea {
   align-items: center;
   justify-content: center;
   gap: 6px;
+  height: 34px;
+  padding: 0 10px;
+  line-height: 1;
   min-width: 0;
+}
+
+.segmented-control button svg {
+  display: block;
+  flex: 0 0 auto;
 }
 
 .table-wrap {
