@@ -36,6 +36,9 @@ public class AuthUser {
     @Column(nullable = false, length = 32)
     private String phoneNumber = "";
 
+    @Column(nullable = false, length = 8)
+    private String preferredLanguage = "en";
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private UserRole role = UserRole.USER;
@@ -49,11 +52,19 @@ public class AuthUser {
     protected AuthUser() {
     }
 
-    public AuthUser(String email, String passwordHash, UserRole role, String firstName, String lastName, String phoneNumber) {
+    public AuthUser(
+            String email,
+            String passwordHash,
+            UserRole role,
+            String firstName,
+            String lastName,
+            String phoneNumber,
+            String preferredLanguage
+    ) {
         this.email = email;
         this.passwordHash = passwordHash;
         this.role = role;
-        updateProfile(firstName, lastName, phoneNumber);
+        updateProfile(firstName, lastName, phoneNumber, preferredLanguage);
     }
 
     @PrePersist
@@ -92,6 +103,10 @@ public class AuthUser {
         return phoneNumber;
     }
 
+    public String getPreferredLanguage() {
+        return preferredLanguage;
+    }
+
     public UserRole getRole() {
         return role;
     }
@@ -108,9 +123,10 @@ public class AuthUser {
         this.passwordHash = passwordHash;
     }
 
-    public void updateProfile(String firstName, String lastName, String phoneNumber) {
+    public void updateProfile(String firstName, String lastName, String phoneNumber, String preferredLanguage) {
         this.firstName = firstName.trim();
         this.lastName = lastName.trim();
         this.phoneNumber = phoneNumber.trim();
+        this.preferredLanguage = preferredLanguage.trim().toLowerCase();
     }
 }

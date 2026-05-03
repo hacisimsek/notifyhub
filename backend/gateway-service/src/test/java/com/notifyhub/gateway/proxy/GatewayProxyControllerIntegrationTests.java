@@ -112,7 +112,8 @@ class GatewayProxyControllerIntegrationTests {
                                 {
                                   "firstName": "Haci",
                                   "lastName": "Simsek",
-                                  "phoneNumber": "+905551112233"
+                                  "phoneNumber": "+905551112233",
+                                  "preferredLanguage": "tr"
                                 }
                                 """))
                 .andExpect(status().isOk())
@@ -164,6 +165,14 @@ class GatewayProxyControllerIntegrationTests {
         mockMvc.perform(get("/api/reminders")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + validToken() + "tampered"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void languageMessagesAreServedByGateway() throws Exception {
+        mockMvc.perform(get("/api/i18n/messages?language=tr"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("\"language\":\"tr\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Giriş")));
     }
 
     private String validToken() throws Exception {

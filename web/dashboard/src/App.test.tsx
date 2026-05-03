@@ -13,6 +13,7 @@ vi.mock('./api', async (importOriginal) => {
     createReminder: vi.fn(),
     currentUser: vi.fn(),
     deleteReminder: vi.fn(),
+    getLanguageMessages: vi.fn(),
     listNotifications: vi.fn(),
     listReminders: vi.fn(),
     login: vi.fn(),
@@ -30,7 +31,8 @@ const user: UserSummary = {
   role: 'USER',
   firstName: 'Haci',
   lastName: 'Simsek',
-  phoneNumber: '+905551112233'
+  phoneNumber: '+905551112233',
+  preferredLanguage: 'en'
 };
 
 const reminders: Reminder[] = [
@@ -71,6 +73,7 @@ describe('App dashboard', () => {
   beforeEach(() => {
     vi.setSystemTime(new Date('2026-05-02T12:00:00.000Z'));
     mockedApi.currentUser.mockResolvedValue(user);
+    mockedApi.getLanguageMessages.mockResolvedValue({ language: 'en', messages: {} });
     mockedApi.changePassword.mockResolvedValue(authResponse({ accessToken: 'token-2' }));
     mockedApi.login.mockResolvedValue(authResponse());
     mockedApi.register.mockResolvedValue(authResponse());
@@ -130,6 +133,7 @@ describe('App dashboard', () => {
       firstName: 'Haci',
       lastName: 'Simsek',
       phoneNumber: '+905551112233',
+      preferredLanguage: 'en',
       password: 'secret123'
     });
     await screen.findByRole('heading', { name: 'Operations overview' });
@@ -258,6 +262,18 @@ describe('App dashboard', () => {
 
   it('updates profile details from the profile page', async () => {
     const actor = userEvent.setup();
+    mockedApi.getLanguageMessages.mockImplementation(async (language) => {
+      const messages: Record<string, string> = language === 'tr' ? {
+        'actions.saveProfile': 'Profili kaydet',
+        'auth.firstName': 'İsim',
+        'auth.lastName': 'Soyisim',
+        'auth.phoneNumber': 'Telefon numarası',
+        'profile.language': 'Dil',
+        'status.profileUpdated': 'Profil güncellendi.'
+      } : {};
+
+      return { language, messages };
+    });
     await renderAuthenticatedDashboard();
     mockedApi.updateProfile.mockClear();
     mockedApi.updateProfile.mockResolvedValue(authResponse({
@@ -266,7 +282,8 @@ describe('App dashboard', () => {
         ...user,
         firstName: 'Updated',
         lastName: 'User',
-        phoneNumber: '+905559998877'
+        phoneNumber: '+905559998877',
+        preferredLanguage: 'tr'
       }
     }));
 
@@ -279,17 +296,20 @@ describe('App dashboard', () => {
     await actor.type(within(profilePage).getByLabelText('Last name'), 'User');
     await actor.clear(within(profilePage).getByLabelText('Phone number'));
     await actor.type(within(profilePage).getByLabelText('Phone number'), '+905559998877');
-    await actor.click(within(profilePage).getByRole('button', { name: /save profile/i }));
+    await actor.selectOptions(within(profilePage).getByLabelText('Language'), 'tr');
+    await waitFor(() => expect(within(profilePage).getByRole('button', { name: 'Profili kaydet' })).toBeInTheDocument());
+    await actor.click(within(profilePage).getByRole('button', { name: 'Profili kaydet' }));
 
     await waitFor(() => {
       expect(mockedApi.updateProfile).toHaveBeenCalledWith('token-1', {
         firstName: 'Updated',
         lastName: 'User',
-        phoneNumber: '+905559998877'
+        phoneNumber: '+905559998877',
+        preferredLanguage: 'tr'
       });
     });
     expect(localStorage.getItem('notifyhub.dashboard.token')).toBe('token-3');
-    expect(within(profilePage).getByText(/profile updated/i)).toBeInTheDocument();
+    expect(within(profilePage).getByText(/profil güncellendi/i)).toBeInTheDocument();
   });
 
   it('requests filtered reminder and notification views from the gateway API', async () => {
@@ -298,7 +318,7 @@ describe('App dashboard', () => {
     vi.clearAllMocks();
 
     await actor.click(screen.getByRole('link', { name: /reminders/i }));
-    await actor.click(within(screen.getByLabelText('Reminder filters')).getByRole('button', { name: 'SCHEDULED' }));
+    await actor.click(within(screen.getByLabelText('Reminder filters')).getByRole('button', { name: 'Scheduled' }));
 
     await waitFor(() => {
       expect(mockedApi.listReminders).toHaveBeenCalledWith('token-1', {
@@ -311,7 +331,7 @@ describe('App dashboard', () => {
 
     vi.clearAllMocks();
     await actor.click(screen.getByRole('link', { name: /history/i }));
-    await actor.click(within(screen.getByLabelText('Notification filters')).getByRole('button', { name: 'SENT' }));
+    await actor.click(within(screen.getByLabelText('Notification filters')).getByRole('button', { name: 'Sent' }));
     await actor.click(within(screen.getByLabelText('Notification filters')).getByRole('button', { name: 'EMAIL' }));
 
     await waitFor(() => {

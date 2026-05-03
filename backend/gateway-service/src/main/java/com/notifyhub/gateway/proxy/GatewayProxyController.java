@@ -96,7 +96,7 @@ class GatewayProxyController {
     private GatewayPrincipal authenticate(HttpServletRequest request) {
         String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
         if (authorization == null || !authorization.startsWith(BEARER_PREFIX)) {
-            throw new UnauthorizedException("Missing bearer token");
+            throw new UnauthorizedException("error.auth.invalidOrExpiredToken");
         }
         return jwtVerifier.verify(authorization.substring(BEARER_PREFIX.length()));
     }

@@ -130,6 +130,6 @@ public class JwtTokenService {
     }
 
     private ResponseStatusException unauthorized() {
-        return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired token");
+        return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "error.auth.invalidOrExpiredToken");
     }
 }
