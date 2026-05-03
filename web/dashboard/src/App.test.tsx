@@ -160,6 +160,7 @@ describe('App dashboard', () => {
     await actor.click(screen.getByRole('link', { name: /reminders/i }));
     await actor.type(screen.getByLabelText('Title'), '  Demo reminder  ');
     await actor.type(screen.getByLabelText('Message'), '  Follow up with finance  ');
+    await actor.clear(screen.getByLabelText('Recipient'));
     await actor.type(screen.getByLabelText('Recipient'), '  demo@example.com  ');
     await actor.click(screen.getByRole('button', { name: /add reminder/i }));
 
@@ -173,6 +174,25 @@ describe('App dashboard', () => {
     });
     expect(mockedApi.listReminders).toHaveBeenCalled();
     expect(mockedApi.listNotifications).toHaveBeenCalled();
+  });
+
+  it('defaults the reminder recipient from the authenticated user channel details', async () => {
+    const actor = userEvent.setup();
+    await renderAuthenticatedDashboard();
+
+    await actor.click(screen.getByRole('link', { name: /reminders/i }));
+
+    const recipientInput = screen.getByLabelText('Recipient');
+    const channelControl = screen.getByRole('group', { name: 'Channel' });
+    expect(recipientInput).toHaveValue('user@example.com');
+
+    await actor.click(within(channelControl).getByRole('button', { name: 'SMS' }));
+    expect(recipientInput).toHaveValue('+905551112233');
+
+    await actor.clear(recipientInput);
+    await actor.type(recipientInput, '+905559998877');
+    await actor.click(within(channelControl).getByRole('button', { name: 'EMAIL' }));
+    expect(recipientInput).toHaveValue('+905559998877');
   });
 
   it('switches the dashboard content from the side navigation route', async () => {
