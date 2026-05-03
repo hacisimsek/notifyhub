@@ -1112,8 +1112,8 @@ export function App() {
               </label>
 
               <div className="form-row">
-                <fieldset className="segmented-control">
-                  <legend>{t('reminder.channel')}</legend>
+                <div className="segmented-control" role="group" aria-labelledby="channel-control-label">
+                  <span className="control-label" id="channel-control-label">{t('reminder.channel')}</span>
                   <div className="segmented-options">
                     {CHANNELS.map((channel) => (
                       <button
@@ -1127,7 +1127,7 @@ export function App() {
                       </button>
                     ))}
                   </div>
-                </fieldset>
+                </div>
                 <label>
                   {t('reminder.recipient')}
                   <input

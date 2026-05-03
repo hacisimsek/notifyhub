@@ -1087,7 +1087,7 @@ textarea {
   background: transparent;
 }
 
-.segmented-control legend {
+.control-label {
   padding: 0;
   color: var(--color-muted-strong);
   font-size: 0.9rem;
