@@ -278,12 +278,12 @@ const DEFAULT_MESSAGES: Record<string, string> = {
   'event.noRemindersQueued': 'No reminders in the queue',
 };
 
-const emptyReminderForm = (): ReminderForm => ({
+const emptyReminderForm = (user?: UserSummary | null): ReminderForm => ({
   title: '',
   message: '',
   scheduledFor: toDateTimeLocal(new Date(Date.now() + 15 * 60 * 1000).toISOString()),
   channel: 'EMAIL',
-  recipient: ''
+  recipient: defaultRecipientForChannel('EMAIL', user)
 });
 
 const emptyPasswordChangeForm = (): PasswordChangeForm => ({
@@ -410,8 +410,18 @@ export function App() {
     if (user) {
       setProfileForm(profileFormFromUser(user));
       setLanguage(user.preferredLanguage);
+      setForm((currentForm) => {
+        if (editingId || currentForm.recipient.trim()) {
+          return currentForm;
+        }
+
+        return {
+          ...currentForm,
+          recipient: defaultRecipientForChannel(currentForm.channel, user)
+        };
+      });
     }
-  }, [user]);
+  }, [editingId, user]);
 
   useEffect(() => {
     if (!token || !user) {
@@ -685,7 +695,7 @@ export function App() {
       } else {
         await createReminder(token, payload);
       }
-      setForm(emptyReminderForm());
+      setForm(emptyReminderForm(user));
       setEditingId(null);
       await refreshData(token);
     } catch (err) {
@@ -767,7 +777,7 @@ export function App() {
       await deleteReminder(token, id);
       if (editingId === id) {
         setEditingId(null);
-        setForm(emptyReminderForm());
+        setForm(emptyReminderForm(user));
       }
       await refreshData(token);
     } catch (err) {
@@ -1120,7 +1130,7 @@ export function App() {
                         type="button"
                         key={channel}
                         className={form.channel === channel ? 'active' : ''}
-                        onClick={() => setForm({ ...form, channel })}
+                        onClick={() => setForm((currentForm) => reminderFormWithChannel(currentForm, channel, user))}
                       >
                         {channelIcon(channel)}
                         <span>{channel}</span>
@@ -1147,7 +1157,7 @@ export function App() {
                     className="secondary-action"
                     onClick={() => {
                       setEditingId(null);
-                      setForm(emptyReminderForm());
+                      setForm(emptyReminderForm(user));
                     }}
                   >
                     {t('actions.cancelEdit')}
@@ -1838,6 +1848,31 @@ function statusLabel(status: string, t: (key: string) => string) {
   const key = `status.${status.toLowerCase()}`;
   const translated = t(key);
   return translated === key ? status : translated;
+}
+
+function reminderFormWithChannel(form: ReminderForm, channel: Channel, user: UserSummary | null): ReminderForm {
+  const currentDefault = defaultRecipientForChannel(form.channel, user);
+  const nextDefault = defaultRecipientForChannel(channel, user);
+  const shouldUseDefaultRecipient = form.recipient.trim() === '' || form.recipient.trim() === currentDefault;
+
+  return {
+    ...form,
+    channel,
+    recipient: shouldUseDefaultRecipient ? nextDefault : form.recipient
+  };
+}
+
+function defaultRecipientForChannel(channel: Channel, user?: UserSummary | null) {
+  if (!user) {
+    return '';
+  }
+  if (channel === 'EMAIL') {
+    return user.email;
+  }
+  if (channel === 'SMS') {
+    return user.phoneNumber;
+  }
+  return '';
 }
 
 function recipientPlaceholder(channel: Channel) {
