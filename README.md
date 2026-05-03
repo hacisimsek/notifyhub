@@ -164,6 +164,7 @@ Auth Service runs on port `8081` and exposes:
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `GET /api/auth/me`
+- `POST /api/auth/password`
 
 Reminder Service runs on port `8082` and exposes:
 
@@ -183,6 +184,7 @@ Gateway Service runs on port `8080` and exposes the external API surface:
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `GET /api/auth/me`
+- `POST /api/auth/password`
 - `POST /api/reminders`
 - `GET /api/reminders`
 - `GET /api/reminders/{id}`

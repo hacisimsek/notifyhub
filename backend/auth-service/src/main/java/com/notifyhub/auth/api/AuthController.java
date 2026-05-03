@@ -39,4 +39,12 @@ class AuthController {
         AuthUser user = authService.getCurrentUser(principal.userId());
         return CurrentUserResponse.from(user);
     }
+
+    @PostMapping("/password")
+    AuthResponse changePassword(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @Valid @RequestBody ChangePasswordRequest request
+    ) {
+        return authService.changePassword(principal.userId(), request);
+    }
 }

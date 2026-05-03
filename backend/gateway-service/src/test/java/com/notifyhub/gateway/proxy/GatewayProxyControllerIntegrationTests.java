@@ -68,6 +68,39 @@ class GatewayProxyControllerIntegrationTests {
     }
 
     @Test
+    void passwordChangeRequestRequiresBearerToken() throws Exception {
+        mockMvc.perform(post("/api/auth/password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "currentPassword": "secret123",
+                                  "newPassword": "newSecret123"
+                                }
+                                """))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void passwordChangeRequestForwardsBearerTokenToAuthService() throws Exception {
+        String token = validToken();
+
+        mockMvc.perform(post("/api/auth/password")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "currentPassword": "secret123",
+                                  "newPassword": "newSecret123"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(content().string("proxied"));
+
+        assertThat(proxyClient.targetUri).hasToString("http://auth-service.test/api/auth/password");
+        assertThat(proxyClient.request.headers().getFirst(HttpHeaders.AUTHORIZATION)).isEqualTo("Bearer " + token);
+    }
+
+    @Test
     void reminderRequestRequiresBearerToken() throws Exception {
         mockMvc.perform(get("/api/reminders"))
                 .andExpect(status().isUnauthorized());

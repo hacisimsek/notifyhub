@@ -22,6 +22,7 @@ Gateway Service is the public entry point for browser and script clients. It for
 | `POST` | `/api/auth/register` | No | Auth Service |
 | `POST` | `/api/auth/login` | No | Auth Service |
 | `GET` | `/api/auth/me` | Bearer token | Auth Service |
+| `POST` | `/api/auth/password` | Bearer token | Auth Service |
 | `POST` | `/api/reminders` | Bearer token | Reminder Service |
 | `GET` | `/api/reminders` | Bearer token | Reminder Service |
 | `GET` | `/api/reminders/{id}` | Bearer token | Reminder Service |
@@ -85,6 +86,21 @@ Returns `200 OK` with a bearer access token and user summary.
 `GET /api/auth/me`
 
 Requires `Authorization: Bearer <token>`.
+
+### Change Password
+
+`POST /api/auth/password`
+
+Requires `Authorization: Bearer <token>`.
+
+```json
+{
+  "currentPassword": "secret123",
+  "newPassword": "newSecret123"
+}
+```
+
+Returns `200 OK` with a bearer access token and user summary. The current password must match the signed-in user, and the new password must be 8-128 characters.
 
 ## Reminder API
 

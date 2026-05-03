@@ -56,6 +56,7 @@ public class JwtTokenService {
         claims.put("sub", user.getId().toString());
         claims.put("email", user.getEmail());
         claims.put("role", user.getRole().name());
+        claims.put("jti", UUID.randomUUID().toString());
         claims.put("iat", issuedAt.getEpochSecond());
         claims.put("exp", expiresAt.getEpochSecond());
 
