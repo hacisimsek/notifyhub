@@ -1114,17 +1114,19 @@ export function App() {
               <div className="form-row">
                 <fieldset className="segmented-control">
                   <legend>{t('reminder.channel')}</legend>
-                  {CHANNELS.map((channel) => (
-                    <button
-                      type="button"
-                      key={channel}
-                      className={form.channel === channel ? 'active' : ''}
-                      onClick={() => setForm({ ...form, channel })}
-                    >
-                      {channelIcon(channel)}
-                      <span>{channel}</span>
-                    </button>
-                  ))}
+                  <div className="segmented-options">
+                    {CHANNELS.map((channel) => (
+                      <button
+                        type="button"
+                        key={channel}
+                        className={form.channel === channel ? 'active' : ''}
+                        onClick={() => setForm({ ...form, channel })}
+                      >
+                        {channelIcon(channel)}
+                        <span>{channel}</span>
+                      </button>
+                    ))}
+                  </div>
                 </fieldset>
                 <label>
                   {t('reminder.recipient')}
