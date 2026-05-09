@@ -4,6 +4,10 @@ set -euo pipefail
 BASE_URL="${BASE_URL:-http://localhost:8080}"
 EMAIL="${SMOKE_EMAIL:-smoke-$(date +%s)-$$@example.com}"
 PASSWORD="${SMOKE_PASSWORD:-secret123}"
+FIRST_NAME="${SMOKE_FIRST_NAME:-Smoke}"
+LAST_NAME="${SMOKE_LAST_NAME:-User}"
+PHONE_NUMBER="${SMOKE_PHONE_NUMBER:-+905551112233}"
+PREFERRED_LANGUAGE="${SMOKE_PREFERRED_LANGUAGE:-en}"
 TIMEOUT_SECONDS="${SMOKE_TIMEOUT_SECONDS:-90}"
 
 require_command() {
@@ -86,11 +90,28 @@ require_command node
 wait_for_gateway
 
 register_response="$(
+  register_payload="$(
+    EMAIL="${EMAIL}" \
+    PASSWORD="${PASSWORD}" \
+    FIRST_NAME="${FIRST_NAME}" \
+    LAST_NAME="${LAST_NAME}" \
+    PHONE_NUMBER="${PHONE_NUMBER}" \
+    PREFERRED_LANGUAGE="${PREFERRED_LANGUAGE}" \
+      node -e 'process.stdout.write(JSON.stringify({
+        email: process.env.EMAIL,
+        firstName: process.env.FIRST_NAME,
+        lastName: process.env.LAST_NAME,
+        phoneNumber: process.env.PHONE_NUMBER,
+        preferredLanguage: process.env.PREFERRED_LANGUAGE,
+        password: process.env.PASSWORD
+      }))'
+  )"
+
   request_with_retry "User registration" \
     curl --fail --silent --show-error \
     -X POST "${BASE_URL}/api/auth/register" \
     -H "Content-Type: application/json" \
-    --data "{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\"}"
+    --data "${register_payload}"
 )"
 
 access_token="$(printf '%s' "${register_response}" | json_value "accessToken")"
