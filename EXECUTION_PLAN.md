@@ -283,6 +283,52 @@ The implementation has moved past the foundation and MVP service phases. The rem
 4. Capture final demo evidence from the dashboard, notification history, Prometheus and Grafana.
 5. Close any issues found during those environment-dependent checks.
 
+## Executive Plan Update (9 Mayıs 2026)
+
+Bu bölüm kalan işleri “release readiness” bakışına göre önceliklendirir.
+
+### Overall Status
+
+- Ürün kapsamı (backend servisleri, dashboard, deploy ve observability varlıkları) tamamlanmış durumda.
+- Kalan işler ağırlıklı olarak **ortam-bağımlı final doğrulama** ve **kanıt toplama** adımları.
+- Kod geliştirme backlog’u yerine “go-live doğrulama backlog’u” aşamasındayız.
+
+### Priority 1 — Release Gate Verification
+
+1. `./scripts/final-verify.sh` çalıştır, artefact olarak tam terminal çıktısını sakla.
+2. Docker ortamında `TEARDOWN=true ./scripts/local-stack-e2e.sh` çalıştır.
+3. Minikube ortamında `./scripts/k8s-local-verify.sh` çalıştır.
+
+Çıkış kriteri: Üç komut da hata kodu vermeden tamamlanmalı.
+
+### Priority 2 — Executive Evidence Pack
+
+1. Dashboard akış ekranları: login, reminder CRUD, notification history.
+2. Prometheus hedef/metric görüntüsü.
+3. Grafana panel görüntüleri (latency, throughput, error/failure, queue/dlq sinyali).
+4. Bu çıktıları tek klasörde tarihli paketle (ör. `docs/demo/evidence-2026-05-09/`).
+
+Çıkış kriteri: Demo sırasında uçtan uca iş akışı ve metrikler tek dosya seti ile gösterilebilir olmalı.
+
+### Priority 3 — Remaining Risk Burn-down
+
+1. Environment-dependent script’lerde fail olursa issue aç, etki alanını etiketle (backend/web/deploy/obs).
+2. Kritik fail (P0/P1) için hotfix branch aç (`fix/<kisa-ad>`), non-critical için release sonrası backlog’a taşı.
+3. Düzeltmeler sonrası Priority 1 adımlarını yeniden çalıştır.
+
+Çıkış kriteri: Açık kritik issue kalmaması.
+
+### Ownership and Sequence (Suggested)
+
+1. **Backend/Platform:** final-verify + local stack e2e
+2. **DevOps/K8s:** minikube verify
+3. **Product/Demo owner:** evidence pack toplama ve demo script son kontrol
+
+### Decision Point
+
+- Priority 1 ve Priority 3 geçerse: release/demo onayı verilir.
+- Geçmezse: yalnızca blocking issue’lara odaklı kısa bir stabilization sprint açılır.
+
 ## Auth Password Change Execution Plan
 
 Scope: add an authenticated password change flow without introducing server-side sessions.
