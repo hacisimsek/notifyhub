@@ -48,7 +48,8 @@ const reminders: Reminder[] = [
     title: 'Send report',
     channel: 'SMS',
     status: 'TRIGGERED',
-    recipient: '+905551112233'
+    recipient: '+905551112233',
+    createdAt: '2026-05-02T11:00:00.000Z'
   })
 ];
 
@@ -114,6 +115,17 @@ describe('App dashboard', () => {
     expect(screen.getByRole('heading', { name: 'Service topology' })).toBeInTheDocument();
     await actor.click(screen.getByRole('link', { name: /reminders/i }));
     expect(within(remindersPanel()).getByText('Pay invoice')).toBeInTheDocument();
+  });
+
+  it('shows newest reminders first by creation time', async () => {
+    const actor = userEvent.setup();
+    await renderAuthenticatedDashboard();
+
+    await actor.click(screen.getByRole('link', { name: /reminders/i }));
+
+    const rows = within(remindersPanel()).getAllByRole('row');
+    expect(within(rows[1]).getByText('Send report')).toBeInTheDocument();
+    expect(within(rows[2]).getByText('Pay invoice')).toBeInTheDocument();
   });
 
   it('registers with profile details', async () => {

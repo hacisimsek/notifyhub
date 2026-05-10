@@ -161,7 +161,7 @@ Supported channels are `EMAIL`, `SMS` and `PUSH`. `recipient` is channel-specifi
 
 `GET /api/reminders`
 
-Returns reminders for the current owner ordered by scheduled time.
+Returns reminders for the current owner ordered by creation time, newest first.
 
 Optional query filters:
 

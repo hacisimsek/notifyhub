@@ -14,15 +14,13 @@ import java.util.UUID;
 
 public interface ReminderRepository extends JpaRepository<Reminder, UUID> {
 
-    List<Reminder> findByOwnerIdOrderByScheduledForAsc(UUID ownerId);
-
     @Query("""
             select reminder
             from Reminder reminder
             where reminder.ownerId = :ownerId
               and (:status is null or reminder.status = :status)
               and (:channel is null or reminder.channel = :channel)
-            order by reminder.scheduledFor asc
+            order by reminder.createdAt desc
             """)
     List<Reminder> findOwnerReminders(
             @Param("ownerId") UUID ownerId,
