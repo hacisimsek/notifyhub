@@ -50,7 +50,9 @@ class RestClientProxyClient implements ProxyClient {
 
         source.forEach((name, values) -> {
             String normalized = name.toLowerCase(Locale.ROOT);
-            if (!normalized.equals("transfer-encoding") && !normalized.equals("connection")) {
+            if (!normalized.equals("transfer-encoding")
+                    && !normalized.equals("connection")
+                    && !normalized.equals("x-request-id")) {
                 headers.addAll(name, values);
             }
         });

@@ -66,6 +66,6 @@ The overlay adds:
 Kibana is available at `http://localhost:5601`.
 The local data view is `logs-notifyhub-*`.
 
-Application audit logs are parsed into searchable Kibana fields. Use `notifyhub.audit: true` to focus on user actions, then filter by `user.email`, `event.action`, `event.outcome`, or `notifyhub.resource.id`.
+Application audit logs are parsed into searchable Kibana fields. Use `notifyhub.audit: true` to focus on user actions, then filter by `request.id`, `user.email`, `event.action`, `event.outcome`, or `notifyhub.resource.id`.
 
 The local overlay intentionally disables Elasticsearch security to keep developer setup repeatable. A production deployment must enable authentication and TLS, set retention through ILM, configure snapshots, size storage from daily log volume, and run Elasticsearch/Kibana outside the application failure domain.
