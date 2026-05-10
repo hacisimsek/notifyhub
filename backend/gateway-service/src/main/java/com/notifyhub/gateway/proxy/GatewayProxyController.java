@@ -1,6 +1,7 @@
 package com.notifyhub.gateway.proxy;
 
 import com.notifyhub.common.logging.AuditLogger;
+import com.notifyhub.common.web.RequestCorrelation;
 import com.notifyhub.gateway.config.GatewayProperties;
 import com.notifyhub.gateway.security.GatewayJwtVerifier;
 import com.notifyhub.gateway.security.GatewayPrincipal;
@@ -124,6 +125,8 @@ class GatewayProxyController {
             headers.set("X-User-Email", principal.email());
             headers.set("X-User-Role", principal.role());
         }
+        RequestCorrelation.currentRequestId()
+                .ifPresent(requestId -> headers.set(RequestCorrelation.HEADER, requestId));
 
         return headers;
     }
@@ -133,7 +136,8 @@ class GatewayProxyController {
         if (normalized.equals("host")
                 || normalized.equals("content-length")
                 || normalized.equals("connection")
-                || normalized.equals("transfer-encoding")) {
+                || normalized.equals("transfer-encoding")
+                || normalized.equals("x-request-id")) {
             return false;
         }
 

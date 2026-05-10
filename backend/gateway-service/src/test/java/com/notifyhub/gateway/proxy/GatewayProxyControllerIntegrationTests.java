@@ -31,6 +31,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ActiveProfiles("test")
@@ -39,6 +40,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class GatewayProxyControllerIntegrationTests {
 
     private static final UUID USER_ID = UUID.fromString("018f1757-0aa5-7a6a-9a33-e78995f25b31");
+    private static final String REQUEST_ID = "request-test-123";
 
     @Autowired
     private MockMvc mockMvc;
@@ -66,6 +68,7 @@ class GatewayProxyControllerIntegrationTests {
 
         assertThat(proxyClient.targetUri).hasToString("http://auth-service.test/api/auth/login");
         assertThat(proxyClient.request.headers().getFirst(HttpHeaders.AUTHORIZATION)).isNull();
+        assertThat(proxyClient.request.headers().getFirst("X-Request-Id")).isNotBlank();
     }
 
     @Test
@@ -143,7 +146,20 @@ class GatewayProxyControllerIntegrationTests {
         assertThat(proxyClient.request.headers().getFirst("X-User-Id")).isEqualTo(USER_ID.toString());
         assertThat(proxyClient.request.headers().getFirst("X-User-Email")).isEqualTo("user@example.com");
         assertThat(proxyClient.request.headers().getFirst("X-User-Role")).isEqualTo("USER");
+        assertThat(proxyClient.request.headers().getFirst("X-Request-Id")).isNotBlank();
         assertThat(proxyClient.request.headers().getFirst(HttpHeaders.AUTHORIZATION)).isNull();
+    }
+
+    @Test
+    void incomingRequestIdIsPropagatedToDownstreamServices() throws Exception {
+        mockMvc.perform(get("/api/reminders")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + validToken())
+                        .header("X-Request-Id", REQUEST_ID))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Request-Id", REQUEST_ID))
+                .andExpect(content().string("proxied"));
+
+        assertThat(proxyClient.request.headers().getFirst("X-Request-Id")).isEqualTo(REQUEST_ID);
     }
 
     @Test

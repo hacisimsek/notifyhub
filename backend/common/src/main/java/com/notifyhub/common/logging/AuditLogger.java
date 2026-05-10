@@ -1,5 +1,6 @@
 package com.notifyhub.common.logging;
 
+import com.notifyhub.common.web.RequestCorrelation;
 import org.slf4j.Logger;
 
 import java.time.Instant;
@@ -23,6 +24,7 @@ public final class AuditLogger {
         private final Logger logger;
         private final String message;
         private final Map<String, Object> event = new LinkedHashMap<>();
+        private final Map<String, Object> request = new LinkedHashMap<>();
         private final Map<String, Object> user = new LinkedHashMap<>();
         private final Map<String, Object> resource = new LinkedHashMap<>();
         private final Map<String, Object> notifyhub = new LinkedHashMap<>();
@@ -36,6 +38,7 @@ public final class AuditLogger {
             event.put("action", action);
             event.put("outcome", "success");
             notifyhub.put("audit", true);
+            RequestCorrelation.currentRequestId().ifPresent(requestId -> request.put("id", requestId));
         }
 
         public Builder category(String category) {
@@ -51,6 +54,11 @@ public final class AuditLogger {
         public Builder user(UUID userId, String email) {
             putIfPresent(user, "id", userId);
             putIfPresent(user, "email", email);
+            return this;
+        }
+
+        public Builder requestId(String requestId) {
+            putIfPresent(request, "id", requestId);
             return this;
         }
 
@@ -75,6 +83,7 @@ public final class AuditLogger {
             StringBuilder json = new StringBuilder("{");
             boolean first = appendField(json, true, "message", message);
             first = appendObject(json, first, "event", event);
+            first = appendObject(json, first, "request", request);
             first = appendObject(json, first, "user", user);
             first = appendObject(json, first, "resource", resource);
             appendObject(json, first, "notifyhub", notifyhub);

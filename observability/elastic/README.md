@@ -42,6 +42,7 @@ In Kibana Discover, use the `logs-notifyhub-*` data view and filter on:
 
 - `notifyhub.audit: true` to show only application audit events.
 - `user.email: "user@example.com"` to follow one user.
+- `request.id: "<request-id>"` to follow one HTTP request across the gateway and downstream service logs.
 - `event.action: "reminder.created"` or `event.action: "notification.delivery.sent"` to isolate an action.
 - `notifyhub.resource.type: "reminder"` and `notifyhub.resource.id: "<id>"` to follow one reminder.
 - `event.outcome: "failure"` to find failed login or delivery attempts.
@@ -52,6 +53,7 @@ Useful columns:
 - `message`
 - `event.action`
 - `event.outcome`
+- `request.id`
 - `user.email`
 - `user.id`
 - `notifyhub.resource.type`
