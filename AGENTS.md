@@ -29,6 +29,13 @@ git merge --ff-only origin/main
 
 Note: `http://localhost:8080` is the Gateway API, not the dashboard application.
 
+## Public VPS Deployment
+
+- Remote low-cost deployment assets live in `deploy/production/`.
+- Production compose command layers `deploy/docker/compose.yml`, `deploy/docker/compose.elastic.yml` and `deploy/production/compose.production.yml`.
+- Only Caddy should publish public ports on the VPS: `80` and `443`. SSH `22` is opened by UFW, not Docker.
+- Keep `deploy/production/production.env` untracked and use `deploy/production/production.env.example` as the template.
+
 ## Release Gates
 
 Run the relevant checks for the touched area. For release/demo readiness, use:
