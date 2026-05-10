@@ -54,6 +54,44 @@ Useful options:
 - Prometheus: `http://localhost:9090`
 - Grafana: `http://localhost:3001`
 
+## Elastic Logging
+
+The Elastic logging overlay adds Elasticsearch, Kibana and Logstash without changing the default local stack path.
+Use it when you want Kibana-style log search for the Compose environment:
+
+```bash
+docker compose \
+  --env-file deploy/docker/.env \
+  -f deploy/docker/compose.yml \
+  -f deploy/docker/compose.elastic.yml \
+  up --build -d
+```
+
+Then verify indexing and create the local Kibana data view:
+
+```bash
+./scripts/elastic-local-verify.sh
+```
+
+Elastic endpoints:
+
+- Elasticsearch: `http://localhost:9200`
+- Kibana: `http://localhost:5601`
+- Logstash API: `http://localhost:9600`
+- Logstash GELF input: `udp://localhost:12201`
+
+Kibana data view: `logs-notifyhub-*`.
+
+Stop the Elastic overlay with the same file set:
+
+```bash
+docker compose \
+  --env-file deploy/docker/.env \
+  -f deploy/docker/compose.yml \
+  -f deploy/docker/compose.elastic.yml \
+  down
+```
+
 ## Stop
 
 ```bash

@@ -59,11 +59,13 @@ if [[ "${RUN_STATIC}" == "true" ]]; then
     scripts/gateway-e2e-smoke.sh \
     scripts/local-stack-e2e.sh \
     scripts/k8s-local-verify.sh \
+    scripts/elastic-local-verify.sh \
     scripts/final-verify.sh
   run_step "OpenAPI YAML parse" ruby -e 'require "yaml"; YAML.load_file("docs/api/openapi.yaml"); puts "docs/api/openapi.yaml"'
   run_step "Kubernetes YAML parse" parse_k8s_yaml
   run_step "Kubernetes kustomize render" render_kustomize
   run_step "Docker Compose render" docker compose --env-file deploy/docker/.env.example -f deploy/docker/compose.yml config --services
+  run_step "Elastic Docker Compose render" docker compose --env-file deploy/docker/.env.example -f deploy/docker/compose.yml -f deploy/docker/compose.elastic.yml config --services
   run_step "Git whitespace check" git diff --check
 fi
 

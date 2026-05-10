@@ -1,0 +1,92 @@
+name: notifyhub
+
+x-elastic-gelf-logging: &elastic-gelf-logging
+  driver: gelf
+  options:
+    gelf-address: "udp://127.0.0.1:${LOGSTASH_GELF_PORT:-12201}"
+    tag: "{{.Name}}"
+
+services:
+  postgres:
+    logging: *elastic-gelf-logging
+
+  redis:
+    logging: *elastic-gelf-logging
+
+  rabbitmq:
+    logging: *elastic-gelf-logging
+
+  kafka:
+    logging: *elastic-gelf-logging
+
+  auth-service:
+    logging: *elastic-gelf-logging
+
+  reminder-service:
+    logging: *elastic-gelf-logging
+
+  notification-service:
+    logging: *elastic-gelf-logging
+
+  gateway-service:
+    logging: *elastic-gelf-logging
+
+  dashboard:
+    logging: *elastic-gelf-logging
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-8.19.15}
+    environment:
+      discovery.type: single-node
+      xpack.license.self_generated.type: basic
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: ${ELASTICSEARCH_JAVA_OPTS:--Xms512m -Xmx512m}
+    ports:
+      - "${ELASTICSEARCH_PORT:-9200}:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s >/dev/null"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${ELASTIC_VERSION:-8.19.15}
+    environment:
+      SERVER_NAME: kibana
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      XPACK_SECURITY_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+    ports:
+      - "${KIBANA_PORT:-5601}:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://localhost:5601/api/status >/dev/null"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:${ELASTIC_VERSION:-8.19.15}
+    environment:
+      LS_JAVA_OPTS: ${LOGSTASH_JAVA_OPTS:--Xms256m -Xmx256m}
+      XPACK_MONITORING_ENABLED: "false"
+    ports:
+      - "${LOGSTASH_GELF_PORT:-12201}:12201/udp"
+      - "${LOGSTASH_API_PORT:-9600}:9600"
+    volumes:
+      - ../../observability/elastic/logstash/pipeline:/usr/share/logstash/pipeline:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://localhost:9600/_node/pipelines/main >/dev/null"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+
+volumes:
+  elasticsearch-data:
