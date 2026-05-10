@@ -26,7 +26,7 @@ The repository is in final delivery polish. It contains a working MVP vertical s
 
 Final handoff work is now focused on running the full local demo in the target environment and capturing evidence.
 
-## Planned Structure
+## Repository Structure
 
 ```text
 notifyhub/
@@ -198,10 +198,10 @@ Gateway Service runs on port `8080` and exposes the external API surface:
 
 ## Documentation
 
-- Execution plan: [EXECUTION_PLAN.md](./EXECUTION_PLAN.md)
 - Architecture overview: [docs/architecture](./docs/architecture)
 - Architecture decisions: [docs/adr](./docs/adr)
 - API notes: [docs/api](./docs/api)
 - OpenAPI reference: [docs/api/openapi.yaml](./docs/api/openapi.yaml)
 - Demo guide: [docs/demo](./docs/demo)
 - Runbook: [docs/runbook](./docs/runbook)
+- Agent/project working notes: [AGENTS.md](./AGENTS.md)
