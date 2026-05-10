@@ -82,6 +82,9 @@ Elastic endpoints:
 
 Kibana data view: `logs-notifyhub-*`.
 
+For application-level audit events, open Kibana Discover and filter with `notifyhub.audit: true`.
+Useful fields include `message`, `event.action`, `event.outcome`, `user.email`, `user.id`, `notifyhub.resource.type`, `notifyhub.resource.id`, `audit.notifyhub.channel`, and `audit.notifyhub.status`.
+
 Stop the Elastic overlay with the same file set:
 
 ```bash

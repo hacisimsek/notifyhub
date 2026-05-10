@@ -14,4 +14,11 @@
     <artifactId>common</artifactId>
     <name>common</name>
     <description>Shared NotifyHub contracts and utilities</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+    </dependencies>
 </project>
