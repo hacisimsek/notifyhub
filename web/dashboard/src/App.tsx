@@ -584,8 +584,9 @@ export function App() {
     try {
       const reminderFilters = selectedReminderFilters();
       const notificationFilters = selectedNotificationFilters();
+      const hasActiveReminderFilters = hasReminderFilters(reminderFilters);
       const allRemindersRequest = listReminders(authToken);
-      const visibleRemindersRequest = hasReminderFilters(reminderFilters)
+      const visibleRemindersRequest = hasActiveReminderFilters
         ? listReminders(authToken, reminderFilters)
         : allRemindersRequest;
       const allNotificationsRequest = listNotifications(authToken);
@@ -598,8 +599,11 @@ export function App() {
         allNotificationsRequest,
         visibleNotificationsRequest
       ]);
-      setReminders(nextReminders);
-      setVisibleReminders(nextVisibleReminders);
+      const sortedReminders = sortRemindersNewestFirst(nextReminders);
+      setReminders(sortedReminders);
+      setVisibleReminders(
+        hasActiveReminderFilters ? sortRemindersNewestFirst(nextVisibleReminders) : sortedReminders
+      );
       setNotifications(nextNotifications);
       setVisibleNotifications(nextVisibleNotifications);
     } catch (err) {
@@ -618,7 +622,7 @@ export function App() {
     setError(null);
     try {
       const nextReminders = await listReminders(authToken, selectedReminderFilters());
-      setVisibleReminders(nextReminders);
+      setVisibleReminders(sortRemindersNewestFirst(nextReminders));
     } catch (err) {
       setError(formatError(err, t));
     } finally {
@@ -2003,6 +2007,12 @@ function buildEventStream(reminders: Reminder[], notifications: NotificationLog[
       tone: 'scheduled'
     }
   ];
+}
+
+function sortRemindersNewestFirst(reminders: Reminder[]) {
+  return [...reminders].sort((left, right) => {
+    return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+  });
 }
 
 function formatConsoleTime(value: string) {

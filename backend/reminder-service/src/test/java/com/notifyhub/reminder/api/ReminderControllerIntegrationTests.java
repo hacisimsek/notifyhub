@@ -78,9 +78,37 @@ class ReminderControllerIntegrationTests {
     }
 
     @Test
+    void listRemindersReturnsNewestCreatedFirst() throws Exception {
+        createReminder(
+                USER_ID,
+                "Older created reminder",
+                "EMAIL",
+                "older@example.com",
+                Instant.now().plus(5, ChronoUnit.DAYS)
+        );
+        Thread.sleep(10);
+        createReminder(
+                USER_ID,
+                "Newer created reminder",
+                "EMAIL",
+                "newer@example.com",
+                Instant.now().plus(1, ChronoUnit.DAYS)
+        );
+
+        mockMvc.perform(get("/api/reminders")
+                        .header("X-User-Id", USER_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].title", equalTo("Newer created reminder")))
+                .andExpect(jsonPath("$[1].title", equalTo("Older created reminder")));
+    }
+
+    @Test
     void listRemindersCanFilterByStatusAndChannel() throws Exception {
         String emailReminderId = createReminder(USER_ID, "Email reminder", "EMAIL", "user@example.com");
-        createReminder(USER_ID, "Sms reminder", "SMS", "+905551112233");
+        createReminder(USER_ID, "Older SMS reminder", "SMS", "+905551112233");
+        Thread.sleep(10);
+        createReminder(USER_ID, "Newer SMS reminder", "SMS", "+905551112244");
         createReminder(OTHER_USER_ID, "Other user reminder", "SMS", "+905551112244");
 
         var emailReminder = reminderRepository.findById(UUID.fromString(emailReminderId)).orElseThrow();
@@ -92,10 +120,11 @@ class ReminderControllerIntegrationTests {
                         .param("channel", "SMS")
                         .header("X-User-Id", USER_ID))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].title", equalTo("Sms reminder")))
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].title", equalTo("Newer SMS reminder")))
                 .andExpect(jsonPath("$[0].channel", equalTo("SMS")))
-                .andExpect(jsonPath("$[0].status", equalTo("SCHEDULED")));
+                .andExpect(jsonPath("$[0].status", equalTo("SCHEDULED")))
+                .andExpect(jsonPath("$[1].title", equalTo("Older SMS reminder")));
 
         mockMvc.perform(get("/api/reminders")
                         .param("status", "TRIGGERED")
@@ -176,7 +205,16 @@ class ReminderControllerIntegrationTests {
     }
 
     private String createReminder(UUID userId, String title, String channel, String recipient) throws Exception {
-        String scheduledFor = Instant.now().plus(2, ChronoUnit.DAYS).toString();
+        return createReminder(userId, title, channel, recipient, Instant.now().plus(2, ChronoUnit.DAYS));
+    }
+
+    private String createReminder(
+            UUID userId,
+            String title,
+            String channel,
+            String recipient,
+            Instant scheduledFor
+    ) throws Exception {
         String response = mockMvc.perform(post("/api/reminders")
                         .header("X-User-Id", userId)
                         .contentType(MediaType.APPLICATION_JSON)
