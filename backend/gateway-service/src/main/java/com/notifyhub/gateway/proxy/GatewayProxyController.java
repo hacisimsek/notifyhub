@@ -1,9 +1,12 @@
 package com.notifyhub.gateway.proxy;
 
+import com.notifyhub.common.logging.AuditLogger;
 import com.notifyhub.gateway.config.GatewayProperties;
 import com.notifyhub.gateway.security.GatewayJwtVerifier;
 import com.notifyhub.gateway.security.GatewayPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +24,7 @@ import java.util.Locale;
 class GatewayProxyController {
 
     private static final String BEARER_PREFIX = "Bearer ";
+    private static final Logger LOGGER = LoggerFactory.getLogger(GatewayProxyController.class);
 
     private final GatewayProperties properties;
     private final GatewayJwtVerifier jwtVerifier;
@@ -39,20 +43,20 @@ class GatewayProxyController {
 
     @RequestMapping(path = "/api/auth/me", method = RequestMethod.GET)
     ResponseEntity<byte[]> currentUser(HttpServletRequest request, @RequestBody(required = false) byte[] body) {
-        authenticate(request);
-        return forward(properties.services().authUrl(), request, body, HeaderMode.AUTH_SERVICE);
+        GatewayPrincipal principal = authenticate(request);
+        return forward(properties.services().authUrl(), request, body, HeaderMode.AUTH_SERVICE, principal);
     }
 
     @RequestMapping(path = "/api/auth/password", method = RequestMethod.POST)
     ResponseEntity<byte[]> changePassword(HttpServletRequest request, @RequestBody(required = false) byte[] body) {
-        authenticate(request);
-        return forward(properties.services().authUrl(), request, body, HeaderMode.AUTH_SERVICE);
+        GatewayPrincipal principal = authenticate(request);
+        return forward(properties.services().authUrl(), request, body, HeaderMode.AUTH_SERVICE, principal);
     }
 
     @RequestMapping(path = "/api/auth/profile", method = RequestMethod.PUT)
     ResponseEntity<byte[]> updateProfile(HttpServletRequest request, @RequestBody(required = false) byte[] body) {
-        authenticate(request);
-        return forward(properties.services().authUrl(), request, body, HeaderMode.AUTH_SERVICE);
+        GatewayPrincipal principal = authenticate(request);
+        return forward(properties.services().authUrl(), request, body, HeaderMode.AUTH_SERVICE, principal);
     }
 
     @RequestMapping(path = "/api/reminders/**")
@@ -90,7 +94,11 @@ class GatewayProxyController {
                 extractHeaders(request, headerMode, principal),
                 body
         );
-        return proxyClient.forward(targetUri(baseUrl, request), proxyRequest);
+        ResponseEntity<byte[]> response = proxyClient.forward(targetUri(baseUrl, request), proxyRequest);
+        if (principal != null) {
+            auditForwardedRequest(request, principal, response.getStatusCode().value());
+        }
+        return response;
     }
 
     private GatewayPrincipal authenticate(HttpServletRequest request) {
@@ -147,6 +155,83 @@ class GatewayProxyController {
             builder.query(request.getQueryString());
         }
         return builder.build(true).toUri();
+    }
+
+    private void auditForwardedRequest(HttpServletRequest request, GatewayPrincipal principal, int statusCode) {
+        String path = request.getRequestURI();
+        String action = auditAction(request.getMethod(), path);
+        AuditLogger.Builder audit = AuditLogger.event(LOGGER, action, "User %s called %s %s -> %d".formatted(
+                        principal.email(),
+                        request.getMethod(),
+                        path,
+                        statusCode
+                ))
+                .category("gateway")
+                .outcome(statusCode >= 400 ? "failure" : "success")
+                .user(principal.userId(), principal.email())
+                .detail("role", principal.role())
+                .detail("httpMethod", request.getMethod())
+                .detail("path", path)
+                .detail("statusCode", statusCode);
+
+        String resourceType = resourceType(path);
+        String resourceId = resourceId(path);
+        if (resourceType != null || resourceId != null) {
+            audit.resource(resourceType, resourceId);
+        }
+        audit.log();
+    }
+
+    private String auditAction(String method, String path) {
+        if (path.equals("/api/auth/me") && method.equals("GET")) {
+            return "auth.current_user.viewed";
+        }
+        if (path.equals("/api/auth/password") && method.equals("POST")) {
+            return "auth.password.change.requested";
+        }
+        if (path.equals("/api/auth/profile") && method.equals("PUT")) {
+            return "auth.profile.update.requested";
+        }
+        if (path.equals("/api/reminders") && method.equals("POST")) {
+            return "reminder.create.requested";
+        }
+        if (path.equals("/api/reminders") && method.equals("GET")) {
+            return "reminder.list.viewed";
+        }
+        if (path.startsWith("/api/reminders/") && method.equals("GET")) {
+            return "reminder.view.requested";
+        }
+        if (path.startsWith("/api/reminders/") && method.equals("PUT")) {
+            return "reminder.update.requested";
+        }
+        if (path.startsWith("/api/reminders/") && method.equals("DELETE")) {
+            return "reminder.delete.requested";
+        }
+        if (path.equals("/api/notifications") && method.equals("GET")) {
+            return "notification.history.viewed";
+        }
+        return "gateway.request.forwarded";
+    }
+
+    private String resourceType(String path) {
+        if (path.startsWith("/api/reminders")) {
+            return "reminder";
+        }
+        if (path.startsWith("/api/notifications")) {
+            return "notification";
+        }
+        if (path.startsWith("/api/auth")) {
+            return "user";
+        }
+        return null;
+    }
+
+    private String resourceId(String path) {
+        if (!path.startsWith("/api/reminders/")) {
+            return null;
+        }
+        String id = path.substring("/api/reminders/".length());
+        return id.isBlank() ? null : id;
     }
 
     private enum HeaderMode {

@@ -1,10 +1,13 @@
 package com.notifyhub.reminder.service;
 
 import com.notifyhub.common.events.ReminderTriggeredEvent;
+import com.notifyhub.common.logging.AuditLogger;
 import com.notifyhub.reminder.domain.Reminder;
 import com.notifyhub.reminder.domain.ReminderStatus;
 import com.notifyhub.reminder.messaging.ReminderEventPublisher;
 import com.notifyhub.reminder.repository.ReminderRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,6 +16,8 @@ import java.util.UUID;
 
 @Service
 public class ReminderTriggerService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ReminderTriggerService.class);
 
     private final ReminderRepository reminderRepository;
     private final ReminderEventPublisher eventPublisher;
@@ -30,6 +35,18 @@ public class ReminderTriggerService {
         reminders.forEach(reminder -> {
             reminder.markTriggered();
             eventPublisher.publish(toEvent(reminder, now));
+            AuditLogger.event(LOGGER, "reminder.triggered", "Reminder %s triggered for user %s".formatted(
+                            reminder.getId(),
+                            reminder.getOwnerId()
+                    ))
+                    .category("reminder")
+                    .user(reminder.getOwnerId(), null)
+                    .resource("reminder", reminder.getId())
+                    .detail("channel", reminder.getChannel())
+                    .detail("recipient", reminder.getRecipient())
+                    .detail("scheduledFor", reminder.getScheduledFor())
+                    .detail("triggeredAt", now)
+                    .log();
         });
 
         return reminders.size();

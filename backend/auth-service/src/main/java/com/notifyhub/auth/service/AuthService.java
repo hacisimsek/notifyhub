@@ -10,6 +10,9 @@ import com.notifyhub.auth.domain.UserRole;
 import com.notifyhub.auth.repository.AuthUserRepository;
 import com.notifyhub.auth.security.JwtToken;
 import com.notifyhub.auth.security.JwtTokenService;
+import com.notifyhub.common.logging.AuditLogger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -21,6 +24,8 @@ import java.util.UUID;
 
 @Service
 public class AuthService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthService.class);
 
     private final AuthUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -52,6 +57,9 @@ public class AuthService {
                 request.phoneNumber(),
                 request.preferredLanguage()
         ));
+        audit("auth.register.succeeded", "User %s registered".formatted(user.getEmail()), user)
+                .detail("role", user.getRole())
+                .log();
         return issueToken(user);
     }
 
@@ -59,12 +67,19 @@ public class AuthService {
     public AuthResponse login(LoginRequest request) {
         String email = normalizeEmail(request.email());
         AuthUser user = userRepository.findByEmail(email)
-                .orElseThrow(this::badCredentials);
+                .orElseThrow(() -> {
+                    auditLoginFailure(email, null);
+                    return badCredentials();
+                });
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            auditLoginFailure(email, user);
             throw badCredentials();
         }
 
+        audit("auth.login.succeeded", "User %s logged in".formatted(user.getEmail()), user)
+                .detail("role", user.getRole())
+                .log();
         return issueToken(user);
     }
 
@@ -88,6 +103,7 @@ public class AuthService {
         }
 
         user.changePassword(passwordEncoder.encode(request.newPassword()));
+        audit("auth.password.changed", "User %s changed password".formatted(user.getEmail()), user).log();
         return issueToken(user);
     }
 
@@ -97,7 +113,27 @@ public class AuthService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "error.auth.userNoLongerExists"));
 
         user.updateProfile(request.firstName(), request.lastName(), request.phoneNumber(), request.preferredLanguage());
+        audit("auth.profile.updated", "User %s updated profile".formatted(user.getEmail()), user)
+                .detail("preferredLanguage", user.getPreferredLanguage())
+                .log();
         return issueToken(user);
+    }
+
+    private AuditLogger.Builder audit(String action, String message, AuthUser user) {
+        return AuditLogger.event(LOGGER, action, message)
+                .category("authentication")
+                .user(user.getId(), user.getEmail())
+                .resource("user", user.getId());
+    }
+
+    private void auditLoginFailure(String email, AuthUser user) {
+        AuditLogger.event(LOGGER, "auth.login.failed", "Login failed for %s".formatted(email))
+                .category("authentication")
+                .outcome("failure")
+                .user(user == null ? null : user.getId(), email)
+                .resource("user", user == null ? null : user.getId())
+                .detail("reason", "invalid_credentials")
+                .log();
     }
 
     private AuthResponse issueToken(AuthUser user) {
