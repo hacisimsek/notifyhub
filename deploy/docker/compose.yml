@@ -4,6 +4,9 @@ x-backend-build: &backend-build
   context: ../..
   dockerfile: backend/Dockerfile
 
+x-internal-token-env: &internal-token-env
+  INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-change-this-internal-service-token}
+
 x-jwt-env: &jwt-env
   AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER:-notifyhub-auth}
   AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-change-this-development-secret-change-this-development-secret}
@@ -80,10 +83,13 @@ services:
       AUTH_DB_URL: jdbc:postgresql://postgres:5432/notifyhub_auth
       AUTH_DB_USERNAME: ${POSTGRES_USER:-notifyhub}
       AUTH_DB_PASSWORD: ${POSTGRES_PASSWORD:-notifyhub}
-    ports:
-      - "${AUTH_SERVICE_PORT:-8081}:8081"
+      REDIS_HOST: redis
+      LOGIN_THROTTLE_REDIS_ENABLED: "true"
+    # No host port: services are reachable only through the gateway.
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   reminder-service:
@@ -93,6 +99,7 @@ services:
       args:
         SERVICE_MODULE: reminder-service
     environment:
+      <<: *internal-token-env
       REMINDER_DB_URL: jdbc:postgresql://postgres:5432/notifyhub_reminder
       REMINDER_DB_USERNAME: ${POSTGRES_USER:-notifyhub}
       REMINDER_DB_PASSWORD: ${POSTGRES_PASSWORD:-notifyhub}
@@ -101,8 +108,6 @@ services:
       KAFKA_TOPIC_REMINDER_TRIGGERED: ${KAFKA_TOPIC_REMINDER_TRIGGERED:-reminder.triggered}
       REMINDER_TRIGGER_SCHEDULER_ENABLED: "true"
       REMINDER_TRIGGER_SCHEDULER_DELAY_MS: ${REMINDER_TRIGGER_SCHEDULER_DELAY_MS:-5000}
-    ports:
-      - "${REMINDER_SERVICE_PORT:-8082}:8082"
     depends_on:
       postgres:
         condition: service_healthy
@@ -116,6 +121,7 @@ services:
       args:
         SERVICE_MODULE: notification-service
     environment:
+      <<: *internal-token-env
       NOTIFICATION_DB_URL: jdbc:postgresql://postgres:5432/notifyhub_notification
       NOTIFICATION_DB_USERNAME: ${POSTGRES_USER:-notifyhub}
       NOTIFICATION_DB_PASSWORD: ${POSTGRES_PASSWORD:-notifyhub}
@@ -130,8 +136,6 @@ services:
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
       NOTIFICATION_DELIVERY_MAX_ATTEMPTS: ${NOTIFICATION_DELIVERY_MAX_ATTEMPTS:-3}
       NOTIFICATION_DELIVERY_RETRY_DELAY_MS: ${NOTIFICATION_DELIVERY_RETRY_DELAY_MS:-5000}
-    ports:
-      - "${NOTIFICATION_SERVICE_PORT:-8083}:8083"
     depends_on:
       postgres:
         condition: service_healthy
@@ -147,7 +151,7 @@ services:
       args:
         SERVICE_MODULE: gateway-service
     environment:
-      <<: *jwt-env
+      <<: [*jwt-env, *internal-token-env]
       AUTH_SERVICE_URL: http://auth-service:8081
       REMINDER_SERVICE_URL: http://reminder-service:8082
       NOTIFICATION_SERVICE_URL: http://notification-service:8083

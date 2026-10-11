@@ -13,7 +13,8 @@ notifyhub:
       notification-url: ${NOTIFICATION_SERVICE_URL:http://localhost:8083}
     jwt:
       issuer: ${AUTH_JWT_ISSUER:notifyhub-auth}
-      secret: ${AUTH_JWT_SECRET:change-this-development-secret-change-this-development-secret}
+      secret: ${AUTH_JWT_SECRET}
+    internal-token: ${INTERNAL_SERVICE_TOKEN:}
 
 management:
   endpoint:

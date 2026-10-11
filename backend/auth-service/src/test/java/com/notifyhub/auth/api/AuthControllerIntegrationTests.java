@@ -9,6 +9,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.blankOrNullString;
@@ -99,6 +100,37 @@ class AuthControllerIntegrationTests {
                                 }
                                 """))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void loginIsThrottledAfterRepeatedFailures() throws Exception {
+        registerAndReturnToken("throttled@example.com", "secret123");
+
+        for (int attempt = 0; attempt < 5; attempt++) {
+            login("throttled@example.com", "badsecret").andExpect(status().isUnauthorized());
+        }
+
+        login("throttled@example.com", "secret123")
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.message", equalTo("error.auth.tooManyAttempts")));
+    }
+
+    @Test
+    void unknownEmailIsRejectedLikeWrongPassword() throws Exception {
+        login("nobody@example.com", "secret123")
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message", equalTo("error.auth.invalidCredentials")));
+    }
+
+    private ResultActions login(String email, String password) throws Exception {
+        return mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "email": "%s",
+                          "password": "%s"
+                        }
+                        """.formatted(email, password)));
     }
 
     @Test

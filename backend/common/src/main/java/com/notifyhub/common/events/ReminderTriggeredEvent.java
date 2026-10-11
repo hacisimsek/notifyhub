@@ -15,6 +15,7 @@ public record ReminderTriggeredEvent(
         String message,
         Instant scheduledFor,
         Instant triggeredAt,
-        String idempotencyKey
+        String idempotencyKey,
+        String requestId
 ) {
 }

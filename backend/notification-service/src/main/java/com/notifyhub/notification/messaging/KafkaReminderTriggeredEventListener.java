@@ -1,6 +1,7 @@
 package com.notifyhub.notification.messaging;
 
 import com.notifyhub.common.events.ReminderTriggeredEvent;
+import com.notifyhub.common.web.RequestCorrelation;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
@@ -20,6 +21,6 @@ class KafkaReminderTriggeredEventListener {
             groupId = "${spring.kafka.consumer.group-id}"
     )
     void onReminderTriggered(ReminderTriggeredEvent event) {
-        eventHandler.handle(event);
+        RequestCorrelation.runWith(event.requestId(), () -> eventHandler.handle(event));
     }
 }

@@ -62,7 +62,19 @@ class ReminderTriggeredEventHandlerIntegrationTests {
                 .hasSize(1);
     }
 
+    @Test
+    void reminderWithoutMessageUsesTitleAsNotificationBody() {
+        var response = eventHandler.handle(event("reminder-idempotency-3", null));
+
+        assertThat(response.message()).isEqualTo("Invoice due");
+        assertThat(response.status().name()).isEqualTo("SENT");
+    }
+
     private ReminderTriggeredEvent event(String idempotencyKey) {
+        return event(idempotencyKey, "Invoice is due tomorrow");
+    }
+
+    private ReminderTriggeredEvent event(String idempotencyKey, String message) {
         return new ReminderTriggeredEvent(
                 UUID.randomUUID(),
                 REMINDER_ID,
@@ -70,10 +82,11 @@ class ReminderTriggeredEventHandlerIntegrationTests {
                 NotificationChannel.EMAIL,
                 "User@Example.com",
                 "Invoice due",
-                "Invoice is due tomorrow",
+                message,
                 Instant.parse("2026-05-02T09:00:00Z"),
                 Instant.parse("2026-05-02T09:00:05Z"),
-                idempotencyKey
+                idempotencyKey,
+                "req-create-7"
         );
     }
 }

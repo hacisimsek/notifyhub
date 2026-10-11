@@ -46,10 +46,9 @@ Useful options:
 - RabbitMQ AMQP: `localhost:5672`
 - RabbitMQ management UI: `http://localhost:15672`
 - Redis: `localhost:6379`
-- Auth Service: `http://localhost:8081`
-- Reminder Service: `http://localhost:8082`
-- Notification Service: `http://localhost:8083`
-- Gateway Service: `http://localhost:8080`
+- Gateway Service: `http://localhost:8080` (the only backend entry point)
+- Auth, Reminder and Notification services listen on `8081`-`8083` inside the Compose network only.
+  Reminder and Notification services reject requests without the shared `INTERNAL_SERVICE_TOKEN`.
 - Dashboard: `http://localhost:3000`
 - Prometheus: `http://localhost:9090`
 - Grafana: `http://localhost:3001`

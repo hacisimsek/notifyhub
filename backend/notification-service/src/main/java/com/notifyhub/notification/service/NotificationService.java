@@ -10,12 +10,17 @@ import com.notifyhub.notification.domain.NotificationLog;
 import com.notifyhub.notification.repository.NotificationLogRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -25,46 +30,58 @@ public class NotificationService {
 
     private final NotificationLogRepository notificationLogRepository;
     private final NotificationDeliveryDispatcher notificationDeliveryDispatcher;
+    private final TransactionTemplate transactionTemplate;
 
     public NotificationService(
             NotificationLogRepository notificationLogRepository,
-            NotificationDeliveryDispatcher notificationDeliveryDispatcher
+            NotificationDeliveryDispatcher notificationDeliveryDispatcher,
+            PlatformTransactionManager transactionManager
     ) {
         this.notificationLogRepository = notificationLogRepository;
         this.notificationDeliveryDispatcher = notificationDeliveryDispatcher;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
-    @Transactional
     public NotificationResponse createAndDispatch(CreateNotificationRequest request) {
-        if (StringUtils.hasText(request.idempotencyKey())) {
-            return notificationLogRepository.findByIdempotencyKey(request.idempotencyKey())
-                    .map(existingLog -> {
-                        audit("notification.idempotency.reused", "Notification %s reused for idempotency key".formatted(existingLog.getId()), existingLog)
-                                .detail("idempotencyKey", existingLog.getIdempotencyKey())
-                                .log();
-                        return NotificationResponse.from(existingLog);
-                    })
-                    .orElseGet(() -> createNewNotification(request));
+        try {
+            return transactionTemplate.execute(status -> reuseExisting(request).orElseGet(() -> createNewNotification(request)));
+        } catch (DataIntegrityViolationException ex) {
+            // A concurrent request inserted the same idempotency key first; return its notification.
+            if (!StringUtils.hasText(request.idempotencyKey())) {
+                throw ex;
+            }
+            return transactionTemplate.execute(status -> reuseExisting(request).orElseThrow(() -> ex));
         }
+    }
 
-        return createNewNotification(request);
+    private Optional<NotificationResponse> reuseExisting(CreateNotificationRequest request) {
+        if (!StringUtils.hasText(request.idempotencyKey())) {
+            return Optional.empty();
+        }
+        return notificationLogRepository.findByIdempotencyKey(request.idempotencyKey().trim())
+                .map(existingLog -> {
+                    audit("notification.idempotency.reused", "Notification %s reused for idempotency key".formatted(existingLog.getId()), existingLog)
+                            .detail("idempotencyKey", existingLog.getIdempotencyKey())
+                            .log();
+                    return NotificationResponse.from(existingLog);
+                });
     }
 
     @Transactional(readOnly = true)
     public List<NotificationResponse> list(UUID userId) {
-        return list(userId, null, null);
+        return list(userId, null, null, Pageable.unpaged());
     }
 
     @Transactional(readOnly = true)
-    public List<NotificationResponse> list(UUID userId, DeliveryStatus status, NotificationChannel channel) {
-        return notificationLogRepository.findUserHistory(userId, status, channel)
+    public List<NotificationResponse> list(UUID userId, DeliveryStatus status, NotificationChannel channel, Pageable pageable) {
+        return notificationLogRepository.findUserHistory(userId, status, channel, pageable)
                 .stream()
                 .map(NotificationResponse::from)
                 .toList();
     }
 
     private NotificationResponse createNewNotification(CreateNotificationRequest request) {
-        NotificationLog log = notificationLogRepository.save(new NotificationLog(
+        NotificationLog log = notificationLogRepository.saveAndFlush(new NotificationLog(
                 request.userId(),
                 request.reminderId(),
                 request.channel(),
@@ -92,7 +109,7 @@ public class NotificationService {
                 .resource("notification", log.getId())
                 .detail("reminderId", log.getReminderId())
                 .detail("channel", log.getChannel())
-                .detail("recipient", log.getRecipient());
+                .recipient(log.getRecipient());
     }
 
     private String normalizeIdempotencyKey(String idempotencyKey) {

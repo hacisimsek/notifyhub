@@ -3,6 +3,7 @@ package com.notifyhub.notification.repository;
 import com.notifyhub.common.notifications.DeliveryStatus;
 import com.notifyhub.common.notifications.NotificationChannel;
 import com.notifyhub.notification.domain.NotificationLog;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -26,7 +27,8 @@ public interface NotificationLogRepository extends JpaRepository<NotificationLog
     List<NotificationLog> findUserHistory(
             @Param("userId") UUID userId,
             @Param("status") DeliveryStatus status,
-            @Param("channel") NotificationChannel channel
+            @Param("channel") NotificationChannel channel,
+            Pageable pageable
     );
 
     Optional<NotificationLog> findByIdempotencyKey(String idempotencyKey);

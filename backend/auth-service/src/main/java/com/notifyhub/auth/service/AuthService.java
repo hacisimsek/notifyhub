@@ -9,6 +9,7 @@ import com.notifyhub.auth.domain.AuthUser;
 import com.notifyhub.auth.domain.UserRole;
 import com.notifyhub.auth.repository.AuthUserRepository;
 import com.notifyhub.auth.security.JwtToken;
+import com.notifyhub.auth.security.LoginAttemptLimiter;
 import com.notifyhub.auth.security.JwtTokenService;
 import com.notifyhub.common.logging.AuditLogger;
 import org.slf4j.Logger;
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -30,15 +32,21 @@ public class AuthService {
     private final AuthUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenService jwtTokenService;
+    private final LoginAttemptLimiter loginAttemptLimiter;
+    private final String dummyPasswordHash;
 
     public AuthService(
             AuthUserRepository userRepository,
             PasswordEncoder passwordEncoder,
-            JwtTokenService jwtTokenService
+            JwtTokenService jwtTokenService,
+            LoginAttemptLimiter loginAttemptLimiter
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenService = jwtTokenService;
+        this.loginAttemptLimiter = loginAttemptLimiter;
+        // Compared against when the email is unknown, so response time does not reveal registered emails.
+        this.dummyPasswordHash = passwordEncoder.encode(UUID.randomUUID().toString());
     }
 
     @Transactional
@@ -66,17 +74,21 @@ public class AuthService {
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
         String email = normalizeEmail(request.email());
-        AuthUser user = userRepository.findByEmail(email)
-                .orElseThrow(() -> {
-                    auditLoginFailure(email, null);
-                    return badCredentials();
-                });
+        if (loginAttemptLimiter.isBlocked(email)) {
+            auditLoginFailure(email, null, "too_many_attempts");
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "error.auth.tooManyAttempts");
+        }
 
-        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            auditLoginFailure(email, user);
+        Optional<AuthUser> existingUser = userRepository.findByEmail(email);
+        String passwordHash = existingUser.map(AuthUser::getPasswordHash).orElse(dummyPasswordHash);
+        if (!passwordEncoder.matches(request.password(), passwordHash) || existingUser.isEmpty()) {
+            loginAttemptLimiter.recordFailure(email);
+            auditLoginFailure(email, existingUser.orElse(null), "invalid_credentials");
             throw badCredentials();
         }
 
+        AuthUser user = existingUser.get();
+        loginAttemptLimiter.reset(email);
         audit("auth.login.succeeded", "User %s logged in".formatted(user.getEmail()), user)
                 .detail("role", user.getRole())
                 .log();
@@ -126,13 +138,13 @@ public class AuthService {
                 .resource("user", user.getId());
     }
 
-    private void auditLoginFailure(String email, AuthUser user) {
+    private void auditLoginFailure(String email, AuthUser user, String reason) {
         AuditLogger.event(LOGGER, "auth.login.failed", "Login failed for %s".formatted(email))
                 .category("authentication")
                 .outcome("failure")
                 .user(user == null ? null : user.getId(), email)
                 .resource("user", user == null ? null : user.getId())
-                .detail("reason", "invalid_credentials")
+                .detail("reason", reason)
                 .log();
     }
 

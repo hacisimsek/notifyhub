@@ -148,6 +148,17 @@ class GatewayProxyControllerIntegrationTests {
         assertThat(proxyClient.request.headers().getFirst("X-User-Role")).isEqualTo("USER");
         assertThat(proxyClient.request.headers().getFirst("X-Request-Id")).isNotBlank();
         assertThat(proxyClient.request.headers().getFirst(HttpHeaders.AUTHORIZATION)).isNull();
+        assertThat(proxyClient.request.headers().getFirst("X-Internal-Token")).isEqualTo("test-internal-token");
+    }
+
+    @Test
+    void clientSuppliedInternalTokenIsReplaced() throws Exception {
+        mockMvc.perform(get("/api/reminders")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + validToken())
+                        .header("X-Internal-Token", "spoofed"))
+                .andExpect(status().isOk());
+
+        assertThat(proxyClient.request.headers().get("X-Internal-Token")).containsExactly("test-internal-token");
     }
 
     @Test

@@ -7,6 +7,7 @@ import com.notifyhub.notification.service.NotificationService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,6 +25,8 @@ import java.util.UUID;
 class NotificationController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NotificationController.class);
+    private static final int DEFAULT_PAGE_SIZE = 100;
+    private static final int MAX_PAGE_SIZE = 200;
 
     private final NotificationService notificationService;
 
@@ -42,9 +45,12 @@ class NotificationController {
             @RequestHeader("X-User-Id") UUID userId,
             @RequestHeader(value = "X-User-Email", required = false) String userEmail,
             @RequestParam(required = false) DeliveryStatus status,
-            @RequestParam(required = false) NotificationChannel channel
+            @RequestParam(required = false) NotificationChannel channel,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "" + DEFAULT_PAGE_SIZE) int size
     ) {
-        List<NotificationResponse> notifications = notificationService.list(userId, status, channel);
+        PageRequest pageRequest = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, MAX_PAGE_SIZE));
+        List<NotificationResponse> notifications = notificationService.list(userId, status, channel, pageRequest);
         AuditLogger.event(LOGGER, "notification.history.viewed", "User %s viewed %d notifications".formatted(
                         displayUser(userId, userEmail),
                         notifications.size()

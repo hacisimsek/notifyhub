@@ -38,8 +38,19 @@ class RabbitNotificationDeliveryWorker {
 
     @Transactional
     public void deliver(NotificationDeliveryWork work) {
-        NotificationLog notificationLog = notificationLogRepository.findById(work.notificationId())
-                .orElseThrow(() -> new IllegalArgumentException("Notification log not found: " + work.notificationId()));
+        NotificationLog notificationLog = notificationLogRepository.findById(work.notificationId()).orElse(null);
+        if (notificationLog == null) {
+            // Throwing here would requeue the message forever; acknowledge and drop it instead.
+            AuditLogger.event(LOGGER, "notification.delivery.discarded", "Delivery work for unknown notification %s discarded".formatted(
+                            work.notificationId()
+                    ))
+                    .category("notification")
+                    .outcome("failure")
+                    .resource("notification", work.notificationId())
+                    .detail("attempt", work.attempt())
+                    .log();
+            return;
+        }
 
         if (notificationLog.getStatus() == DeliveryStatus.SENT) {
             audit("notification.delivery.skipped", "Notification %s delivery skipped because it is already sent".formatted(
@@ -56,7 +67,7 @@ class RabbitNotificationDeliveryWorker {
             attemptRecorder.record(notificationLog, work.attempt(), DeliveryStatus.SENT, null);
             audit("notification.delivery.sent", "Notification %s sent to %s via %s".formatted(
                             notificationLog.getId(),
-                            notificationLog.getRecipient(),
+                            AuditLogger.maskRecipient(notificationLog.getRecipient()),
                             notificationLog.getChannel()
                     ), notificationLog, work.attempt())
                     .detail("status", DeliveryStatus.SENT)
@@ -98,7 +109,7 @@ class RabbitNotificationDeliveryWorker {
                 .resource("notification", notificationLog.getId())
                 .detail("reminderId", notificationLog.getReminderId())
                 .detail("channel", notificationLog.getChannel())
-                .detail("recipient", notificationLog.getRecipient())
+                .recipient(notificationLog.getRecipient())
                 .detail("attempt", attempt);
     }
 

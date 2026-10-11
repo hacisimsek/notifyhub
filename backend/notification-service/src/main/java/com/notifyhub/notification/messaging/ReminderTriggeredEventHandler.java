@@ -5,6 +5,7 @@ import com.notifyhub.notification.api.CreateNotificationRequest;
 import com.notifyhub.notification.api.NotificationResponse;
 import com.notifyhub.notification.service.NotificationService;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 @Service
 public class ReminderTriggeredEventHandler {
@@ -22,7 +23,8 @@ public class ReminderTriggeredEventHandler {
                 event.channel(),
                 event.recipient(),
                 event.title(),
-                event.message(),
+                // Reminder messages are optional, but a notification needs a body.
+                StringUtils.hasText(event.message()) ? event.message() : event.title(),
                 event.idempotencyKey()
         ));
     }

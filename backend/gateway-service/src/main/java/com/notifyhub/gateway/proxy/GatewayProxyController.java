@@ -1,6 +1,7 @@
 package com.notifyhub.gateway.proxy;
 
 import com.notifyhub.common.logging.AuditLogger;
+import com.notifyhub.common.web.InternalServiceTokenFilter;
 import com.notifyhub.common.web.RequestCorrelation;
 import com.notifyhub.gateway.config.GatewayProperties;
 import com.notifyhub.gateway.security.GatewayJwtVerifier;
@@ -127,6 +128,9 @@ class GatewayProxyController {
         }
         RequestCorrelation.currentRequestId()
                 .ifPresent(requestId -> headers.set(RequestCorrelation.HEADER, requestId));
+        if (properties.internalToken() != null && !properties.internalToken().isBlank()) {
+            headers.set(InternalServiceTokenFilter.HEADER, properties.internalToken());
+        }
 
         return headers;
     }
@@ -137,7 +141,8 @@ class GatewayProxyController {
                 || normalized.equals("content-length")
                 || normalized.equals("connection")
                 || normalized.equals("transfer-encoding")
-                || normalized.equals("x-request-id")) {
+                || normalized.equals("x-request-id")
+                || normalized.equals("x-internal-token")) {
             return false;
         }
 

@@ -28,6 +28,8 @@ notifyhub:
       enabled: ${KAFKA_ENABLED:false}
     topics:
       reminder-triggered: ${KAFKA_TOPIC_REMINDER_TRIGGERED:reminder.triggered}
+  internal:
+    service-token: ${INTERNAL_SERVICE_TOKEN:}
   reminders:
     trigger-scheduler:
       enabled: ${REMINDER_TRIGGER_SCHEDULER_ENABLED:false}

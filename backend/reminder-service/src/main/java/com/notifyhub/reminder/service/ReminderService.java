@@ -1,12 +1,14 @@
 package com.notifyhub.reminder.service;
 
 import com.notifyhub.common.notifications.NotificationChannel;
+import com.notifyhub.common.web.RequestCorrelation;
 import com.notifyhub.reminder.api.CreateReminderRequest;
 import com.notifyhub.reminder.api.ReminderResponse;
 import com.notifyhub.reminder.api.UpdateReminderRequest;
 import com.notifyhub.reminder.domain.Reminder;
 import com.notifyhub.reminder.domain.ReminderStatus;
 import com.notifyhub.reminder.repository.ReminderRepository;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,17 +36,18 @@ public class ReminderService {
                 request.channel(),
                 normalizeRecipient(request.recipient())
         );
+        reminder.assignRequestId(RequestCorrelation.currentRequestId().orElse(null));
         return ReminderResponse.from(reminderRepository.save(reminder));
     }
 
     @Transactional(readOnly = true)
     public List<ReminderResponse> list(UUID ownerId) {
-        return list(ownerId, null, null);
+        return list(ownerId, null, null, Pageable.unpaged());
     }
 
     @Transactional(readOnly = true)
-    public List<ReminderResponse> list(UUID ownerId, ReminderStatus status, NotificationChannel channel) {
-        return reminderRepository.findOwnerReminders(ownerId, status, channel)
+    public List<ReminderResponse> list(UUID ownerId, ReminderStatus status, NotificationChannel channel, Pageable pageable) {
+        return reminderRepository.findOwnerReminders(ownerId, status, channel, pageable)
                 .stream()
                 .map(ReminderResponse::from)
                 .toList();

@@ -16,13 +16,16 @@ import java.time.Instant;
 class ReminderTriggerScheduler {
 
     private final ReminderTriggerService reminderTriggerService;
+    private final ReminderOutboxPublisher outboxPublisher;
 
-    ReminderTriggerScheduler(ReminderTriggerService reminderTriggerService) {
+    ReminderTriggerScheduler(ReminderTriggerService reminderTriggerService, ReminderOutboxPublisher outboxPublisher) {
         this.reminderTriggerService = reminderTriggerService;
+        this.outboxPublisher = outboxPublisher;
     }
 
     @Scheduled(fixedDelayString = "${notifyhub.reminders.trigger-scheduler.fixed-delay-ms:60000}")
     void triggerDueReminders() {
         reminderTriggerService.triggerDueReminders(Instant.now());
+        outboxPublisher.publishPending();
     }
 }
