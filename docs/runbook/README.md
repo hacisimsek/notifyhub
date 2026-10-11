@@ -126,7 +126,7 @@ In Kibana, filter on `request.id: "<request-id>"`.
 ## Security Controls
 
 - Only the Gateway is published on a host port. Reminder and Notification services require `X-Internal-Token` (`INTERNAL_SERVICE_TOKEN`) on `/api/**` and `/internal/**`.
-- `AUTH_JWT_SECRET` has no built-in default; Auth and Gateway fail at startup if it is missing or shorter than 32 bytes.
+- Secrets have no built-in defaults. Compose requires them from `deploy/docker/.env`, Kubernetes generates `notifyhub-secrets` from the git-ignored `deploy/k8s/base/secrets.env`, and Auth and Gateway refuse a missing or shorter than 32-byte `AUTH_JWT_SECRET`.
 - Login is throttled per email: after 5 failures within 15 minutes Auth Service returns `429`. Counters live in Redis (`LOGIN_THROTTLE_REDIS_ENABLED=true`) and fall back to in-memory when Redis is disabled.
 - Audit logs mask notification recipients (`j***@example.com`, `***2233`).
 - The dashboard nginx config sends a strict Content-Security-Policy.
@@ -163,6 +163,11 @@ Confirm the reminder is due and still in `SCHEDULED` state. The local scheduler 
 ### Notification stays in retrying or failed state
 
 Inspect RabbitMQ management at `http://localhost:15672`, then check the delivery attempt rows in the notification database. Exhausted work is copied to `notifyhub.notifications.delivery.dlq`.
+
+### Compose stops with "Set NAME in deploy/docker/.env"
+
+A required secret is missing from `deploy/docker/.env`. Add it using `deploy/docker/.env.example` as the reference, for example
+`INTERNAL_SERVICE_TOKEN=$(openssl rand -hex 24)`.
 
 ### Login returns 429
 

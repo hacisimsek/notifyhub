@@ -12,7 +12,7 @@ spring:
   datasource:
     url: ${REMINDER_DB_URL:jdbc:postgresql://localhost:5432/notifyhub_reminder}
     username: ${REMINDER_DB_USERNAME:notifyhub}
-    password: ${REMINDER_DB_PASSWORD:notifyhub}
+    password: ${REMINDER_DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: validate

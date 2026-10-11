@@ -100,6 +100,10 @@ if [[ "${BUILD_IMAGES}" == "true" ]]; then
 fi
 
 if [[ "${APPLY_MANIFESTS}" == "true" ]]; then
+  if [[ ! -f "${KUSTOMIZE_DIR}/secrets.env" ]]; then
+    echo "Creating ${KUSTOMIZE_DIR}/secrets.env from the example; replace its values outside local testing." >&2
+    cp "${KUSTOMIZE_DIR}/secrets.env.example" "${KUSTOMIZE_DIR}/secrets.env"
+  fi
   kubectl apply -k "${KUSTOMIZE_DIR}"
   for deployment in "${DEPLOYMENTS[@]}"; do
     kubectl -n "${NAMESPACE}" rollout status "deployment/${deployment}" --timeout="${WAIT_TIMEOUT}"

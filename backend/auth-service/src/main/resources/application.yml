@@ -11,7 +11,7 @@ spring:
   datasource:
     url: ${AUTH_DB_URL:jdbc:postgresql://localhost:5432/notifyhub_auth}
     username: ${AUTH_DB_USERNAME:notifyhub}
-    password: ${AUTH_DB_PASSWORD:notifyhub}
+    password: ${AUTH_DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: validate

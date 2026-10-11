@@ -32,4 +32,6 @@ jobs:
         run: bash -n scripts/k8s-local-verify.sh scripts/gateway-e2e-smoke.sh
 
       - name: Render kustomization
-        run: kubectl kustomize deploy/k8s/base
+        run: |
+          cp deploy/k8s/base/secrets.env.example deploy/k8s/base/secrets.env
+          kubectl kustomize deploy/k8s/base

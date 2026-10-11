@@ -14,6 +14,10 @@ cp deploy/docker/.env.example deploy/docker/.env
 docker compose --env-file deploy/docker/.env -f deploy/docker/compose.yml up --build
 ```
 
+Replace every `change-me` value in `deploy/docker/.env`. Passwords, `AUTH_JWT_SECRET` and `INTERNAL_SERVICE_TOKEN` have no defaults in
+`compose.yml`; Compose stops with `Set <NAME> in deploy/docker/.env` when one is missing.
+Keep `POSTGRES_PASSWORD` unchanged once the `postgres-data` volume exists, or recreate the volume with `down --volumes`.
+
 The gateway is exposed at `http://localhost:8080`.
 The dashboard is exposed at `http://localhost:3000`.
 Prometheus is exposed at `http://localhost:9090`.

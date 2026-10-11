@@ -71,7 +71,7 @@ This builds local images in Minikube, applies the manifests, waits for rollouts,
 6. Wait for the reminder to become `TRIGGERED`.
 7. Open notification history and confirm the delivery status becomes `SENT`.
 8. Use notification filters for status and channel.
-9. Create a second reminder with recipient `demo+fail@example.com`. The mock sender fails it, so history shows `RETRYING` and then `FAILED` after 3 attempts, and the work item lands in `notifyhub.notifications.delivery.dlq` (RabbitMQ UI at `http://localhost:15672`, guest/guest).
+9. Create a second reminder with recipient `demo+fail@example.com`. The mock sender fails it, so history shows `RETRYING` and then `FAILED` after 3 attempts, and the work item lands in `notifyhub.notifications.delivery.dlq` (RabbitMQ UI at `http://localhost:15672`, credentials `RABBITMQ_USERNAME`/`RABBITMQ_PASSWORD` from `deploy/docker/.env`).
 10. Open `http://localhost:3001` and inspect the `NotifyHub Overview` dashboard.
 11. Open `http://localhost:9090/targets` and confirm backend scrape targets are up.
 

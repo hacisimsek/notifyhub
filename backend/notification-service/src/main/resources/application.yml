@@ -18,12 +18,12 @@ spring:
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USERNAME:guest}
-    password: ${RABBITMQ_PASSWORD:guest}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
   datasource:
     url: ${NOTIFICATION_DB_URL:jdbc:postgresql://localhost:5432/notifyhub_notification}
     username: ${NOTIFICATION_DB_USERNAME:notifyhub}
-    password: ${NOTIFICATION_DB_PASSWORD:notifyhub}
+    password: ${NOTIFICATION_DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: validate

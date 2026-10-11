@@ -14,10 +14,7 @@ docker compose --env-file deploy/docker/.env -f deploy/docker/compose.yml up --b
 Prometheus is available at `http://localhost:9090`.
 Grafana is available at `http://localhost:3001`.
 
-Default Grafana credentials for local development:
-
-- Username: `admin`
-- Password: `notifyhub`
+Grafana credentials are `GRAFANA_ADMIN_USER` and `GRAFANA_ADMIN_PASSWORD` from `deploy/docker/.env`.
 
 The provisioned dashboard is under the `NotifyHub` folder and uses the local Prometheus data source.
 
