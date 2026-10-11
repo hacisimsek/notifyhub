@@ -27,6 +27,8 @@ notifyhub:
       issuer: ${AUTH_JWT_ISSUER:notifyhub-auth}
       secret: ${AUTH_JWT_SECRET}
       expiration: ${AUTH_JWT_EXPIRATION:PT2H}
+    token-revocation:
+      redis-enabled: ${TOKEN_REVOCATION_REDIS_ENABLED:false}
     login-throttle:
       redis-enabled: ${LOGIN_THROTTLE_REDIS_ENABLED:false}
       max-failures: ${LOGIN_THROTTLE_MAX_FAILURES:5}

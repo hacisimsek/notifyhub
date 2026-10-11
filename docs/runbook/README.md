@@ -127,6 +127,8 @@ In Kibana, filter on `request.id: "<request-id>"`.
 
 - Only the Gateway is published on a host port. Reminder and Notification services require `X-Internal-Token` (`INTERNAL_SERVICE_TOKEN`) on `/api/**` and `/internal/**`.
 - Secrets have no built-in defaults. Compose requires them from `deploy/docker/.env`, Kubernetes generates `notifyhub-secrets` from the git-ignored `deploy/k8s/base/secrets.env`, and Auth and Gateway refuse a missing or shorter than 32-byte `AUTH_JWT_SECRET`.
+- The dashboard never sees the access token. The Gateway mirrors it into a `NOTIFYHUB_SESSION` cookie (`HttpOnly`, `SameSite=Strict`, `Path=/api`) on register, login, password change and profile update. Cookie sessions must also send `X-NotifyHub-Client` (CSRF guard). `POST /api/auth/logout` clears the cookie. Set `SESSION_COOKIE_SECURE=true` when serving over HTTPS. API clients keep using `Authorization: Bearer`.
+- A password change increments the user's token version. Auth Service publishes it to Redis (`notifyhub:auth:token-version:<userId>`) and the Gateway rejects older tokens with `error.auth.sessionRevoked` (`TOKEN_REVOCATION_REDIS_ENABLED=true`). Auth Service also checks the version on its own routes, so revocation still holds there if Redis is down.
 - Login is throttled per email: after 5 failures within 15 minutes Auth Service returns `429`. Counters live in Redis (`LOGIN_THROTTLE_REDIS_ENABLED=true`) and fall back to in-memory when Redis is disabled.
 - Audit logs mask notification recipients (`j***@example.com`, `***2233`).
 - The dashboard nginx config sends a strict Content-Security-Policy.

@@ -1,0 +1,1 @@
+ALTER TABLE auth_users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0;

@@ -100,31 +100,43 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
 type RequestOptions = {
   method?: string;
-  token?: string;
   body?: unknown;
 };
+
+// The session token lives in an HttpOnly cookie set by the Gateway; this header proves the call came from the
+// dashboard (cross-site forms cannot send it), which is what lets the Gateway accept the cookie.
+export const CLIENT_HEADER = 'X-NotifyHub-Client';
+
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+export function isUnauthorized(error: unknown) {
+  return error instanceof ApiError && error.status === 401;
+}
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers = new Headers();
   headers.set('Accept', 'application/json');
+  headers.set(CLIENT_HEADER, 'dashboard');
 
   if (options.body !== undefined) {
     headers.set('Content-Type', 'application/json');
   }
 
-  if (options.token) {
-    headers.set('Authorization', `Bearer ${options.token}`);
-  }
-
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: options.method ?? 'GET',
     headers,
+    credentials: 'same-origin',
     body: options.body === undefined ? undefined : JSON.stringify(options.body)
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(errorMessage(errorText) || `Request failed with ${response.status}`);
+    throw new ApiError(errorMessage(errorText) || `Request failed with ${response.status}`, response.status);
   }
 
   if (response.status === 204) {
@@ -148,22 +160,24 @@ export function login(email: string, password: string): Promise<AuthResponse> {
   });
 }
 
-export function currentUser(token: string): Promise<UserSummary> {
-  return request<UserSummary>('/api/auth/me', { token });
+export function logout(): Promise<void> {
+  return request<void>('/api/auth/logout', { method: 'POST' });
 }
 
-export function changePassword(token: string, payload: ChangePasswordPayload): Promise<AuthResponse> {
+export function currentUser(): Promise<UserSummary> {
+  return request<UserSummary>('/api/auth/me');
+}
+
+export function changePassword(payload: ChangePasswordPayload): Promise<AuthResponse> {
   return request<AuthResponse>('/api/auth/password', {
     method: 'POST',
-    token,
     body: payload
   });
 }
 
-export function updateProfile(token: string, payload: UpdateProfilePayload): Promise<AuthResponse> {
+export function updateProfile(payload: UpdateProfilePayload): Promise<AuthResponse> {
   return request<AuthResponse>('/api/auth/profile', {
     method: 'PUT',
-    token,
     body: payload
   });
 }
@@ -172,8 +186,8 @@ export function getLanguageMessages(language: LanguageCode): Promise<LanguageMes
   return request<LanguageMessagesResponse>(`/api/i18n/messages?language=${language}`);
 }
 
-export function listReminders(token: string, filters: ReminderFilters = {}): Promise<Reminder[]> {
-  return request<Reminder[]>(`/api/reminders${queryString(filters)}`, { token });
+export function listReminders(filters: ReminderFilters = {}): Promise<Reminder[]> {
+  return request<Reminder[]>(`/api/reminders${queryString(filters)}`);
 }
 
 function errorMessage(errorText: string) {
@@ -188,31 +202,28 @@ function errorMessage(errorText: string) {
   }
 }
 
-export function createReminder(token: string, payload: ReminderPayload): Promise<Reminder> {
+export function createReminder(payload: ReminderPayload): Promise<Reminder> {
   return request<Reminder>('/api/reminders', {
     method: 'POST',
-    token,
     body: payload
   });
 }
 
-export function updateReminder(token: string, id: string, payload: ReminderPayload): Promise<Reminder> {
+export function updateReminder(id: string, payload: ReminderPayload): Promise<Reminder> {
   return request<Reminder>(`/api/reminders/${id}`, {
     method: 'PUT',
-    token,
     body: payload
   });
 }
 
-export function deleteReminder(token: string, id: string): Promise<void> {
+export function deleteReminder(id: string): Promise<void> {
   return request<void>(`/api/reminders/${id}`, {
-    method: 'DELETE',
-    token
+    method: 'DELETE'
   });
 }
 
-export function listNotifications(token: string, filters: NotificationFilters = {}): Promise<NotificationLog[]> {
-  return request<NotificationLog[]>(`/api/notifications${queryString(filters)}`, { token });
+export function listNotifications(filters: NotificationFilters = {}): Promise<NotificationLog[]> {
+  return request<NotificationLog[]>(`/api/notifications${queryString(filters)}`);
 }
 
 function queryString(filters: ReminderFilters | NotificationFilters) {

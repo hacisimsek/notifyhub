@@ -4,9 +4,11 @@ import {
   createReminder,
   deleteReminder,
   getLanguageMessages,
+  isUnauthorized,
   listNotifications,
   listReminders,
   login,
+  logout,
   register,
   updateProfile
 } from './api';
@@ -57,10 +59,10 @@ describe('dashboard api client', () => {
     expect(headersFor(options).get('Content-Type')).toBe('application/json');
   });
 
-  it('encodes reminder filters and bearer auth', async () => {
+  it('encodes reminder filters and uses the session cookie', async () => {
     const fetchMock = mockFetch([]);
 
-    await listReminders('token-1', { status: 'SCHEDULED', channel: 'EMAIL' });
+    await listReminders({ status: 'SCHEDULED', channel: 'EMAIL' });
 
     const [, options] = fetchMock.mock.calls[0];
     expect(fetchMock).toHaveBeenCalledWith('/api/reminders?status=SCHEDULED&channel=EMAIL', expect.objectContaining({
@@ -68,13 +70,13 @@ describe('dashboard api client', () => {
       body: undefined
     }));
     expect(headersFor(options).get('Accept')).toBe('application/json');
-    expect(headersFor(options).get('Authorization')).toBe('Bearer token-1');
+    expectCookieSession(options);
   });
 
-  it('sends password changes with bearer auth and JSON payload', async () => {
+  it('sends password changes with the session cookie and JSON payload', async () => {
     const fetchMock = mockFetch({ accessToken: 'token-2' });
 
-    await changePassword('token-1', {
+    await changePassword({
       currentPassword: 'secret123',
       newPassword: 'newSecret123'
     });
@@ -87,14 +89,14 @@ describe('dashboard api client', () => {
         newPassword: 'newSecret123'
       })
     }));
-    expect(headersFor(options).get('Authorization')).toBe('Bearer token-1');
+    expectCookieSession(options);
     expect(headersFor(options).get('Content-Type')).toBe('application/json');
   });
 
-  it('updates profile details with bearer auth', async () => {
+  it('updates profile details with the session cookie', async () => {
     const fetchMock = mockFetch({ accessToken: 'token-2' });
 
-    await updateProfile('token-1', {
+    await updateProfile({
       firstName: 'Haci',
       lastName: 'Simsek',
       phoneNumber: '+905551112233',
@@ -111,7 +113,7 @@ describe('dashboard api client', () => {
         preferredLanguage: 'tr'
       })
     }));
-    expect(headersFor(options).get('Authorization')).toBe('Bearer token-1');
+    expectCookieSession(options);
     expect(headersFor(options).get('Content-Type')).toBe('application/json');
   });
 
@@ -132,8 +134,8 @@ describe('dashboard api client', () => {
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
     vi.stubGlobal('fetch', fetchMock);
 
-    await listNotifications('token-1', { status: 'SENT', channel: 'SMS' });
-    await deleteReminder('token-1', 'reminder-1');
+    await listNotifications({ status: 'SENT', channel: 'SMS' });
+    await deleteReminder('reminder-1');
 
     const [, notificationOptions] = fetchMock.mock.calls[0];
     const [, deleteOptions] = fetchMock.mock.calls[1];
@@ -145,14 +147,14 @@ describe('dashboard api client', () => {
       method: 'DELETE',
       body: undefined
     }));
-    expect(headersFor(notificationOptions).get('Authorization')).toBe('Bearer token-1');
-    expect(headersFor(deleteOptions).get('Authorization')).toBe('Bearer token-1');
+    expectCookieSession(notificationOptions);
+    expectCookieSession(deleteOptions);
   });
 
   it('forwards reminder creation payloads', async () => {
     const fetchMock = mockFetch({ id: 'reminder-1' });
 
-    await createReminder('token-1', {
+    await createReminder({
       title: 'Pay invoice',
       message: 'Due tomorrow',
       scheduledFor: '2026-05-04T10:00:00.000Z',
@@ -171,10 +173,37 @@ describe('dashboard api client', () => {
         recipient: 'push-target-id'
       })
     }));
-    expect(headersFor(options).get('Authorization')).toBe('Bearer token-1');
+    expectCookieSession(options);
     expect(headersFor(options).get('Content-Type')).toBe('application/json');
   });
+
+  it('asks the gateway to clear the session cookie on logout', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await logout();
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/logout', expect.objectContaining({ method: 'POST' }));
+  });
+
+  it('marks 401 responses so the app can end the session', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ message: 'error.auth.sessionRevoked' }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } }
+    )));
+
+    const error = await listReminders().catch((err: unknown) => err);
+
+    expect(isUnauthorized(error)).toBe(true);
+    expect((error as Error).message).toBe('error.auth.sessionRevoked');
+  });
 });
+
+function expectCookieSession(options: RequestInit | undefined) {
+  expect(options?.credentials).toBe('same-origin');
+  expect(headersFor(options).get('X-NotifyHub-Client')).toBe('dashboard');
+  expect(headersFor(options).get('Authorization')).toBeNull();
+}
 
 function mockFetch(body: unknown) {
   const fetchMock = vi.fn().mockResolvedValue(jsonResponse(body));

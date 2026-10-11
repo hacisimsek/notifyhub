@@ -57,7 +57,7 @@ export type ReminderForm = {
   recipient: string;
 };
 
-export const TOKEN_KEY = 'notifyhub.dashboard.token';
+export const LEGACY_TOKEN_KEY = 'notifyhub.dashboard.token';
 export const AUTO_REFRESH_INTERVAL_MS = 5000;
 export const THEME_KEY = 'notifyhub.dashboard.theme';
 export const LANGUAGE_KEY = 'notifyhub.dashboard.language';

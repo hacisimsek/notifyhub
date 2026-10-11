@@ -24,6 +24,11 @@ spec:
             - name: http
               containerPort: 8081
           env:
+            - name: TOKEN_REVOCATION_REDIS_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: TOKEN_REVOCATION_REDIS_ENABLED
             - name: REDIS_HOST
               valueFrom:
                 configMapKeyRef:
@@ -346,6 +351,16 @@ spec:
             - name: http
               containerPort: 8080
           env:
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: REDIS_HOST
+            - name: TOKEN_REVOCATION_REDIS_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: TOKEN_REVOCATION_REDIS_ENABLED
             - name: INTERNAL_SERVICE_TOKEN
               valueFrom:
                 secretKeyRef:

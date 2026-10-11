@@ -2,6 +2,7 @@ package com.notifyhub.gateway.security;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.notifyhub.common.security.TokenVersions;
 import com.notifyhub.gateway.config.GatewayProperties;
 import com.notifyhub.gateway.proxy.UnauthorizedException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,7 +66,9 @@ public class GatewayJwtVerifier {
         return new GatewayPrincipal(
                 UUID.fromString((String) claims.get("sub")),
                 (String) claims.get("email"),
-                (String) claims.get("role")
+                (String) claims.get("role"),
+                // Tokens issued before versioning carry no claim and count as version 0.
+                claims.get(TokenVersions.CLAIM) instanceof Number version ? version.intValue() : 0
         );
     }
 

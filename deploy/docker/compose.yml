@@ -88,6 +88,7 @@ services:
       AUTH_DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/docker/.env}
       REDIS_HOST: redis
       LOGIN_THROTTLE_REDIS_ENABLED: "true"
+      TOKEN_REVOCATION_REDIS_ENABLED: "true"
     # No host port: services are reachable only through the gateway.
     depends_on:
       postgres:
@@ -158,9 +159,13 @@ services:
       AUTH_SERVICE_URL: http://auth-service:8081
       REMINDER_SERVICE_URL: http://reminder-service:8082
       NOTIFICATION_SERVICE_URL: http://notification-service:8083
+      REDIS_HOST: redis
+      TOKEN_REVOCATION_REDIS_ENABLED: "true"
     ports:
       - "${GATEWAY_SERVICE_PORT:-8080}:8080"
     depends_on:
+      redis:
+        condition: service_healthy
       auth-service:
         condition: service_started
       reminder-service:

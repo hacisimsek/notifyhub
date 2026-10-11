@@ -79,6 +79,17 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /api/auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Sign out of the dashboard session
+      operationId: logout
+      security: []
+      description: Clears the `NOTIFYHUB_SESSION` cookie. Bearer tokens stay valid until they expire or the password changes.
+      responses:
+        "204":
+          description: Session cookie cleared.
   /api/auth/me:
     get:
       tags:
@@ -335,6 +346,14 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: NOTIFYHUB_SESSION
+      description: >-
+        HttpOnly cookie set by the Gateway on register, login, password change and profile update.
+        Requests using it must also send the `X-NotifyHub-Client` header. Tokens issued before the user's
+        latest password change are rejected with `error.auth.sessionRevoked`.
   parameters:
     ResourceId:
       name: id
@@ -725,3 +744,4 @@ components:
         - RETRYING
 security:
   - bearerAuth: []
+  - sessionCookie: []

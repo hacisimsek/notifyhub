@@ -187,6 +187,7 @@ Gateway Service runs on port `8080` and exposes the external API surface:
 
 - `POST /api/auth/register`
 - `POST /api/auth/login`
+- `POST /api/auth/logout` (clears the dashboard session cookie)
 - `GET /api/auth/me`
 - `PUT /api/auth/profile`
 - `POST /api/auth/password`

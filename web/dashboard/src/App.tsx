@@ -27,9 +27,11 @@ import {
   currentUser,
   deleteReminder,
   getLanguageMessages,
+  isUnauthorized,
   listNotifications,
   listReminders,
   login,
+  logout,
   register,
   updateProfile,
   updateReminder
@@ -66,6 +68,7 @@ import {
   FormStatus,
   InspectorTarget,
   LANGUAGE_KEY,
+  LEGACY_TOKEN_KEY,
   NotificationChannelFilter,
   NotificationStatusFilter,
   PasswordChangeForm,
@@ -76,7 +79,6 @@ import {
   ReminderForm,
   ReminderStatusFilter,
   THEME_KEY,
-  TOKEN_KEY,
   ThemeMode
 } from './dashboard/types';
 import {
@@ -104,7 +106,6 @@ import {
 } from './dashboard/utils';
 
 export function App() {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
   const [theme, setTheme] = useState<ThemeMode>(() => initialTheme());
   const [language, setLanguage] = useState<LanguageCode>(() => initialLanguage());
   const [messages, setMessages] = useState<Record<string, string>>(DEFAULT_MESSAGES);
@@ -137,7 +138,7 @@ export function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isAuthenticated = Boolean(token && user);
+  const isAuthenticated = Boolean(user);
   const t = (key: string) => messages[key] ?? DEFAULT_MESSAGES[key] ?? key;
   const hasPendingWork = reminders.some((item) => item.status === 'SCHEDULED')
     || notifications.some((item) => item.status === 'PENDING' || item.status === 'RETRYING');
@@ -196,7 +197,7 @@ export function App() {
 
     const intervalId = window.setInterval(() => {
       if (!document.hidden) {
-        void refreshData(token, { silent: true });
+        void refreshData({ silent: true });
       }
     }, AUTO_REFRESH_INTERVAL_MS);
 
@@ -204,7 +205,6 @@ export function App() {
   }, [
     isAuthenticated,
     hasPendingWork,
-    token,
     reminderStatusFilter,
     reminderChannelFilter,
     notificationStatusFilter,
@@ -212,21 +212,20 @@ export function App() {
   ]);
 
   useEffect(() => {
-    if (!token) {
-      return;
+    // Earlier versions kept the access token in localStorage; the session now lives in an HttpOnly cookie.
+    try {
+      localStorage.removeItem(LEGACY_TOKEN_KEY);
+    } catch {
+      // Storage can be unavailable (private mode); nothing to clean up then.
     }
 
-    currentUser(token)
+    currentUser()
       .then((profile) => {
         setUser(profile);
-        return refreshData(token);
+        return refreshData();
       })
-      .catch(() => {
-        localStorage.removeItem(TOKEN_KEY);
-        setToken(null);
-        setUser(null);
-      });
-  }, [token]);
+      .catch(() => setUser(null));
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -246,19 +245,19 @@ export function App() {
   }, [editingId, user]);
 
   useEffect(() => {
-    if (!token || !user) {
+    if (!user) {
       return;
     }
 
-    refreshVisibleReminders(token);
+    refreshVisibleReminders();
   }, [reminderChannelFilter, reminderStatusFilter]);
 
   useEffect(() => {
-    if (!token || !user) {
+    if (!user) {
       return;
     }
 
-    refreshVisibleNotifications(token);
+    refreshVisibleNotifications();
   }, [notificationChannelFilter, notificationStatusFilter]);
 
   const metrics = useMemo(() => {
@@ -396,11 +395,7 @@ export function App() {
     });
   }, [commandItems, commandQuery]);
 
-  async function refreshData(authToken = token, { silent = false } = {}) {
-    if (!authToken) {
-      return;
-    }
-
+  async function refreshData({ silent = false } = {}) {
     // Background polls must not flash the refresh spinner or clear an error the user is reading.
     if (!silent) {
       setRefreshing(true);
@@ -410,13 +405,13 @@ export function App() {
       const reminderFilters = selectedReminderFilters();
       const notificationFilters = selectedNotificationFilters();
       const hasActiveReminderFilters = hasReminderFilters(reminderFilters);
-      const allRemindersRequest = listReminders(authToken);
+      const allRemindersRequest = listReminders();
       const visibleRemindersRequest = hasActiveReminderFilters
-        ? listReminders(authToken, reminderFilters)
+        ? listReminders(reminderFilters)
         : allRemindersRequest;
-      const allNotificationsRequest = listNotifications(authToken);
+      const allNotificationsRequest = listNotifications();
       const visibleNotificationsRequest = hasNotificationFilters(notificationFilters)
-        ? listNotifications(authToken, notificationFilters)
+        ? listNotifications(notificationFilters)
         : allNotificationsRequest;
       const [nextReminders, nextVisibleReminders, nextNotifications, nextVisibleNotifications] = await Promise.all([
         allRemindersRequest,
@@ -432,7 +427,9 @@ export function App() {
       setNotifications(nextNotifications);
       setVisibleNotifications(nextVisibleNotifications);
     } catch (err) {
-      if (!silent) {
+      if (isUnauthorized(err)) {
+        endSession(formatError(err, t));
+      } else if (!silent) {
         setError(formatError(err, t));
       }
     } finally {
@@ -442,35 +439,27 @@ export function App() {
     }
   }
 
-  async function refreshVisibleReminders(authToken = token) {
-    if (!authToken) {
-      return;
-    }
-
+  async function refreshVisibleReminders() {
     setRefreshing(true);
     setError(null);
     try {
-      const nextReminders = await listReminders(authToken, selectedReminderFilters());
+      const nextReminders = await listReminders(selectedReminderFilters());
       setVisibleReminders(sortRemindersNewestFirst(nextReminders));
     } catch (err) {
-      setError(formatError(err, t));
+      handleRequestError(err);
     } finally {
       setRefreshing(false);
     }
   }
 
-  async function refreshVisibleNotifications(authToken = token) {
-    if (!authToken) {
-      return;
-    }
-
+  async function refreshVisibleNotifications() {
     setRefreshing(true);
     setError(null);
     try {
-      const nextNotifications = await listNotifications(authToken, selectedNotificationFilters());
+      const nextNotifications = await listNotifications(selectedNotificationFilters());
       setVisibleNotifications(nextNotifications);
     } catch (err) {
-      setError(formatError(err, t));
+      handleRequestError(err);
     } finally {
       setRefreshing(false);
     }
@@ -492,12 +481,10 @@ export function App() {
           phoneNumber: registrationProfile.phoneNumber.trim(),
           preferredLanguage: language
         });
-      localStorage.setItem(TOKEN_KEY, response.accessToken);
-      setToken(response.accessToken);
       setUser(response.user);
       setPassword('');
       setRegistrationProfile(emptyRegistrationProfileForm());
-      await refreshData(response.accessToken);
+      await refreshData();
     } catch (err) {
       setError(formatError(err, t));
     } finally {
@@ -507,10 +494,6 @@ export function App() {
 
   async function submitReminder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!token) {
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
@@ -524,15 +507,15 @@ export function App() {
 
     try {
       if (editingId) {
-        await updateReminder(token, editingId, payload);
+        await updateReminder(editingId, payload);
       } else {
-        await createReminder(token, payload);
+        await createReminder(payload);
       }
       setForm(emptyReminderForm(user));
       setEditingId(null);
-      await refreshData(token);
+      await refreshData();
     } catch (err) {
-      setError(formatError(err, t));
+      handleRequestError(err);
     } finally {
       setLoading(false);
     }
@@ -540,10 +523,6 @@ export function App() {
 
   async function submitPasswordChange(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!token) {
-      return;
-    }
-
     const currentPassword = passwordChangeForm.currentPassword;
     const newPassword = passwordChangeForm.newPassword;
     const confirmPassword = passwordChangeForm.confirmPassword;
@@ -558,9 +537,7 @@ export function App() {
     setError(null);
 
     try {
-      const response = await changePassword(token, { currentPassword, newPassword });
-      localStorage.setItem(TOKEN_KEY, response.accessToken);
-      setToken(response.accessToken);
+      const response = await changePassword({ currentPassword, newPassword });
       setUser(response.user);
       setPasswordChangeForm(emptyPasswordChangeForm());
       setPasswordChangeStatus({ tone: 'success', message: t('status.passwordChanged') });
@@ -573,23 +550,17 @@ export function App() {
 
   async function submitProfileUpdate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!token) {
-      return;
-    }
-
     setProfileSubmitting(true);
     setProfileStatus(null);
     setError(null);
 
     try {
-      const response = await updateProfile(token, {
+      const response = await updateProfile({
         firstName: profileForm.firstName.trim(),
         lastName: profileForm.lastName.trim(),
         phoneNumber: profileForm.phoneNumber.trim(),
         preferredLanguage: profileForm.preferredLanguage
       });
-      localStorage.setItem(TOKEN_KEY, response.accessToken);
-      setToken(response.accessToken);
       setUser(response.user);
       setLanguage(response.user.preferredLanguage);
       setProfileStatus({ tone: 'success', message: t('status.profileUpdated') });
@@ -601,20 +572,16 @@ export function App() {
   }
 
   async function removeReminder(id: string) {
-    if (!token) {
-      return;
-    }
-
     setError(null);
     try {
-      await deleteReminder(token, id);
+      await deleteReminder(id);
       if (editingId === id) {
         setEditingId(null);
         setForm(emptyReminderForm(user));
       }
-      await refreshData(token);
+      await refreshData();
     } catch (err) {
-      setError(formatError(err, t));
+      handleRequestError(err);
     }
   }
 
@@ -630,8 +597,21 @@ export function App() {
   }
 
   function signOut() {
-    localStorage.removeItem(TOKEN_KEY);
-    setToken(null);
+    // The Gateway clears the HttpOnly cookie; local state is reset even if that call fails.
+    logout().catch(() => undefined);
+    endSession(null);
+  }
+
+  function handleRequestError(err: unknown) {
+    if (isUnauthorized(err)) {
+      endSession(formatError(err, t));
+      return;
+    }
+    setError(formatError(err, t));
+  }
+
+  function endSession(message: string | null) {
+    setError(message);
     setUser(null);
     setReminders([]);
     setVisibleReminders([]);

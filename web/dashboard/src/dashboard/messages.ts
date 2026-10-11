@@ -74,6 +74,7 @@ export const DEFAULT_MESSAGES: Record<string, string> = {
   'error.auth.invalidCredentials': 'Invalid email or password.',
   'error.auth.tooManyAttempts': 'Too many failed login attempts. Try again later.',
   'error.auth.invalidOrExpiredToken': 'Invalid or expired token.',
+  'error.auth.sessionRevoked': 'Your password changed, so this session ended. Sign in again.',
   'error.auth.newPasswordMustDiffer': 'New password must be different.',
   'error.auth.userNoLongerExists': 'User no longer exists.',
   'error.validation.invalid': 'Please check the highlighted fields.',
