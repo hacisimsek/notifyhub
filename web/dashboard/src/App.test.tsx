@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
@@ -342,6 +342,31 @@ describe('App dashboard', () => {
     });
     expect(localStorage.getItem('notifyhub.dashboard.token')).toBe('token-3');
     expect(within(profilePage).getByText(/profil güncellendi/i)).toBeInTheDocument();
+  });
+
+  it('polls in the background while work is in flight and stops once it settles', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const actor = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await renderAuthenticatedDashboard();
+    await actor.click(screen.getByRole('link', { name: /reminders/i }));
+    const pendingRow = within(remindersPanel()).getByText('Pay invoice').closest('tr') as HTMLElement;
+    expect(within(pendingRow).queryAllByText('Triggered')).toHaveLength(0);
+
+    mockedApi.listReminders.mockResolvedValue(reminders.map((item) => ({ ...item, status: 'TRIGGERED' as const })));
+    mockedApi.listNotifications.mockResolvedValue(notifications.map((item) => ({ ...item, status: 'SENT' as const })));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+
+    await waitFor(() => {
+      const row = within(remindersPanel()).getByText('Pay invoice').closest('tr') as HTMLElement;
+      expect(within(row).getAllByText('Triggered').length).toBeGreaterThan(0);
+    });
+    const callsAfterSettling = mockedApi.listReminders.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15000);
+    });
+    expect(mockedApi.listReminders.mock.calls.length).toBe(callsAfterSettling);
   });
 
   it('requests filtered reminder and notification views from the gateway API', async () => {

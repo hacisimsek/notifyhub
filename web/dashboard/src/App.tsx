@@ -8,31 +8,20 @@ import {
   Edit3,
   Filter,
   History,
-  KeyRound,
   LayoutDashboard,
   Loader2,
   LogOut,
-  Mail,
-  Moon,
   Plus,
   RefreshCw,
   Save,
   Send,
   ShieldCheck,
-  Smartphone,
-  Sun,
   Terminal,
   Trash2,
   User,
   XCircle
 } from 'lucide-react';
 import {
-  AuthResponse,
-  Channel,
-  NotificationLog,
-  Reminder,
-  ReminderPayload,
-  UserSummary,
   changePassword,
   createReminder,
   currentUser,
@@ -45,266 +34,74 @@ import {
   updateProfile,
   updateReminder
 } from './api';
-import type { DeliveryStatus, LanguageCode, NotificationFilters, ReminderFilters, ReminderStatus } from './api';
-
-type AuthMode = 'login' | 'register';
-type ReminderStatusFilter = 'ALL' | ReminderStatus;
-type ReminderChannelFilter = 'ALL' | Channel;
-type NotificationStatusFilter = 'ALL' | DeliveryStatus;
-type NotificationChannelFilter = 'ALL' | Channel;
-type ThemeMode = 'light' | 'dark';
-type DashboardView = 'overview' | 'reminders' | 'history' | 'profile';
-type InspectorTarget = { kind: 'reminder'; item: Reminder } | { kind: 'notification'; item: NotificationLog };
-type CommandItem = {
-  id: string;
-  title: string;
-  hint: string;
-  group: string;
-  shortcut?: string;
-  run: () => void | Promise<void>;
-};
-type EventStreamEntry = {
-  id: string;
-  time: string;
-  command: string;
-  detail: string;
-  tone: string;
-  target?: InspectorTarget;
-};
-type PipelineStageState = 'done' | 'active' | 'queued' | 'error';
-type PasswordChangeForm = {
-  currentPassword: string;
-  newPassword: string;
-  confirmPassword: string;
-};
-type RegistrationProfileForm = {
-  firstName: string;
-  lastName: string;
-  phoneNumber: string;
-  preferredLanguage: LanguageCode;
-};
-type ProfileForm = RegistrationProfileForm;
-type FormStatus = {
-  tone: 'error' | 'success';
-  message: string;
-};
-
-type ReminderForm = {
-  title: string;
-  message: string;
-  scheduledFor: string;
-  channel: Channel;
-  recipient: string;
-};
-
-const TOKEN_KEY = 'notifyhub.dashboard.token';
-const THEME_KEY = 'notifyhub.dashboard.theme';
-const LANGUAGE_KEY = 'notifyhub.dashboard.language';
-const CHANNELS: Channel[] = ['EMAIL', 'SMS', 'PUSH'];
-const REMINDER_STATUSES: ReminderStatus[] = ['SCHEDULED', 'TRIGGERED', 'CANCELLED'];
-const DELIVERY_STATUSES: DeliveryStatus[] = ['PENDING', 'SENT', 'FAILED', 'RETRYING'];
-const DASHBOARD_ROUTES: Record<DashboardView, string> = {
-  overview: '#overview',
-  reminders: '#reminders',
-  history: '#history',
-  profile: '#profile'
-};
-
-const DEFAULT_MESSAGES: Record<string, string> = {
-  'app.name': 'NotifyHub',
-  'auth.subtitle': 'Reminder operations dashboard',
-  'auth.login': 'Login',
-  'auth.register': 'Register',
-  'auth.email': 'Email',
-  'auth.password': 'Password',
-  'auth.firstName': 'First name',
-  'auth.lastName': 'Last name',
-  'auth.phoneNumber': 'Phone number',
-  'auth.signIn': 'Sign in',
-  'auth.createAccount': 'Create account',
-  'nav.overview': 'Overview',
-  'nav.reminders': 'Reminders',
-  'nav.history': 'History',
-  'nav.profile': 'Profile',
-  'actions.command': 'Command',
-  'actions.refresh': 'Refresh',
-  'actions.signOut': 'Sign out',
-  'actions.saveProfile': 'Save profile',
-  'actions.changePassword': 'Change password',
-  'actions.addReminder': 'Add reminder',
-  'actions.updateReminder': 'Update reminder',
-  'actions.cancelEdit': 'Cancel edit',
-  'actions.inspectPayload': 'Inspect payload',
-  'actions.openCommandPalette': 'Open command palette',
-  'actions.refreshData': 'Refresh data',
-  'actions.inspectReminder': 'Inspect reminder payload',
-  'actions.editReminder': 'Edit reminder',
-  'actions.deleteReminder': 'Delete reminder',
-  'actions.closeInspector': 'Close inspector',
-  'theme.dark': 'Dark',
-  'theme.light': 'Light',
-  'theme.switchDark': 'Switch to dark theme',
-  'theme.switchLight': 'Switch to light theme',
-  'heading.overview.eyebrow': 'Runtime overview',
-  'heading.overview.title': 'Operations overview',
-  'heading.reminders.eyebrow': 'Create and manage',
-  'heading.reminders.title': 'Reminders',
-  'heading.history.eyebrow': 'Delivery log',
-  'heading.history.title': 'Notification history',
-  'heading.profile.eyebrow': 'Account settings',
-  'heading.profile.title': 'Profile',
-  'metrics.scheduled': 'Scheduled',
-  'metrics.triggered': 'Triggered',
-  'metrics.sent': 'Sent',
-  'metrics.failed': 'Failed',
-  'metrics.retrying': 'Retrying',
-  'metrics.attempts': 'Attempts',
-  'overview.topology.eyebrow': 'Runtime map',
-  'overview.topology.title': 'Service topology',
-  'overview.console.eyebrow': 'Event stream',
-  'overview.console.title': 'Live console',
-  'profile.userInfo': 'User info',
-  'profile.security': 'Account security',
-  'profile.password': 'Password',
-  'profile.userId': 'User ID',
-  'profile.role': 'Role',
-  'profile.created': 'Created',
-  'profile.activeSession': 'Active session',
-  'profile.language': 'Language',
-  'profile.languageEnglish': 'English',
-  'profile.languageTurkish': 'Turkish',
-  'password.current': 'Current password',
-  'password.new': 'New password',
-  'password.confirm': 'Confirm new password',
-  'status.profileUpdated': 'Profile updated.',
-  'status.passwordChanged': 'Password changed. Your session has been refreshed.',
-  'error.passwordMismatch': 'New passwords do not match.',
-  'error.unexpected': 'Unexpected error',
-  'error.auth.emailAlreadyRegistered': 'Email is already registered.',
-  'error.auth.invalidCredentials': 'Invalid email or password.',
-  'error.auth.invalidOrExpiredToken': 'Invalid or expired token.',
-  'error.auth.newPasswordMustDiffer': 'New password must be different.',
-  'error.auth.userNoLongerExists': 'User no longer exists.',
-  'error.validation.invalid': 'Please check the highlighted fields.',
-  'reminder.title': 'Title',
-  'reminder.message': 'Message',
-  'reminder.scheduledFor': 'Scheduled for',
-  'reminder.channel': 'Channel',
-  'reminder.recipient': 'Recipient',
-  'reminder.filters': 'Reminder filters',
-  'reminder.noItems': 'No reminders yet.',
-  'reminder.noMatches': 'No reminders match the selected filters.',
-  'history.filters': 'Notification filters',
-  'history.noItems': 'No delivery history yet.',
-  'history.noMatches': 'No notifications match the selected filters.',
-  'table.title': 'Title',
-  'table.channel': 'Channel',
-  'table.scheduled': 'Scheduled',
-  'table.pipeline': 'Pipeline',
-  'table.status': 'Status',
-  'table.actions': 'Actions',
-  'history.attempts': 'Attempts',
-  'history.lastAttempt': 'Last attempt',
-  'command.title': 'Command palette',
-  'command.placeholder': 'Type a command, route, filter, or payload...',
-  'command.noMatch': 'No command matched.',
-  'command.openOverview.title': 'Open overview',
-  'command.openOverview.hint': 'Inspect runtime topology and live event stream',
-  'command.openReminders.title': 'Open reminders',
-  'command.openReminders.hint': 'Jump to the create and schedule workflow',
-  'command.openHistory.title': 'Open history',
-  'command.openHistory.hint': 'Inspect delivery events and notification attempts',
-  'command.openProfile.title': 'Open profile',
-  'command.openProfile.hint': 'Review account details and security settings',
-  'command.createReminder.title': 'Create reminder',
-  'command.createReminder.hint': 'Open the reminder form and focus the title field',
-  'command.refreshData.title': 'Refresh data',
-  'command.refreshData.hint': 'Pull latest reminders and delivery events',
-  'command.failedDeliveries.title': 'Filter failed deliveries',
-  'command.failedDeliveries.hint': 'Switch to history and isolate failed notifications',
-  'command.emailReminders.title': 'Filter email reminders',
-  'command.emailReminders.hint': 'Show EMAIL reminders in the scheduling table',
-  'command.inspectLatest.title': 'Inspect latest event',
-  'command.inspectLatest.empty': 'No payload available yet',
-  'command.changePassword.title': 'Change password',
-  'command.changePassword.hint': 'Open profile security and focus the password form',
-  'command.toggleTheme.hint': 'Flip the dashboard color mode',
-  'command.group.navigation': 'Navigation',
-  'command.group.workflow': 'Workflow',
-  'command.group.runtime': 'Runtime',
-  'command.group.debug': 'Debug',
-  'command.group.inspector': 'Inspector',
-  'command.group.account': 'Account',
-  'command.group.preferences': 'Preferences',
-  'inspector.payload': 'Payload',
-  'aria.primaryNavigation': 'Primary navigation',
-  'aria.deliveryMetrics': 'Delivery metrics',
-  'aria.developerCockpit': 'Developer cockpit',
-  'aria.serviceDependencies': 'Service dependencies',
-  'aria.liveEventStream': 'Live event stream',
-  'aria.profileSettings': 'Profile settings',
-  'aria.authenticationMode': 'Authentication mode',
-  'aria.deliveryPipeline': 'Delivery pipeline',
-  'runtime.live': 'Live',
-  'filters.all': 'All',
-  'status.scheduled': 'Scheduled',
-  'status.triggered': 'Triggered',
-  'status.cancelled': 'Cancelled',
-  'status.pending': 'Pending',
-  'status.sent': 'Sent',
-  'status.failed': 'Failed',
-  'status.retrying': 'Retrying',
-  'status.user': 'User',
-  'status.admin': 'Admin',
-  'pipeline.created': 'Created',
-  'pipeline.scheduled': 'Scheduled',
-  'pipeline.queued': 'Queued',
-  'pipeline.delivery': 'Delivery',
-  'pipeline.cancelled': 'Cancelled',
-  'pipeline.failed': 'Failed',
-  'topology.gateway.detail': 'REST 8080',
-  'topology.gateway.meta': 'attempts',
-  'topology.auth.detail': 'JWT',
-  'topology.auth.meta': 'identity',
-  'topology.reminder.detail': 'Scheduler',
-  'topology.reminder.meta': 'scheduled',
-  'topology.kafka.detail': 'Event bus',
-  'topology.kafka.meta': 'triggered',
-  'topology.notification.detail': 'Delivery',
-  'topology.notification.meta': 'sent',
-  'topology.storage.detail': 'State',
-  'topology.storage.meta': 'watch',
-  'event.waitingPayloads': 'Waiting for authenticated payloads',
-  'event.noRemindersQueued': 'No reminders in the queue',
-};
-
-const emptyReminderForm = (user?: UserSummary | null): ReminderForm => ({
-  title: '',
-  message: '',
-  scheduledFor: toDateTimeLocal(new Date(Date.now() + 15 * 60 * 1000).toISOString()),
-  channel: 'EMAIL',
-  recipient: defaultRecipientForChannel('EMAIL', user)
-});
-
-const emptyPasswordChangeForm = (): PasswordChangeForm => ({
-  currentPassword: '',
-  newPassword: '',
-  confirmPassword: ''
-});
-
-const emptyRegistrationProfileForm = (): RegistrationProfileForm => ({
-  firstName: '',
-  lastName: '',
-  phoneNumber: '',
-  preferredLanguage: initialLanguage()
-});
-
-const profileFormFromUser = (user: UserSummary): ProfileForm => ({
-  firstName: user.firstName,
-  lastName: user.lastName,
-  phoneNumber: user.phoneNumber,
-  preferredLanguage: user.preferredLanguage
-});
+import type {
+  AuthResponse,
+  LanguageCode,
+  NotificationFilters,
+  NotificationLog,
+  Reminder,
+  ReminderFilters,
+  ReminderPayload,
+  UserSummary
+} from './api';
+import {
+  CommandPalette,
+  InspectorDrawer,
+  LiveEventConsole,
+  Metric,
+  PipelineTimeline,
+  ProfileSettingsPage,
+  ServiceTopology,
+  ThemeToggle
+} from './dashboard/components';
+import { DEFAULT_MESSAGES } from './dashboard/messages';
+import {
+  AUTO_REFRESH_INTERVAL_MS,
+  AuthMode,
+  CHANNELS,
+  CommandItem,
+  DASHBOARD_ROUTES,
+  DELIVERY_STATUSES,
+  DashboardView,
+  FormStatus,
+  InspectorTarget,
+  LANGUAGE_KEY,
+  NotificationChannelFilter,
+  NotificationStatusFilter,
+  PasswordChangeForm,
+  ProfileForm,
+  REMINDER_STATUSES,
+  RegistrationProfileForm,
+  ReminderChannelFilter,
+  ReminderForm,
+  ReminderStatusFilter,
+  THEME_KEY,
+  TOKEN_KEY,
+  ThemeMode
+} from './dashboard/types';
+import {
+  buildEventStream,
+  channelBadge,
+  channelIcon,
+  currentDashboardView,
+  defaultRecipientForChannel,
+  emptyPasswordChangeForm,
+  emptyRegistrationProfileForm,
+  emptyReminderForm,
+  formatDate,
+  formatError,
+  hasNotificationFilters,
+  hasReminderFilters,
+  initialLanguage,
+  initialTheme,
+  profileFormFromUser,
+  recipientPlaceholder,
+  reminderFormWithChannel,
+  sortRemindersNewestFirst,
+  statusBadge,
+  statusFilterLabel,
+  toDateTimeLocal
+} from './dashboard/utils';
 
 export function App() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
@@ -342,6 +139,8 @@ export function App() {
 
   const isAuthenticated = Boolean(token && user);
   const t = (key: string) => messages[key] ?? DEFAULT_MESSAGES[key] ?? key;
+  const hasPendingWork = reminders.some((item) => item.status === 'SCHEDULED')
+    || notifications.some((item) => item.status === 'PENDING' || item.status === 'RETRYING');
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -388,6 +187,29 @@ export function App() {
 
     return () => window.removeEventListener('keydown', handleShortcut);
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    // Reminders are triggered and delivered asynchronously, so poll while work is still in flight.
+    if (!isAuthenticated || !hasPendingWork) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      if (!document.hidden) {
+        void refreshData(token, { silent: true });
+      }
+    }, AUTO_REFRESH_INTERVAL_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [
+    isAuthenticated,
+    hasPendingWork,
+    token,
+    reminderStatusFilter,
+    reminderChannelFilter,
+    notificationStatusFilter,
+    notificationChannelFilter
+  ]);
 
   useEffect(() => {
     if (!token) {
@@ -574,13 +396,16 @@ export function App() {
     });
   }, [commandItems, commandQuery]);
 
-  async function refreshData(authToken = token) {
+  async function refreshData(authToken = token, { silent = false } = {}) {
     if (!authToken) {
       return;
     }
 
-    setRefreshing(true);
-    setError(null);
+    // Background polls must not flash the refresh spinner or clear an error the user is reading.
+    if (!silent) {
+      setRefreshing(true);
+      setError(null);
+    }
     try {
       const reminderFilters = selectedReminderFilters();
       const notificationFilters = selectedNotificationFilters();
@@ -607,9 +432,13 @@ export function App() {
       setNotifications(nextNotifications);
       setVisibleNotifications(nextVisibleNotifications);
     } catch (err) {
-      setError(formatError(err, t));
+      if (!silent) {
+        setError(formatError(err, t));
+      }
     } finally {
-      setRefreshing(false);
+      if (!silent) {
+        setRefreshing(false);
+      }
     }
   }
 
@@ -1374,697 +1203,4 @@ export function App() {
 
     </main>
   );
-}
-
-function ServiceTopology({
-  metrics,
-  t
-}: {
-  metrics: { scheduled: number; triggered: number; sent: number; failed: number; retrying: number; totalAttempts: number };
-  t: (key: string) => string;
-}) {
-  const services = [
-    { key: 'gateway', name: 'Gateway', detail: t('topology.gateway.detail'), meta: `${metrics.totalAttempts} ${t('topology.gateway.meta')}` },
-    { key: 'auth', name: 'Auth', detail: t('topology.auth.detail'), meta: t('topology.auth.meta') },
-    { key: 'reminder', name: 'Reminder', detail: t('topology.reminder.detail'), meta: `${metrics.scheduled} ${t('topology.reminder.meta')}` },
-    { key: 'kafka', name: 'Kafka', detail: t('topology.kafka.detail'), meta: `${metrics.triggered} ${t('topology.kafka.meta')}` },
-    { key: 'notification', name: 'Notify', detail: t('topology.notification.detail'), meta: `${metrics.sent} ${t('topology.notification.meta')}` },
-    { key: 'storage', name: 'Postgres', detail: t('topology.storage.detail'), meta: `${metrics.failed + metrics.retrying} ${t('topology.storage.meta')}` }
-  ];
-
-  return (
-    <section className="cockpit-card topology-card" aria-labelledby="topology-title">
-      <div className="cockpit-heading">
-        <div>
-          <p className="eyebrow">{t('overview.topology.eyebrow')}</p>
-          <h2 id="topology-title">{t('overview.topology.title')}</h2>
-        </div>
-        <span className="live-chip"><span className="pulse-dot" />{t('runtime.live')}</span>
-      </div>
-
-      <div className="topology-map">
-        <svg className="topology-lines" viewBox="0 0 640 300" role="img" aria-label={t('aria.serviceDependencies')}>
-          <path d="M92 82 C190 42 262 42 322 82" />
-          <path d="M322 82 C418 38 496 44 548 82" />
-          <path d="M322 82 C312 132 312 166 322 214" />
-          <path d="M92 218 C188 260 254 258 322 214" />
-          <path d="M322 214 C418 260 490 256 548 218" />
-          <path d="M548 82 C590 130 590 172 548 218" />
-        </svg>
-        {services.map((service) => (
-          <div className={`topology-node ${service.key}`} key={service.key}>
-            <span className="node-orbit" />
-            <strong>{service.name}</strong>
-            <code>{service.detail}</code>
-            <small>{service.meta}</small>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function LiveEventConsole({
-  events,
-  onInspect,
-  t
-}: {
-  events: EventStreamEntry[];
-  onInspect: (target: InspectorTarget) => void;
-  t: (key: string) => string;
-}) {
-  return (
-    <section className="cockpit-card console-card" aria-labelledby="console-title">
-      <div className="cockpit-heading">
-        <div>
-          <p className="eyebrow">{t('overview.console.eyebrow')}</p>
-          <h2 id="console-title">{t('overview.console.title')}</h2>
-        </div>
-      </div>
-
-      <div className="console-window" role="log" aria-live="polite" aria-label={t('aria.liveEventStream')} tabIndex={0}>
-        {events.map((event) => (
-          <button
-            type="button"
-            className={`console-line ${event.tone}`}
-            key={event.id}
-            onClick={() => event.target ? onInspect(event.target) : undefined}
-            disabled={!event.target}
-          >
-            <code>{formatConsoleTime(event.time)}</code>
-            <strong>{event.command}</strong>
-            <span>{event.detail}</span>
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function CommandPalette({
-  query,
-  commands,
-  onQueryChange,
-  onRun,
-  onClose,
-  t
-}: {
-  query: string;
-  commands: CommandItem[];
-  onQueryChange: (query: string) => void;
-  onRun: (command: CommandItem) => void;
-  onClose: () => void;
-  t: (key: string) => string;
-}) {
-  return (
-    <div
-      className="command-backdrop"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
-          onClose();
-        }
-      }}
-    >
-      <section className="command-palette" role="dialog" aria-modal="true" aria-labelledby="command-title">
-        <div className="command-input">
-          <Terminal size={18} aria-hidden="true" />
-          <input
-            autoFocus
-            value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && commands[0]) {
-                event.preventDefault();
-                onRun(commands[0]);
-              }
-            }}
-            aria-label={t('command.title')}
-            placeholder={t('command.placeholder')}
-          />
-          <kbd>Esc</kbd>
-        </div>
-        <h2 id="command-title">{t('command.title')}</h2>
-        <div className="command-list">
-          {commands.map((command) => (
-            <button type="button" className="command-item" key={command.id} onClick={() => onRun(command)}>
-              <span>
-                <strong>{command.title}</strong>
-                <small>{command.group} · {command.hint}</small>
-              </span>
-              {command.shortcut ? <kbd>{command.shortcut}</kbd> : null}
-            </button>
-          ))}
-          {commands.length === 0 ? <div className="empty-state">{t('command.noMatch')}</div> : null}
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function InspectorDrawer({
-  target,
-  onClose,
-  t
-}: {
-  target: InspectorTarget;
-  onClose: () => void;
-  t: (key: string) => string;
-}) {
-  const title = target.kind === 'reminder' ? target.item.title : target.item.subject;
-  const payload = JSON.stringify(target.item, null, 2);
-
-  return (
-    <aside className="inspector-drawer" role="dialog" aria-modal="true" aria-labelledby="inspector-title">
-      <div className="inspector-heading">
-        <div>
-          <p className="eyebrow">{target.kind} {t('inspector.payload').toLowerCase()}</p>
-          <h2 id="inspector-title">{title}</h2>
-        </div>
-        <button type="button" className="row-actions-close" onClick={onClose} aria-label={t('actions.closeInspector')}>
-          <XCircle size={18} aria-hidden="true" />
-        </button>
-      </div>
-      {target.kind === 'reminder' ? (
-        <PipelineTimeline status={target.item.status} variant="drawer" ariaLabel={t('aria.deliveryPipeline')} t={t} />
-      ) : (
-        <PipelineTimeline deliveryStatus={target.item.status} variant="drawer" ariaLabel={t('aria.deliveryPipeline')} t={t} />
-      )}
-      <pre>{payload}</pre>
-    </aside>
-  );
-}
-
-function ProfileSettingsPage({
-  user,
-  profileForm,
-  profileStatus,
-  profileSubmitting,
-  onProfileChange,
-  onLanguageChange,
-  onProfileSubmit,
-  passwordForm,
-  passwordStatus,
-  passwordSubmitting,
-  onPasswordChange,
-  onPasswordSubmit,
-  t
-}: {
-  user: UserSummary;
-  profileForm: ProfileForm;
-  profileStatus: FormStatus | null;
-  profileSubmitting: boolean;
-  onProfileChange: (form: ProfileForm) => void;
-  onLanguageChange: (language: LanguageCode) => void;
-  onProfileSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  passwordForm: PasswordChangeForm;
-  passwordStatus: FormStatus | null;
-  passwordSubmitting: boolean;
-  onPasswordChange: (form: PasswordChangeForm) => void;
-  onPasswordSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  t: (key: string) => string;
-}) {
-  const displayName = fullName(user);
-
-  return (
-    <section className="profile-grid" id="profile" aria-label={t('aria.profileSettings')}>
-      <section className="panel profile-card" aria-labelledby="profile-title">
-        <div className="panel-heading">
-          <div>
-            <p className="eyebrow">{t('profile.userInfo')}</p>
-            <h2 id="profile-title">{t('heading.profile.title')}</h2>
-          </div>
-          {statusBadge(user.role, t)}
-        </div>
-
-        <div className="profile-identity">
-          <div className="profile-avatar" aria-hidden="true">{profileInitial(user)}</div>
-          <div>
-            <strong>{displayName || user.email}</strong>
-            <span>{user.role}</span>
-          </div>
-        </div>
-
-        <form className="profile-form" onSubmit={onProfileSubmit}>
-          <div className="form-row">
-            <label>
-              {t('auth.firstName')}
-              <input
-                type="text"
-                value={profileForm.firstName}
-                onChange={(event) => onProfileChange({ ...profileForm, firstName: event.target.value })}
-                autoComplete="given-name"
-                maxLength={80}
-                required
-              />
-            </label>
-            <label>
-              {t('auth.lastName')}
-              <input
-                type="text"
-                value={profileForm.lastName}
-                onChange={(event) => onProfileChange({ ...profileForm, lastName: event.target.value })}
-                autoComplete="family-name"
-                maxLength={80}
-                required
-              />
-            </label>
-          </div>
-          <label>
-            {t('auth.phoneNumber')}
-            <input
-              type="tel"
-              value={profileForm.phoneNumber}
-              onChange={(event) => onProfileChange({ ...profileForm, phoneNumber: event.target.value })}
-              autoComplete="tel"
-              maxLength={32}
-              required
-            />
-          </label>
-          <label>
-            {t('profile.language')}
-            <select
-              value={profileForm.preferredLanguage}
-              onChange={(event) => onLanguageChange(event.target.value as LanguageCode)}
-            >
-              <option value="en">{t('profile.languageEnglish')}</option>
-              <option value="tr">{t('profile.languageTurkish')}</option>
-            </select>
-          </label>
-          {profileStatus ? <p className={profileStatus.tone === 'success' ? 'form-success' : 'form-error'}>{profileStatus.message}</p> : null}
-          <button type="submit" className="primary-action" disabled={profileSubmitting}>
-            {profileSubmitting ? <Loader2 className="spin" size={18} aria-hidden="true" /> : <Save size={18} aria-hidden="true" />}
-            {t('actions.saveProfile')}
-          </button>
-        </form>
-
-        <dl className="profile-fields">
-          <div>
-            <dt>{t('auth.email')}</dt>
-            <dd>{user.email}</dd>
-          </div>
-          <div>
-            <dt>{t('profile.userId')}</dt>
-            <dd>{user.id}</dd>
-          </div>
-          <div>
-            <dt>{t('profile.role')}</dt>
-            <dd>{user.role}</dd>
-          </div>
-          <div>
-            <dt>{t('profile.created')}</dt>
-            <dd>{user.createdAt ? formatDate(user.createdAt) : t('profile.activeSession')}</dd>
-          </div>
-        </dl>
-      </section>
-
-      <section className="panel security-panel" aria-labelledby="security-title">
-        <div className="panel-heading">
-          <div>
-            <p className="eyebrow">{t('profile.security')}</p>
-            <h2 id="security-title">{t('profile.password')}</h2>
-          </div>
-          <KeyRound size={20} aria-hidden="true" />
-        </div>
-
-        <PasswordChangeFormView
-          form={passwordForm}
-          status={passwordStatus}
-          submitting={passwordSubmitting}
-          onChange={onPasswordChange}
-          onSubmit={onPasswordSubmit}
-          t={t}
-        />
-      </section>
-    </section>
-  );
-}
-
-function PasswordChangeFormView({
-  form,
-  status,
-  submitting,
-  onChange,
-  onSubmit,
-  t
-}: {
-  form: PasswordChangeForm;
-  status: FormStatus | null;
-  submitting: boolean;
-  onChange: (form: PasswordChangeForm) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  t: (key: string) => string;
-}) {
-  return (
-    <form className="security-form" onSubmit={onSubmit}>
-      <label>
-        {t('password.current')}
-        <input
-          id="current-password-input"
-          type="password"
-          value={form.currentPassword}
-          onChange={(event) => onChange({ ...form, currentPassword: event.target.value })}
-          autoComplete="current-password"
-          minLength={8}
-          maxLength={128}
-          required
-        />
-      </label>
-      <label>
-        {t('password.new')}
-        <input
-          type="password"
-          value={form.newPassword}
-          onChange={(event) => onChange({ ...form, newPassword: event.target.value })}
-          autoComplete="new-password"
-          minLength={8}
-          maxLength={128}
-          required
-        />
-      </label>
-      <label>
-        {t('password.confirm')}
-        <input
-          type="password"
-          value={form.confirmPassword}
-          onChange={(event) => onChange({ ...form, confirmPassword: event.target.value })}
-          autoComplete="new-password"
-          minLength={8}
-          maxLength={128}
-          required
-        />
-      </label>
-      {status ? <p className={status.tone === 'success' ? 'form-success' : 'form-error'}>{status.message}</p> : null}
-      <button type="submit" className="primary-action" disabled={submitting}>
-        {submitting ? <Loader2 className="spin" size={18} aria-hidden="true" /> : <KeyRound size={18} aria-hidden="true" />}
-        {t('actions.changePassword')}
-      </button>
-    </form>
-  );
-}
-
-function PipelineTimeline({
-  status,
-  deliveryStatus,
-  variant,
-  ariaLabel,
-  t
-}: {
-  status?: ReminderStatus;
-  deliveryStatus?: DeliveryStatus;
-  variant?: 'drawer';
-  ariaLabel?: string;
-  t?: (key: string) => string;
-}) {
-  const stages = pipelineStages(status, deliveryStatus);
-
-  return (
-    <div className={`pipeline-timeline ${variant === 'drawer' ? 'drawer' : ''}`} aria-label={ariaLabel ?? 'Delivery pipeline'}>
-      {stages.map((stage) => (
-        <span className={stage.state} key={stage.labelKey}>
-          <i />
-          {t ? t(stage.labelKey) : stage.labelKey}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function Metric({ label, value, icon, tone }: { label: string; value: number; icon: React.ReactNode; tone: string }) {
-  return (
-    <article className={`metric-card ${tone}`}>
-      <div className="metric-icon">{icon}</div>
-      <div className="metric-copy">
-        <span>{label}</span>
-        <strong>{value}</strong>
-      </div>
-      <span className="metric-spark" aria-hidden="true">
-        <i />
-        <i />
-        <i />
-        <i />
-      </span>
-    </article>
-  );
-}
-
-function ThemeToggle({ theme, onToggle, t }: { theme: ThemeMode; onToggle: () => void; t: (key: string) => string }) {
-  const nextTheme = theme === 'dark' ? 'light' : 'dark';
-  const title = nextTheme === 'dark' ? t('theme.switchDark') : t('theme.switchLight');
-
-  return (
-    <button
-      type="button"
-      className="icon-action theme-toggle"
-      onClick={onToggle}
-      title={title}
-      aria-label={title}
-    >
-      {theme === 'dark' ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
-      <span>{theme === 'dark' ? t('theme.light') : t('theme.dark')}</span>
-    </button>
-  );
-}
-
-function channelIcon(channel: Channel) {
-  if (channel === 'EMAIL') {
-    return <Mail size={16} aria-hidden="true" />;
-  }
-  if (channel === 'SMS') {
-    return <Smartphone size={16} aria-hidden="true" />;
-  }
-  return <Bell size={16} aria-hidden="true" />;
-}
-
-function channelBadge(channel: Channel) {
-  return <span className={`badge channel ${channel.toLowerCase()}`}>{channelIcon(channel)}{channel}</span>;
-}
-
-function statusBadge(status: string, t: (key: string) => string) {
-  return <span className={`badge status ${status.toLowerCase()}`}>{statusLabel(status, t)}</span>;
-}
-
-function statusFilterLabel(status: ReminderStatusFilter | NotificationStatusFilter, t: (key: string) => string) {
-  return status === 'ALL' ? t('filters.all') : statusLabel(status, t);
-}
-
-function statusLabel(status: string, t: (key: string) => string) {
-  const key = `status.${status.toLowerCase()}`;
-  const translated = t(key);
-  return translated === key ? status : translated;
-}
-
-function reminderFormWithChannel(form: ReminderForm, channel: Channel, user: UserSummary | null): ReminderForm {
-  const currentDefault = defaultRecipientForChannel(form.channel, user);
-  const nextDefault = defaultRecipientForChannel(channel, user);
-  const shouldUseDefaultRecipient = form.recipient.trim() === '' || form.recipient.trim() === currentDefault;
-
-  return {
-    ...form,
-    channel,
-    recipient: shouldUseDefaultRecipient ? nextDefault : form.recipient
-  };
-}
-
-function defaultRecipientForChannel(channel: Channel, user?: UserSummary | null) {
-  if (!user) {
-    return '';
-  }
-  if (channel === 'EMAIL') {
-    return user.email;
-  }
-  if (channel === 'SMS') {
-    return user.phoneNumber;
-  }
-  return '';
-}
-
-function recipientPlaceholder(channel: Channel) {
-  if (channel === 'EMAIL') {
-    return 'user@example.com';
-  }
-  if (channel === 'SMS') {
-    return '+905551112233';
-  }
-  return 'push-target-id';
-}
-
-function hasReminderFilters(filters: ReminderFilters) {
-  return Boolean(filters.status || filters.channel);
-}
-
-function hasNotificationFilters(filters: NotificationFilters) {
-  return Boolean(filters.status || filters.channel);
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short'
-  }).format(new Date(value));
-}
-
-function toDateTimeLocal(value: string) {
-  const date = new Date(value);
-  const offset = date.getTimezoneOffset() * 60 * 1000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
-}
-
-function initialTheme(): ThemeMode {
-  const storedTheme = localStorage.getItem(THEME_KEY);
-  if (storedTheme === 'light' || storedTheme === 'dark') {
-    return storedTheme;
-  }
-
-  if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches) {
-    return 'dark';
-  }
-
-  return 'light';
-}
-
-function initialLanguage(): LanguageCode {
-  const storedLanguage = localStorage.getItem(LANGUAGE_KEY);
-  if (storedLanguage === 'en' || storedLanguage === 'tr') {
-    return storedLanguage;
-  }
-
-  if (typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('tr')) {
-    return 'tr';
-  }
-
-  return 'en';
-}
-
-function currentDashboardView(): DashboardView {
-  if (typeof window === 'undefined') {
-    return 'overview';
-  }
-
-  const normalizedHash = window.location.hash.toLowerCase();
-  if (normalizedHash === '#overview' || normalizedHash === '#dashboard' || normalizedHash === '') {
-    return 'overview';
-  }
-  if (normalizedHash === '#reminders') {
-    return 'reminders';
-  }
-  if (normalizedHash === '#history' || normalizedHash === '#notifications') {
-    return 'history';
-  }
-  if (normalizedHash === '#profile' || normalizedHash === '#settings') {
-    return 'profile';
-  }
-
-  return 'overview';
-}
-
-function fullName(user: UserSummary) {
-  return [user.firstName, user.lastName].map((part) => part.trim()).filter(Boolean).join(' ');
-}
-
-function profileInitial(user: UserSummary) {
-  return (user.firstName || user.email).trim().charAt(0).toUpperCase() || 'U';
-}
-
-function buildEventStream(reminders: Reminder[], notifications: NotificationLog[], t: (key: string) => string): EventStreamEntry[] {
-  const reminderEvents: EventStreamEntry[] = reminders.map((reminder) => ({
-    id: `reminder-${reminder.id}`,
-    time: reminder.updatedAt,
-    command: `reminder.${reminder.status.toLowerCase()}`,
-    detail: `${reminder.title} -> ${reminder.channel.toLowerCase()} ${reminder.recipient}`,
-    tone: reminder.status.toLowerCase(),
-    target: { kind: 'reminder', item: reminder }
-  }));
-  const notificationEvents: EventStreamEntry[] = notifications.map((notification) => ({
-    id: `notification-${notification.id}`,
-    time: notification.updatedAt,
-    command: `notification.${notification.status.toLowerCase()}`,
-    detail: `${notification.subject} -> ${notification.recipient}`,
-    tone: notification.status.toLowerCase(),
-    target: { kind: 'notification', item: notification }
-  }));
-  const combined = [...reminderEvents, ...notificationEvents].sort((left, right) => {
-    return new Date(right.time).getTime() - new Date(left.time).getTime();
-  });
-
-  if (combined.length > 0) {
-    return combined.slice(0, 7);
-  }
-
-  return [
-    {
-      id: 'boot-gateway',
-      time: new Date().toISOString(),
-      command: 'gateway.ready',
-      detail: t('event.waitingPayloads'),
-      tone: 'sent'
-    },
-    {
-      id: 'boot-scheduler',
-      time: new Date().toISOString(),
-      command: 'scheduler.idle',
-      detail: t('event.noRemindersQueued'),
-      tone: 'scheduled'
-    }
-  ];
-}
-
-function sortRemindersNewestFirst(reminders: Reminder[]) {
-  return [...reminders].sort((left, right) => {
-    return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
-  });
-}
-
-function formatConsoleTime(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  }).format(new Date(value));
-}
-
-function pipelineStages(status?: ReminderStatus, deliveryStatus?: DeliveryStatus): { labelKey: string; state: PipelineStageState }[] {
-  const labelKeys = ['pipeline.created', 'pipeline.scheduled', 'pipeline.queued', 'pipeline.delivery'];
-  let activeIndex = 1;
-  let failed = false;
-
-  if (status === 'TRIGGERED') {
-    activeIndex = 2;
-  }
-  if (status === 'CANCELLED') {
-    activeIndex = 1;
-    failed = true;
-  }
-  if (deliveryStatus === 'PENDING' || deliveryStatus === 'RETRYING') {
-    activeIndex = 2;
-  }
-  if (deliveryStatus === 'SENT') {
-    activeIndex = 3;
-  }
-  if (deliveryStatus === 'FAILED') {
-    activeIndex = 3;
-    failed = true;
-  }
-
-  return labelKeys.map((labelKey, index) => {
-    if (failed && index === activeIndex) {
-      return { labelKey: status === 'CANCELLED' ? 'pipeline.cancelled' : 'pipeline.failed', state: 'error' };
-    }
-    if (index < activeIndex) {
-      return { labelKey, state: 'done' };
-    }
-    if (index === activeIndex) {
-      return { labelKey, state: 'active' };
-    }
-    return { labelKey, state: 'queued' };
-  });
-}
-
-function formatError(error: unknown, translate: (key: string) => string) {
-  if (error instanceof Error) {
-    return translate(error.message) === error.message && error.message.startsWith('error.')
-      ? error.message
-      : translate(error.message);
-  }
-  return translate('error.unexpected');
 }
