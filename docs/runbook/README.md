@@ -65,6 +65,7 @@ Prometheus runs at `http://localhost:9090` and scrapes backend services through 
 Grafana runs at `http://localhost:3001` with the local development credentials from `deploy/docker/.env`.
 
 Open the `NotifyHub Overview` dashboard to inspect service availability, request rate, average latency, JVM heap usage and HTTP 5xx rate.
+The `Notification delivery` row shows delivery attempts by result (`SENT`, `RETRYING`, `FAILED`) for the last 15 minutes and per minute by channel.
 
 ## Stop Local Environment
 
@@ -88,6 +89,47 @@ Notification delivery uses RabbitMQ in the local Docker stack. The key queues ar
 
 The retry queue uses a TTL and dead-letters work back to the delivery exchange. When the configured attempt limit is reached, Notification Service marks the notification log as `FAILED` and publishes the work item to the DLQ.
 Every send attempt is recorded in `notification_delivery_attempts`; the parent notification log keeps `attempt_count` and `last_attempt_at` for quick history views.
+Delivery work for a notification log that no longer exists is acknowledged and logged as `notification.delivery.discarded` instead of being requeued.
+
+The mock sender fails every recipient containing `+fail` (for example `demo+fail@example.com`), which exercises retry and DLQ end to end.
+Override the marker with `NOTIFICATION_MOCK_FAILURE_MARKER`; an empty value disables simulated failures.
+
+## Kafka Event Flow
+
+Reminder Service writes each `reminder.triggered` event to the `reminder_outbox_events` table in the same transaction that marks the reminder `TRIGGERED`.
+The scheduler then publishes pending outbox rows to Kafka and stamps `published_at`. If Kafka is down, rows stay pending and are retried on the next run.
+Both the due-reminder query and the outbox query use `FOR UPDATE SKIP LOCKED`, so several Reminder Service replicas never claim the same row.
+
+Notification Service retries a failing Kafka record twice, then publishes it to `reminder.triggered.DLT`. Records that cannot be deserialized go straight to the DLT instead of blocking the partition.
+
+```bash
+docker compose --env-file deploy/docker/.env -f deploy/docker/compose.yml exec kafka \
+  kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic reminder.triggered.DLT --from-beginning
+```
+
+## Request Correlation
+
+Every audit log line carries `request.id`. The id of the request that created a reminder is stored in `reminders.request_id`,
+copied onto the `reminder.triggered` event and the RabbitMQ delivery work, and restored in the scheduler, Kafka and RabbitMQ
+listeners. One id therefore links `reminder.create.requested` at the Gateway through `notification.delivery.sent` (or the
+retry and `failed` lines). Reminders created before this column existed get a new id when they trigger.
+
+```bash
+REQ=<request-id>
+for s in gateway-service reminder-service notification-service; do
+  docker logs notifyhub-$s-1 2>&1 | grep notifyhub_audit | grep "\"request\":{\"id\":\"$REQ\"}"
+done
+```
+
+In Kibana, filter on `request.id: "<request-id>"`.
+
+## Security Controls
+
+- Only the Gateway is published on a host port. Reminder and Notification services require `X-Internal-Token` (`INTERNAL_SERVICE_TOKEN`) on `/api/**` and `/internal/**`.
+- `AUTH_JWT_SECRET` has no built-in default; Auth and Gateway fail at startup if it is missing or shorter than 32 bytes.
+- Login is throttled per email: after 5 failures within 15 minutes Auth Service returns `429`. Counters live in Redis (`LOGIN_THROTTLE_REDIS_ENABLED=true`) and fall back to in-memory when Redis is disabled.
+- Audit logs mask notification recipients (`j***@example.com`, `***2233`).
+- The dashboard nginx config sends a strict Content-Security-Policy.
 
 ## Alert Response
 
@@ -121,6 +163,15 @@ Confirm the reminder is due and still in `SCHEDULED` state. The local scheduler 
 ### Notification stays in retrying or failed state
 
 Inspect RabbitMQ management at `http://localhost:15672`, then check the delivery attempt rows in the notification database. Exhausted work is copied to `notifyhub.notifications.delivery.dlq`.
+
+### Login returns 429
+
+The email hit the failed-login limit. Wait for the window (`LOGIN_THROTTLE_WINDOW`, default 15 minutes) or clear the counter:
+
+```bash
+docker compose --env-file deploy/docker/.env -f deploy/docker/compose.yml exec redis \
+  redis-cli del "notifyhub:auth:login-failures:user@example.com"
+```
 
 ### Ports are already in use
 

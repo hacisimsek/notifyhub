@@ -71,8 +71,9 @@ This builds local images in Minikube, applies the manifests, waits for rollouts,
 6. Wait for the reminder to become `TRIGGERED`.
 7. Open notification history and confirm the delivery status becomes `SENT`.
 8. Use notification filters for status and channel.
-9. Open `http://localhost:3001` and inspect the `NotifyHub Overview` dashboard.
-10. Open `http://localhost:9090/targets` and confirm backend scrape targets are up.
+9. Create a second reminder with recipient `demo+fail@example.com`. The mock sender fails it, so history shows `RETRYING` and then `FAILED` after 3 attempts, and the work item lands in `notifyhub.notifications.delivery.dlq` (RabbitMQ UI at `http://localhost:15672`, guest/guest).
+10. Open `http://localhost:3001` and inspect the `NotifyHub Overview` dashboard.
+11. Open `http://localhost:9090/targets` and confirm backend scrape targets are up.
 
 ## Reset Between Demo Runs
 
@@ -94,5 +95,9 @@ docker compose --env-file deploy/docker/.env -f deploy/docker/compose.yml down -
 - JWT claims are verified at the gateway and propagated to internal services as identity headers.
 - Reminder Service owns scheduling and emits domain events.
 - Notification Service is idempotent on delivery work creation.
-- Kafka carries domain events; RabbitMQ handles delivery work, retry and DLQ behavior.
+- Kafka carries domain events through a transactional outbox; unprocessable records go to `reminder.triggered.DLT`.
+- RabbitMQ handles delivery work, retry and DLQ behavior; `+fail` recipients demonstrate it live.
+- `FOR UPDATE SKIP LOCKED` lets several scheduler replicas run without double-triggering.
+- Internal services trust identity headers only with the gateway's shared internal token.
+- Redis-backed login throttling, timing-safe unknown-email handling and masked recipients in audit logs.
 - Prometheus and Grafana provide service health, traffic and delivery failure visibility.

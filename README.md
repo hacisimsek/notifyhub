@@ -1,6 +1,6 @@
 # NotifyHub
 
-NotifyHub is a smart reminder and notification platform for time-sensitive alerts. The project is planned as a microservice-based system with Spring Boot services, React dashboard, PostgreSQL, Redis, Kafka, RabbitMQ, Docker, Kubernetes, Prometheus and Grafana.
+NotifyHub is a smart reminder and notification platform for time-sensitive alerts. It is a microservice-based system with Spring Boot services, a React dashboard, PostgreSQL, Redis, Kafka, RabbitMQ, Docker, Kubernetes, Prometheus and Grafana.
 
 ## Goals
 
@@ -54,10 +54,10 @@ notifyhub/
 ## Tech Stack
 
 - Backend: Java 21, Spring Boot 3.x, Maven
-- Frontend: React, Vite, Tailwind CSS
+- Frontend: React, Vite, TypeScript, plain CSS
 - Database: PostgreSQL
-- Cache: Redis
-- Messaging: Apache Kafka and RabbitMQ
+- Cache: Redis (shared login-attempt throttling)
+- Messaging: Apache Kafka (transactional outbox, dead-letter topic) and RabbitMQ (delivery, retry, DLQ)
 - Security: JWT, RBAC, Spring Security
 - Runtime: Docker, Kubernetes with Minikube
 - Observability: Spring Boot Actuator, Micrometer, Prometheus, Grafana
@@ -158,6 +158,8 @@ npm install --prefix web/dashboard
 npm run test --prefix web/dashboard
 npm run dev --prefix web/dashboard
 ```
+
+Internal services are not published on host ports in Docker Compose; call them through the Gateway. They only accept requests carrying the gateway's `X-Internal-Token`.
 
 Auth Service runs on port `8081` and exposes:
 

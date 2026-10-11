@@ -77,6 +77,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /api/auth/me:
     get:
       tags:
@@ -212,6 +214,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/ReminderStatus"
         - $ref: "#/components/parameters/Channel"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
       responses:
         "200":
           description: Reminders owned by the current user, ordered by creation time newest first.
@@ -287,6 +291,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/DeliveryStatus"
         - $ref: "#/components/parameters/Channel"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
       responses:
         "200":
           description: Notification history for the current user.
@@ -307,7 +313,7 @@ paths:
         - Internal
       summary: Create notification delivery work
       operationId: createNotificationWork
-      description: Service-to-service route used by backend integrations.
+      description: Service-to-service route used by backend integrations. Requires the `X-Internal-Token` header when `INTERNAL_SERVICE_TOKEN` is configured.
       requestBody:
         required: true
         content:
@@ -355,9 +361,34 @@ components:
       required: false
       schema:
         $ref: "#/components/schemas/DeliveryStatus"
+    Page:
+      name: page
+      in: query
+      required: false
+      description: Zero-based page index.
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    Size:
+      name: size
+      in: query
+      required: false
+      description: Page size. Values above 200 are capped at 200.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 100
   responses:
     BadRequest:
       description: Request validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    TooManyRequests:
+      description: Too many failed login attempts for this email (`error.auth.tooManyAttempts`).
       content:
         application/json:
           schema:
