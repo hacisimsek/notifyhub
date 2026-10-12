@@ -161,6 +161,8 @@ services:
       NOTIFICATION_SERVICE_URL: http://notification-service:8083
       REDIS_HOST: redis
       TOKEN_REVOCATION_REDIS_ENABLED: "true"
+      # true when the dashboard is served over HTTPS, so the session cookie is marked Secure
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
     ports:
       - "${GATEWAY_SERVICE_PORT:-8080}:8080"
     depends_on:
