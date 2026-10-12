@@ -84,6 +84,9 @@ Generate strong secrets:
 openssl rand -base64 48
 ```
 
+Use a separate generated value for each of `POSTGRES_PASSWORD`, `RABBITMQ_PASSWORD`, `AUTH_JWT_SECRET`, `INTERNAL_SERVICE_TOKEN` and `GRAFANA_ADMIN_PASSWORD`.
+Keep `SESSION_COOKIE_SECURE=true`: the dashboard is only reachable through Caddy over HTTPS.
+
 Generate the Kibana Basic Auth hash:
 
 ```bash
