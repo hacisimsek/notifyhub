@@ -14,6 +14,10 @@ cp deploy/docker/.env.example deploy/docker/.env
 docker compose --env-file deploy/docker/.env -f deploy/docker/compose.yml up --build
 ```
 
+Replace every `change-me` value in `deploy/docker/.env`. Passwords, `AUTH_JWT_SECRET` and `INTERNAL_SERVICE_TOKEN` have no defaults in
+`compose.yml`; Compose stops with `Set <NAME> in deploy/docker/.env` when one is missing.
+Keep `POSTGRES_PASSWORD` unchanged once the `postgres-data` volume exists, or recreate the volume with `down --volumes`.
+
 The gateway is exposed at `http://localhost:8080`.
 The dashboard is exposed at `http://localhost:3000`.
 Prometheus is exposed at `http://localhost:9090`.
@@ -46,10 +50,9 @@ Useful options:
 - RabbitMQ AMQP: `localhost:5672`
 - RabbitMQ management UI: `http://localhost:15672`
 - Redis: `localhost:6379`
-- Auth Service: `http://localhost:8081`
-- Reminder Service: `http://localhost:8082`
-- Notification Service: `http://localhost:8083`
-- Gateway Service: `http://localhost:8080`
+- Gateway Service: `http://localhost:8080` (the only backend entry point)
+- Auth, Reminder and Notification services listen on `8081`-`8083` inside the Compose network only.
+  Reminder and Notification services reject requests without the shared `INTERNAL_SERVICE_TOKEN`.
 - Dashboard: `http://localhost:3000`
 - Prometheus: `http://localhost:9090`
 - Grafana: `http://localhost:3001`

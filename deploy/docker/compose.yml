@@ -4,16 +4,19 @@ x-backend-build: &backend-build
   context: ../..
   dockerfile: backend/Dockerfile
 
+x-internal-token-env: &internal-token-env
+  INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?Set INTERNAL_SERVICE_TOKEN in deploy/docker/.env}
+
 x-jwt-env: &jwt-env
   AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER:-notifyhub-auth}
-  AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-change-this-development-secret-change-this-development-secret}
+  AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?Set AUTH_JWT_SECRET in deploy/docker/.env}
 
 services:
   postgres:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-notifyhub}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-notifyhub}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/docker/.env}
       POSTGRES_DB: ${POSTGRES_DB:-notifyhub}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
@@ -38,6 +41,9 @@ services:
 
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:?Set RABBITMQ_USERNAME in deploy/docker/.env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in deploy/docker/.env}
     ports:
       - "${RABBITMQ_PORT:-5672}:5672"
       - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
@@ -79,11 +85,15 @@ services:
       AUTH_JWT_EXPIRATION: ${AUTH_JWT_EXPIRATION:-PT2H}
       AUTH_DB_URL: jdbc:postgresql://postgres:5432/notifyhub_auth
       AUTH_DB_USERNAME: ${POSTGRES_USER:-notifyhub}
-      AUTH_DB_PASSWORD: ${POSTGRES_PASSWORD:-notifyhub}
-    ports:
-      - "${AUTH_SERVICE_PORT:-8081}:8081"
+      AUTH_DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/docker/.env}
+      REDIS_HOST: redis
+      LOGIN_THROTTLE_REDIS_ENABLED: "true"
+      TOKEN_REVOCATION_REDIS_ENABLED: "true"
+    # No host port: services are reachable only through the gateway.
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   reminder-service:
@@ -93,16 +103,15 @@ services:
       args:
         SERVICE_MODULE: reminder-service
     environment:
+      <<: *internal-token-env
       REMINDER_DB_URL: jdbc:postgresql://postgres:5432/notifyhub_reminder
       REMINDER_DB_USERNAME: ${POSTGRES_USER:-notifyhub}
-      REMINDER_DB_PASSWORD: ${POSTGRES_PASSWORD:-notifyhub}
+      REMINDER_DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/docker/.env}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_ENABLED: "true"
       KAFKA_TOPIC_REMINDER_TRIGGERED: ${KAFKA_TOPIC_REMINDER_TRIGGERED:-reminder.triggered}
       REMINDER_TRIGGER_SCHEDULER_ENABLED: "true"
       REMINDER_TRIGGER_SCHEDULER_DELAY_MS: ${REMINDER_TRIGGER_SCHEDULER_DELAY_MS:-5000}
-    ports:
-      - "${REMINDER_SERVICE_PORT:-8082}:8082"
     depends_on:
       postgres:
         condition: service_healthy
@@ -116,9 +125,10 @@ services:
       args:
         SERVICE_MODULE: notification-service
     environment:
+      <<: *internal-token-env
       NOTIFICATION_DB_URL: jdbc:postgresql://postgres:5432/notifyhub_notification
       NOTIFICATION_DB_USERNAME: ${POSTGRES_USER:-notifyhub}
-      NOTIFICATION_DB_PASSWORD: ${POSTGRES_PASSWORD:-notifyhub}
+      NOTIFICATION_DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/docker/.env}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_ENABLED: "true"
       KAFKA_TOPIC_REMINDER_TRIGGERED: ${KAFKA_TOPIC_REMINDER_TRIGGERED:-reminder.triggered}
@@ -126,12 +136,10 @@ services:
       RABBITMQ_ENABLED: ${RABBITMQ_ENABLED:-true}
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: "5672"
-      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:?Set RABBITMQ_USERNAME in deploy/docker/.env}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in deploy/docker/.env}
       NOTIFICATION_DELIVERY_MAX_ATTEMPTS: ${NOTIFICATION_DELIVERY_MAX_ATTEMPTS:-3}
       NOTIFICATION_DELIVERY_RETRY_DELAY_MS: ${NOTIFICATION_DELIVERY_RETRY_DELAY_MS:-5000}
-    ports:
-      - "${NOTIFICATION_SERVICE_PORT:-8083}:8083"
     depends_on:
       postgres:
         condition: service_healthy
@@ -147,13 +155,19 @@ services:
       args:
         SERVICE_MODULE: gateway-service
     environment:
-      <<: *jwt-env
+      <<: [*jwt-env, *internal-token-env]
       AUTH_SERVICE_URL: http://auth-service:8081
       REMINDER_SERVICE_URL: http://reminder-service:8082
       NOTIFICATION_SERVICE_URL: http://notification-service:8083
+      REDIS_HOST: redis
+      TOKEN_REVOCATION_REDIS_ENABLED: "true"
+      # true when the dashboard is served over HTTPS, so the session cookie is marked Secure
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
     ports:
       - "${GATEWAY_SERVICE_PORT:-8080}:8080"
     depends_on:
+      redis:
+        condition: service_healthy
       auth-service:
         condition: service_started
       reminder-service:
@@ -196,7 +210,7 @@ services:
     image: grafana/grafana:11.1.0
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-notifyhub}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in deploy/docker/.env}
       GF_USERS_ALLOW_SIGN_UP: "false"
     ports:
       - "${GRAFANA_PORT:-3001}:3000"

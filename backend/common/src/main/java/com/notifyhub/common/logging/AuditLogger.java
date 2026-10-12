@@ -68,6 +68,11 @@ public final class AuditLogger {
             return this;
         }
 
+        public Builder recipient(String recipient) {
+            putIfPresent(notifyhub, "recipient", maskRecipient(recipient));
+            return this;
+        }
+
         public Builder detail(String key, Object value) {
             putIfPresent(notifyhub, key, value);
             return this;
@@ -90,6 +95,22 @@ public final class AuditLogger {
             json.append('}');
             return json.toString();
         }
+    }
+
+    /**
+     * Masks an email address or phone number so audit logs stay searchable without storing full contact data,
+     * e.g. {@code jane@example.com -> j***@example.com} and {@code +905551112233 -> ***2233}.
+     */
+    public static String maskRecipient(String recipient) {
+        if (recipient == null || recipient.isBlank()) {
+            return recipient;
+        }
+        String value = recipient.trim();
+        int at = value.indexOf('@');
+        if (at > 0) {
+            return value.charAt(0) + "***" + value.substring(at);
+        }
+        return value.length() <= 4 ? "***" : "***" + value.substring(value.length() - 4);
     }
 
     private static void putIfPresent(Map<String, Object> values, String key, Object value) {

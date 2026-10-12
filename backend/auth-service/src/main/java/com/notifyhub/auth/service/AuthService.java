@@ -9,6 +9,8 @@ import com.notifyhub.auth.domain.AuthUser;
 import com.notifyhub.auth.domain.UserRole;
 import com.notifyhub.auth.repository.AuthUserRepository;
 import com.notifyhub.auth.security.JwtToken;
+import com.notifyhub.auth.security.LoginAttemptLimiter;
+import com.notifyhub.auth.security.TokenVersionPublisher;
 import com.notifyhub.auth.security.JwtTokenService;
 import com.notifyhub.common.logging.AuditLogger;
 import org.slf4j.Logger;
@@ -17,9 +19,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -30,15 +35,24 @@ public class AuthService {
     private final AuthUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenService jwtTokenService;
+    private final LoginAttemptLimiter loginAttemptLimiter;
+    private final TokenVersionPublisher tokenVersionPublisher;
+    private final String dummyPasswordHash;
 
     public AuthService(
             AuthUserRepository userRepository,
             PasswordEncoder passwordEncoder,
-            JwtTokenService jwtTokenService
+            JwtTokenService jwtTokenService,
+            LoginAttemptLimiter loginAttemptLimiter,
+            TokenVersionPublisher tokenVersionPublisher
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenService = jwtTokenService;
+        this.loginAttemptLimiter = loginAttemptLimiter;
+        this.tokenVersionPublisher = tokenVersionPublisher;
+        // Compared against when the email is unknown, so response time does not reveal registered emails.
+        this.dummyPasswordHash = passwordEncoder.encode(UUID.randomUUID().toString());
     }
 
     @Transactional
@@ -66,17 +80,23 @@ public class AuthService {
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
         String email = normalizeEmail(request.email());
-        AuthUser user = userRepository.findByEmail(email)
-                .orElseThrow(() -> {
-                    auditLoginFailure(email, null);
-                    return badCredentials();
-                });
+        if (loginAttemptLimiter.isBlocked(email)) {
+            auditLoginFailure(email, null, "too_many_attempts");
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "error.auth.tooManyAttempts");
+        }
 
-        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            auditLoginFailure(email, user);
+        Optional<AuthUser> existingUser = userRepository.findByEmail(email);
+        String passwordHash = existingUser.map(AuthUser::getPasswordHash).orElse(dummyPasswordHash);
+        if (!passwordEncoder.matches(request.password(), passwordHash) || existingUser.isEmpty()) {
+            loginAttemptLimiter.recordFailure(email);
+            auditLoginFailure(email, existingUser.orElse(null), "invalid_credentials");
             throw badCredentials();
         }
 
+        AuthUser user = existingUser.get();
+        loginAttemptLimiter.reset(email);
+        // Re-publish on login so the Gateway recovers the current version if Redis lost it.
+        tokenVersionPublisher.publish(user.getId(), user.getTokenVersion());
         audit("auth.login.succeeded", "User %s logged in".formatted(user.getEmail()), user)
                 .detail("role", user.getRole())
                 .log();
@@ -84,15 +104,13 @@ public class AuthService {
     }
 
     @Transactional(readOnly = true)
-    public AuthUser getCurrentUser(UUID userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "error.auth.userNoLongerExists"));
+    public AuthUser getCurrentUser(UUID userId, int tokenVersion) {
+        return activeUser(userId, tokenVersion);
     }
 
     @Transactional
-    public AuthResponse changePassword(UUID userId, ChangePasswordRequest request) {
-        AuthUser user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "error.auth.userNoLongerExists"));
+    public AuthResponse changePassword(UUID userId, int tokenVersion, ChangePasswordRequest request) {
+        AuthUser user = activeUser(userId, tokenVersion);
 
         if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
             throw badCredentials();
@@ -103,20 +121,42 @@ public class AuthService {
         }
 
         user.changePassword(passwordEncoder.encode(request.newPassword()));
+        publishTokenVersionAfterCommit(user.getId(), user.getTokenVersion());
         audit("auth.password.changed", "User %s changed password".formatted(user.getEmail()), user).log();
         return issueToken(user);
     }
 
     @Transactional
-    public AuthResponse updateProfile(UUID userId, UpdateProfileRequest request) {
-        AuthUser user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "error.auth.userNoLongerExists"));
+    public AuthResponse updateProfile(UUID userId, int tokenVersion, UpdateProfileRequest request) {
+        AuthUser user = activeUser(userId, tokenVersion);
 
         user.updateProfile(request.firstName(), request.lastName(), request.phoneNumber(), request.preferredLanguage());
         audit("auth.profile.updated", "User %s updated profile".formatted(user.getEmail()), user)
                 .detail("preferredLanguage", user.getPreferredLanguage())
                 .log();
         return issueToken(user);
+    }
+
+    private AuthUser activeUser(UUID userId, int tokenVersion) {
+        AuthUser user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "error.auth.userNoLongerExists"));
+        if (tokenVersion < user.getTokenVersion()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "error.auth.sessionRevoked");
+        }
+        return user;
+    }
+
+    private void publishTokenVersionAfterCommit(UUID userId, int tokenVersion) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            tokenVersionPublisher.publish(userId, tokenVersion);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                tokenVersionPublisher.publish(userId, tokenVersion);
+            }
+        });
     }
 
     private AuditLogger.Builder audit(String action, String message, AuthUser user) {
@@ -126,13 +166,13 @@ public class AuthService {
                 .resource("user", user.getId());
     }
 
-    private void auditLoginFailure(String email, AuthUser user) {
+    private void auditLoginFailure(String email, AuthUser user, String reason) {
         AuditLogger.event(LOGGER, "auth.login.failed", "Login failed for %s".formatted(email))
                 .category("authentication")
                 .outcome("failure")
                 .user(user == null ? null : user.getId(), email)
                 .resource("user", user == null ? null : user.getId())
-                .detail("reason", "invalid_credentials")
+                .detail("reason", reason)
                 .log();
     }
 

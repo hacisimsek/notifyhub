@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -78,6 +79,26 @@ class ReminderControllerIntegrationTests {
     }
 
     @Test
+    void createdReminderRemembersTheCreatingRequestId() throws Exception {
+        mockMvc.perform(post("/api/reminders")
+                        .header("X-User-Id", USER_ID)
+                        .header("X-Request-Id", "req-create-1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "Pay invoice",
+                                  "scheduledFor": "%s",
+                                  "channel": "EMAIL",
+                                  "recipient": "user@example.com"
+                                }
+                                """.formatted(Instant.now().plus(1, ChronoUnit.DAYS))))
+                .andExpect(status().isCreated());
+
+        assertThat(reminderRepository.findAll()).singleElement()
+                .satisfies(reminder -> assertThat(reminder.getRequestId()).isEqualTo("req-create-1"));
+    }
+
+    @Test
     void listRemindersReturnsNewestCreatedFirst() throws Exception {
         createReminder(
                 USER_ID,
@@ -101,6 +122,31 @@ class ReminderControllerIntegrationTests {
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[0].title", equalTo("Newer created reminder")))
                 .andExpect(jsonPath("$[1].title", equalTo("Older created reminder")));
+    }
+
+    @Test
+    void listRemindersSupportsPaging() throws Exception {
+        createReminder(USER_ID, "First reminder", "EMAIL", "first@example.com");
+        Thread.sleep(10);
+        createReminder(USER_ID, "Second reminder", "EMAIL", "second@example.com");
+        Thread.sleep(10);
+        createReminder(USER_ID, "Third reminder", "EMAIL", "third@example.com");
+
+        mockMvc.perform(get("/api/reminders")
+                        .param("page", "0")
+                        .param("size", "2")
+                        .header("X-User-Id", USER_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].title", equalTo("Third reminder")));
+
+        mockMvc.perform(get("/api/reminders")
+                        .param("page", "1")
+                        .param("size", "2")
+                        .header("X-User-Id", USER_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].title", equalTo("First reminder")));
     }
 
     @Test

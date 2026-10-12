@@ -1,8 +1,9 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
 import * as api from './api';
+import { ApiError } from './api';
 import type { AuthResponse, NotificationLog, Reminder, UserSummary } from './api';
 
 vi.mock('./api', async (importOriginal) => {
@@ -17,6 +18,7 @@ vi.mock('./api', async (importOriginal) => {
     listNotifications: vi.fn(),
     listReminders: vi.fn(),
     login: vi.fn(),
+    logout: vi.fn(),
     register: vi.fn(),
     updateProfile: vi.fn(),
     updateReminder: vi.fn()
@@ -73,7 +75,8 @@ const notifications: NotificationLog[] = [
 describe('App dashboard', () => {
   beforeEach(() => {
     vi.setSystemTime(new Date('2026-05-02T12:00:00.000Z'));
-    mockedApi.currentUser.mockResolvedValue(user);
+    // No session cookie by default; renderAuthenticatedDashboard restores one.
+    mockedApi.currentUser.mockRejectedValue(new ApiError('error.auth.invalidOrExpiredToken', 401));
     mockedApi.getLanguageMessages.mockResolvedValue({ language: 'en', messages: {} });
     mockedApi.changePassword.mockResolvedValue(authResponse({ accessToken: 'token-2' }));
     mockedApi.login.mockResolvedValue(authResponse());
@@ -82,13 +85,13 @@ describe('App dashboard', () => {
     mockedApi.createReminder.mockResolvedValue(reminder({ id: 'created-reminder', title: 'Created reminder' }));
     mockedApi.updateReminder.mockResolvedValue(reminder({ id: 'updated-reminder', title: 'Updated reminder' }));
     mockedApi.deleteReminder.mockResolvedValue();
-    mockedApi.listReminders.mockImplementation(async (_token, filters = {}) => {
+    mockedApi.listReminders.mockImplementation(async (filters = {}) => {
       return reminders.filter((item) => {
         return (!filters.status || item.status === filters.status)
           && (!filters.channel || item.channel === filters.channel);
       });
     });
-    mockedApi.listNotifications.mockImplementation(async (_token, filters = {}) => {
+    mockedApi.listNotifications.mockImplementation(async (filters = {}) => {
       return notifications.filter((item) => {
         return (!filters.status || item.status === filters.status)
           && (!filters.channel || item.channel === filters.channel);
@@ -111,7 +114,7 @@ describe('App dashboard', () => {
 
     expect(mockedApi.login).toHaveBeenCalledWith('user@example.com', 'secret123');
     await screen.findByRole('heading', { name: 'Operations overview' });
-    expect(localStorage.getItem('notifyhub.dashboard.token')).toBe('token-1');
+    expect(localStorage.getItem('notifyhub.dashboard.token')).toBeNull();
     expect(screen.getByRole('heading', { name: 'Service topology' })).toBeInTheDocument();
     await actor.click(screen.getByRole('link', { name: /reminders/i }));
     expect(within(remindersPanel()).getByText('Pay invoice')).toBeInTheDocument();
@@ -177,7 +180,7 @@ describe('App dashboard', () => {
     await actor.click(screen.getByRole('button', { name: /add reminder/i }));
 
     await waitFor(() => {
-      expect(mockedApi.createReminder).toHaveBeenCalledWith('token-1', expect.objectContaining({
+      expect(mockedApi.createReminder).toHaveBeenCalledWith(expect.objectContaining({
         title: 'Demo reminder',
         message: 'Follow up with finance',
         channel: 'EMAIL',
@@ -283,12 +286,11 @@ describe('App dashboard', () => {
     await actor.click(within(profilePage).getByRole('button', { name: /change password/i }));
 
     await waitFor(() => {
-      expect(mockedApi.changePassword).toHaveBeenCalledWith('token-1', {
+      expect(mockedApi.changePassword).toHaveBeenCalledWith({
         currentPassword: 'secret123',
         newPassword: 'newSecret123'
       });
     });
-    expect(localStorage.getItem('notifyhub.dashboard.token')).toBe('token-2');
     expect(within(profilePage).getByText(/password changed/i)).toBeInTheDocument();
   });
 
@@ -333,15 +335,70 @@ describe('App dashboard', () => {
     await actor.click(within(profilePage).getByRole('button', { name: 'Profili kaydet' }));
 
     await waitFor(() => {
-      expect(mockedApi.updateProfile).toHaveBeenCalledWith('token-1', {
+      expect(mockedApi.updateProfile).toHaveBeenCalledWith({
         firstName: 'Updated',
         lastName: 'User',
         phoneNumber: '+905559998877',
         preferredLanguage: 'tr'
       });
     });
-    expect(localStorage.getItem('notifyhub.dashboard.token')).toBe('token-3');
     expect(within(profilePage).getByText(/profil güncellendi/i)).toBeInTheDocument();
+  });
+
+  it('polls in the background while work is in flight and stops once it settles', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const actor = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await renderAuthenticatedDashboard();
+    await actor.click(screen.getByRole('link', { name: /reminders/i }));
+    const pendingRow = within(remindersPanel()).getByText('Pay invoice').closest('tr') as HTMLElement;
+    expect(within(pendingRow).queryAllByText('Triggered')).toHaveLength(0);
+
+    mockedApi.listReminders.mockResolvedValue(reminders.map((item) => ({ ...item, status: 'TRIGGERED' as const })));
+    mockedApi.listNotifications.mockResolvedValue(notifications.map((item) => ({ ...item, status: 'SENT' as const })));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+
+    await waitFor(() => {
+      const row = within(remindersPanel()).getByText('Pay invoice').closest('tr') as HTMLElement;
+      expect(within(row).getAllByText('Triggered').length).toBeGreaterThan(0);
+    });
+    const callsAfterSettling = mockedApi.listReminders.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15000);
+    });
+    expect(mockedApi.listReminders.mock.calls.length).toBe(callsAfterSettling);
+  });
+
+  it('restores the session from the cookie and removes any legacy stored token', async () => {
+    localStorage.setItem('notifyhub.dashboard.token', 'legacy-token');
+
+    await renderAuthenticatedDashboard();
+
+    expect(mockedApi.currentUser).toHaveBeenCalledWith();
+    expect(localStorage.getItem('notifyhub.dashboard.token')).toBeNull();
+  });
+
+  it('returns to sign in with the reason when the session is revoked', async () => {
+    const actor = userEvent.setup();
+    await renderAuthenticatedDashboard();
+    mockedApi.listReminders.mockRejectedValue(new ApiError('error.auth.sessionRevoked', 401));
+
+    await actor.click(screen.getByTitle('Refresh data'));
+
+    expect(await screen.findByRole('button', { name: /sign in/i })).toBeInTheDocument();
+    expect(screen.getByText(/password changed, so this session ended/i)).toBeInTheDocument();
+  });
+
+  it('asks the gateway to clear the session cookie on sign out', async () => {
+    const actor = userEvent.setup();
+    mockedApi.logout.mockResolvedValue();
+    await renderAuthenticatedDashboard();
+
+    await actor.click(screen.getByRole('button', { name: /sign out/i }));
+
+    expect(mockedApi.logout).toHaveBeenCalled();
+    expect(await screen.findByRole('button', { name: /sign in/i })).toBeInTheDocument();
   });
 
   it('requests filtered reminder and notification views from the gateway API', async () => {
@@ -353,7 +410,7 @@ describe('App dashboard', () => {
     await actor.click(within(screen.getByLabelText('Reminder filters')).getByRole('button', { name: 'Scheduled' }));
 
     await waitFor(() => {
-      expect(mockedApi.listReminders).toHaveBeenCalledWith('token-1', {
+      expect(mockedApi.listReminders).toHaveBeenCalledWith({
         status: 'SCHEDULED',
         channel: undefined
       });
@@ -367,7 +424,7 @@ describe('App dashboard', () => {
     await actor.click(within(screen.getByLabelText('Notification filters')).getByRole('button', { name: 'EMAIL' }));
 
     await waitFor(() => {
-      expect(mockedApi.listNotifications).toHaveBeenCalledWith('token-1', {
+      expect(mockedApi.listNotifications).toHaveBeenCalledWith({
         status: 'SENT',
         channel: 'EMAIL'
       });
@@ -376,7 +433,7 @@ describe('App dashboard', () => {
 });
 
 async function renderAuthenticatedDashboard() {
-  localStorage.setItem('notifyhub.dashboard.token', 'token-1');
+  mockedApi.currentUser.mockResolvedValue(user);
   render(<App />);
   await screen.findByRole('heading', { name: 'Operations overview' });
 }

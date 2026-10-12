@@ -43,6 +43,10 @@ public class AuthUser {
     @Column(nullable = false, length = 32)
     private UserRole role = UserRole.USER;
 
+    // Incremented on password change; tokens carrying an older version are rejected.
+    @Column(nullable = false)
+    private int tokenVersion;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -87,6 +91,10 @@ public class AuthUser {
         return email;
     }
 
+    public int getTokenVersion() {
+        return tokenVersion;
+    }
+
     public String getPasswordHash() {
         return passwordHash;
     }
@@ -121,6 +129,7 @@ public class AuthUser {
 
     public void changePassword(String passwordHash) {
         this.passwordHash = passwordHash;
+        this.tokenVersion++;
     }
 
     public void updateProfile(String firstName, String lastName, String phoneNumber, String preferredLanguage) {

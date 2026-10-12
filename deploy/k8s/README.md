@@ -50,7 +50,13 @@ kubectl -n notifyhub rollout status deployment/gateway-service
 kubectl -n notifyhub rollout status deployment/dashboard
 ```
 
-The manifests include local development secrets with placeholder values. Replace `deploy/k8s/base/secrets.example.yaml` values before using this outside a local demo.
+Secrets are generated from `deploy/k8s/base/secrets.env`, which is git-ignored. Create it from the example and replace every value before applying the manifests:
+
+```bash
+cp deploy/k8s/base/secrets.env.example deploy/k8s/base/secrets.env
+```
+
+`./scripts/k8s-local-verify.sh` copies the example automatically when the file is missing, which is only suitable for local testing.
 
 ## Access
 
@@ -61,7 +67,4 @@ minikube service -n notifyhub prometheus
 minikube service -n notifyhub grafana
 ```
 
-Grafana local credentials:
-
-- Username: `admin`
-- Password: `notifyhub`
+Grafana credentials are `GRAFANA_ADMIN_USER` and `GRAFANA_ADMIN_PASSWORD` from `deploy/k8s/base/secrets.env`.

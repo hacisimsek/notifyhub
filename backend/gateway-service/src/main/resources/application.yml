@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: gateway-service
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
 notifyhub:
   gateway:
@@ -13,9 +17,18 @@ notifyhub:
       notification-url: ${NOTIFICATION_SERVICE_URL:http://localhost:8083}
     jwt:
       issuer: ${AUTH_JWT_ISSUER:notifyhub-auth}
-      secret: ${AUTH_JWT_SECRET:change-this-development-secret-change-this-development-secret}
+      secret: ${AUTH_JWT_SECRET}
+    internal-token: ${INTERNAL_SERVICE_TOKEN:}
+    token-revocation:
+      redis-enabled: ${TOKEN_REVOCATION_REDIS_ENABLED:false}
+    session-cookie:
+      # Set to true when the dashboard is served over HTTPS.
+      secure: ${SESSION_COOKIE_SECURE:false}
 
 management:
+  health:
+    redis:
+      enabled: ${TOKEN_REVOCATION_REDIS_ENABLED:false}
   endpoint:
     health:
       probes:

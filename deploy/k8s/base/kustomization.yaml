@@ -6,7 +6,6 @@ namespace: notifyhub
 resources:
   - namespace.yaml
   - configmap.yaml
-  - secrets.example.yaml
   - postgres.yaml
   - redis.yaml
   - rabbitmq.yaml
@@ -14,3 +13,12 @@ resources:
   - backend-services.yaml
   - dashboard.yaml
   - observability.yaml
+
+# Secrets come from the git-ignored secrets.env; copy secrets.env.example and replace the values.
+secretGenerator:
+  - name: notifyhub-secrets
+    envs:
+      - secrets.env
+    options:
+      labels:
+        app.kubernetes.io/part-of: notifyhub

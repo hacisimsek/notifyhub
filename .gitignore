@@ -27,6 +27,7 @@ logs/
 .env
 .env.*
 !.env.example
+deploy/k8s/base/secrets.env
 *.local
 
 # Node and frontend builds

@@ -4,6 +4,7 @@ import org.slf4j.MDC;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 public final class RequestCorrelation {
@@ -31,6 +32,31 @@ public final class RequestCorrelation {
     public static Optional<String> currentRequestId() {
         return Optional.ofNullable(MDC.get(MDC_KEY))
                 .filter(value -> !value.isBlank());
+    }
+
+    /**
+     * Runs work outside an HTTP request (scheduler, Kafka or RabbitMQ listener) under the request id that started
+     * the flow, so its audit logs share one {@code request.id}. A missing or unsafe id is replaced with a new one.
+     */
+    public static <T> T callWith(String requestId, Supplier<T> work) {
+        String previous = MDC.get(MDC_KEY);
+        MDC.put(MDC_KEY, resolve(requestId));
+        try {
+            return work.get();
+        } finally {
+            if (previous == null) {
+                MDC.remove(MDC_KEY);
+            } else {
+                MDC.put(MDC_KEY, previous);
+            }
+        }
+    }
+
+    public static void runWith(String requestId, Runnable work) {
+        callWith(requestId, () -> {
+            work.run();
+            return null;
+        });
     }
 
     private static String newRequestId() {

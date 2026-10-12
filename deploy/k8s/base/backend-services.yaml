@@ -24,6 +24,21 @@ spec:
             - name: http
               containerPort: 8081
           env:
+            - name: TOKEN_REVOCATION_REDIS_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: TOKEN_REVOCATION_REDIS_ENABLED
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: REDIS_HOST
+            - name: LOGIN_THROTTLE_REDIS_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: LOGIN_THROTTLE_REDIS_ENABLED
             - name: AUTH_DB_URL
               valueFrom:
                 configMapKeyRef:
@@ -108,6 +123,11 @@ spec:
             - name: http
               containerPort: 8082
           env:
+            - name: INTERNAL_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: notifyhub-secrets
+                  key: INTERNAL_SERVICE_TOKEN
             - name: REMINDER_DB_URL
               valueFrom:
                 configMapKeyRef:
@@ -202,6 +222,11 @@ spec:
             - name: http
               containerPort: 8083
           env:
+            - name: INTERNAL_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: notifyhub-secrets
+                  key: INTERNAL_SERVICE_TOKEN
             - name: NOTIFICATION_DB_URL
               valueFrom:
                 configMapKeyRef:
@@ -326,6 +351,21 @@ spec:
             - name: http
               containerPort: 8080
           env:
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: REDIS_HOST
+            - name: TOKEN_REVOCATION_REDIS_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: TOKEN_REVOCATION_REDIS_ENABLED
+            - name: INTERNAL_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: notifyhub-secrets
+                  key: INTERNAL_SERVICE_TOKEN
             - name: AUTH_JWT_ISSUER
               valueFrom:
                 configMapKeyRef:

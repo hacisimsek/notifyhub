@@ -10,19 +10,20 @@ spring:
       group-id: ${KAFKA_NOTIFICATION_GROUP_ID:notification-service}
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       properties:
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
         spring.json.trusted.packages: com.notifyhub.common.events
         spring.json.value.default.type: com.notifyhub.common.events.ReminderTriggeredEvent
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USERNAME:guest}
-    password: ${RABBITMQ_PASSWORD:guest}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
   datasource:
     url: ${NOTIFICATION_DB_URL:jdbc:postgresql://localhost:5432/notifyhub_notification}
     username: ${NOTIFICATION_DB_USERNAME:notifyhub}
-    password: ${NOTIFICATION_DB_PASSWORD:notifyhub}
+    password: ${NOTIFICATION_DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -38,7 +39,11 @@ notifyhub:
       enabled: ${KAFKA_ENABLED:false}
     topics:
       reminder-triggered: ${KAFKA_TOPIC_REMINDER_TRIGGERED:reminder.triggered}
+  internal:
+    service-token: ${INTERNAL_SERVICE_TOKEN:}
   delivery:
+    mock:
+      failure-marker: ${NOTIFICATION_MOCK_FAILURE_MARKER:+fail}
     rabbitmq:
       enabled: ${RABBITMQ_ENABLED:false}
       exchange: ${NOTIFICATION_DELIVERY_EXCHANGE:notifyhub.notifications.delivery}

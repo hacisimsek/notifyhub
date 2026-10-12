@@ -37,7 +37,7 @@ class AuthController {
 
     @GetMapping("/me")
     CurrentUserResponse me(@AuthenticationPrincipal AuthenticatedUser principal) {
-        AuthUser user = authService.getCurrentUser(principal.userId());
+        AuthUser user = authService.getCurrentUser(principal.userId(), principal.tokenVersion());
         return CurrentUserResponse.from(user);
     }
 
@@ -46,7 +46,7 @@ class AuthController {
             @AuthenticationPrincipal AuthenticatedUser principal,
             @Valid @RequestBody ChangePasswordRequest request
     ) {
-        return authService.changePassword(principal.userId(), request);
+        return authService.changePassword(principal.userId(), principal.tokenVersion(), request);
     }
 
     @PutMapping("/profile")
@@ -54,6 +54,6 @@ class AuthController {
             @AuthenticationPrincipal AuthenticatedUser principal,
             @Valid @RequestBody UpdateProfileRequest request
     ) {
-        return authService.updateProfile(principal.userId(), request);
+        return authService.updateProfile(principal.userId(), principal.tokenVersion(), request);
     }
 }

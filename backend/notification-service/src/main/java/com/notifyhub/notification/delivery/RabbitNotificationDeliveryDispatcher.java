@@ -1,5 +1,6 @@
 package com.notifyhub.notification.delivery;
 
+import com.notifyhub.common.web.RequestCorrelation;
 import com.notifyhub.notification.domain.NotificationLog;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -16,7 +17,10 @@ class RabbitNotificationDeliveryDispatcher implements NotificationDeliveryDispat
 
     @Override
     public NotificationLog dispatch(NotificationLog notificationLog) {
-        publisher.publishDelivery(NotificationDeliveryWork.firstAttempt(notificationLog.getId()));
+        publisher.publishDelivery(NotificationDeliveryWork.firstAttempt(
+                notificationLog.getId(),
+                RequestCorrelation.currentRequestId().orElse(null)
+        ));
         return notificationLog;
     }
 }

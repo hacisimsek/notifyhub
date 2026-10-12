@@ -1,5 +1,6 @@
 package com.notifyhub.notification.delivery;
 
+import com.notifyhub.common.web.RequestCorrelation;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -16,6 +17,6 @@ class RabbitNotificationDeliveryListener {
 
     @RabbitListener(queues = "${notifyhub.delivery.rabbitmq.queue}")
     void onDelivery(NotificationDeliveryWork work) {
-        deliveryWorker.deliver(work);
+        RequestCorrelation.runWith(work.requestId(), () -> deliveryWorker.deliver(work));
     }
 }

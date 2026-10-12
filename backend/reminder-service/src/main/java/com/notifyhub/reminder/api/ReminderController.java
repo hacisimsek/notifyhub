@@ -7,6 +7,7 @@ import com.notifyhub.reminder.service.ReminderService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,6 +29,8 @@ import java.util.UUID;
 class ReminderController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ReminderController.class);
+    private static final int DEFAULT_PAGE_SIZE = 100;
+    private static final int MAX_PAGE_SIZE = 200;
 
     private final ReminderService reminderService;
 
@@ -47,7 +50,7 @@ class ReminderController {
                 .resource("reminder", response.id())
                 .detail("title", response.title())
                 .detail("channel", response.channel())
-                .detail("recipient", response.recipient())
+                .recipient(response.recipient())
                 .detail("scheduledFor", response.scheduledFor())
                 .log();
         return response;
@@ -58,9 +61,12 @@ class ReminderController {
             @RequestHeader("X-User-Id") UUID userId,
             @RequestHeader(value = "X-User-Email", required = false) String userEmail,
             @RequestParam(required = false) ReminderStatus status,
-            @RequestParam(required = false) NotificationChannel channel
+            @RequestParam(required = false) NotificationChannel channel,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "" + DEFAULT_PAGE_SIZE) int size
     ) {
-        List<ReminderResponse> reminders = reminderService.list(userId, status, channel);
+        PageRequest pageRequest = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, MAX_PAGE_SIZE));
+        List<ReminderResponse> reminders = reminderService.list(userId, status, channel, pageRequest);
         audit("reminder.list.viewed", "User %s listed %d reminders".formatted(displayUser(userId, userEmail), reminders.size()), userId, userEmail)
                 .detail("statusFilter", status)
                 .detail("channelFilter", channel)
@@ -96,7 +102,7 @@ class ReminderController {
                 .resource("reminder", response.id())
                 .detail("title", response.title())
                 .detail("channel", response.channel())
-                .detail("recipient", response.recipient())
+                .recipient(response.recipient())
                 .detail("scheduledFor", response.scheduledFor())
                 .log();
         return response;

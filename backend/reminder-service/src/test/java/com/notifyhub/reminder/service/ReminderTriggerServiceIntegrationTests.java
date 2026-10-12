@@ -5,6 +5,7 @@ import com.notifyhub.common.notifications.NotificationChannel;
 import com.notifyhub.reminder.domain.Reminder;
 import com.notifyhub.reminder.domain.ReminderStatus;
 import com.notifyhub.reminder.messaging.ReminderEventPublisher;
+import com.notifyhub.reminder.repository.ReminderOutboxEventRepository;
 import com.notifyhub.reminder.repository.ReminderRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,7 +33,13 @@ class ReminderTriggerServiceIntegrationTests {
     private ReminderRepository reminderRepository;
 
     @Autowired
+    private ReminderOutboxEventRepository outboxEventRepository;
+
+    @Autowired
     private ReminderTriggerService reminderTriggerService;
+
+    @Autowired
+    private ReminderOutboxPublisher outboxPublisher;
 
     @Autowired
     private RecordingReminderEventPublisher eventPublisher;
@@ -40,6 +47,7 @@ class ReminderTriggerServiceIntegrationTests {
     @BeforeEach
     void cleanDatabase() {
         reminderRepository.deleteAll();
+        outboxEventRepository.deleteAll();
         eventPublisher.clear();
     }
 
@@ -51,8 +59,11 @@ class ReminderTriggerServiceIntegrationTests {
         reminderRepository.saveAll(List.of(due, future));
 
         int triggeredCount = reminderTriggerService.triggerDueReminders(now);
+        assertThat(eventPublisher.events()).isEmpty();
+        int publishedCount = outboxPublisher.publishPending();
 
         assertThat(triggeredCount).isEqualTo(1);
+        assertThat(publishedCount).isEqualTo(1);
         assertThat(eventPublisher.events()).singleElement().satisfies(event -> {
             assertThat(event.reminderId()).isEqualTo(due.getId());
             assertThat(event.userId()).isEqualTo(USER_ID);
@@ -73,9 +84,42 @@ class ReminderTriggerServiceIntegrationTests {
         reminderRepository.save(due);
 
         reminderTriggerService.triggerDueReminders(now);
+        outboxPublisher.publishPending();
         reminderTriggerService.triggerDueReminders(now.plusSeconds(60));
+        outboxPublisher.publishPending();
 
         assertThat(eventPublisher.events()).hasSize(1);
+    }
+
+    @Test
+    void triggeredEventCarriesTheRequestIdThatCreatedTheReminder() {
+        Instant now = Instant.parse("2026-05-02T09:00:00Z");
+        Reminder due = reminder(now.minusSeconds(30), NotificationChannel.EMAIL, "user@example.com");
+        due.assignRequestId("req-create-42");
+        reminderRepository.save(due);
+
+        reminderTriggerService.triggerDueReminders(now);
+        outboxPublisher.publishPending();
+
+        assertThat(eventPublisher.events()).singleElement()
+                .satisfies(event -> assertThat(event.requestId()).isEqualTo("req-create-42"));
+    }
+
+    @Test
+    void failedPublishKeepsEventPendingUntilBrokerRecovers() {
+        Instant now = Instant.parse("2026-05-02T09:00:00Z");
+        reminderRepository.save(reminder(now.minusSeconds(30), NotificationChannel.EMAIL, "user@example.com"));
+        reminderTriggerService.triggerDueReminders(now);
+
+        eventPublisher.failNext();
+        assertThat(outboxPublisher.publishPending()).isZero();
+        assertThat(outboxEventRepository.findAll()).singleElement()
+                .satisfies(event -> assertThat(event.getPublishedAt()).isNull());
+
+        assertThat(outboxPublisher.publishPending()).isEqualTo(1);
+        assertThat(eventPublisher.events()).hasSize(1);
+        assertThat(outboxEventRepository.findAll()).singleElement()
+                .satisfies(event -> assertThat(event.getPublishedAt()).isNotNull());
     }
 
     private Reminder reminder(Instant scheduledFor, NotificationChannel channel, String recipient) {
@@ -102,10 +146,19 @@ class ReminderTriggerServiceIntegrationTests {
     static class RecordingReminderEventPublisher implements ReminderEventPublisher {
 
         private final List<ReminderTriggeredEvent> events = new ArrayList<>();
+        private boolean failNext;
 
         @Override
         public void publish(ReminderTriggeredEvent event) {
+            if (failNext) {
+                failNext = false;
+                throw new IllegalStateException("broker unavailable");
+            }
             events.add(event);
+        }
+
+        void failNext() {
+            failNext = true;
         }
 
         List<ReminderTriggeredEvent> events() {
@@ -114,6 +167,7 @@ class ReminderTriggerServiceIntegrationTests {
 
         void clear() {
             events.clear();
+            failNext = false;
         }
     }
 }

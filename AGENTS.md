@@ -18,6 +18,15 @@ git merge --ff-only origin/main
 - Open ready pull requests by default, not draft PRs, unless explicitly requested.
 - Stage only files that belong to the current change.
 
+## Coding Principles
+
+Adapted from the Karpathy guidelines. For trivial tasks, use judgment.
+
+- **Think before coding.** State assumptions. If a request has multiple readings or is unclear, ask instead of picking silently. Point out a simpler approach when one exists.
+- **Simplicity first.** Write the minimum code that solves the task. No speculative features, single-use abstractions or unrequested configurability. If 200 lines could be 50, rewrite it.
+- **Surgical changes.** Every changed line should trace to the request. Do not refactor, reformat or "improve" adjacent code; match existing style. Mention unrelated dead code instead of deleting it, but remove imports or helpers your own change made unused.
+- **Goal-driven execution.** Turn tasks into verifiable goals (e.g. a failing test that then passes). For multi-step work, state a short plan with a verification check per step.
+
 ## Local Targets
 
 - Gateway API: `http://localhost:8080`

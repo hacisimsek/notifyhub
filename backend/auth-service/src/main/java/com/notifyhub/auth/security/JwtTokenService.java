@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.notifyhub.auth.config.AuthProperties;
 import com.notifyhub.auth.domain.AuthUser;
+import com.notifyhub.common.security.TokenVersions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -56,6 +57,7 @@ public class JwtTokenService {
         claims.put("sub", user.getId().toString());
         claims.put("email", user.getEmail());
         claims.put("role", user.getRole().name());
+        claims.put(TokenVersions.CLAIM, user.getTokenVersion());
         claims.put("jti", UUID.randomUUID().toString());
         claims.put("iat", issuedAt.getEpochSecond());
         claims.put("exp", expiresAt.getEpochSecond());
@@ -88,7 +90,9 @@ public class JwtTokenService {
         return new AuthenticatedUser(
                 UUID.fromString((String) claims.get("sub")),
                 (String) claims.get("email"),
-                (String) claims.get("role")
+                (String) claims.get("role"),
+                // Tokens issued before versioning carry no claim and count as version 0.
+                claims.get(TokenVersions.CLAIM) instanceof Number version ? version.intValue() : 0
         );
     }
 

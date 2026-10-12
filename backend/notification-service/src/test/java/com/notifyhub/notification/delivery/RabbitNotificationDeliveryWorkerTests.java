@@ -23,6 +23,7 @@ class RabbitNotificationDeliveryWorkerTests {
 
     private static final UUID NOTIFICATION_ID = UUID.fromString("018f1757-0aa5-7a6a-9a33-e78995f25c01");
     private static final UUID USER_ID = UUID.fromString("018f1757-0aa5-7a6a-9a33-e78995f25c02");
+    private static final String REQUEST_ID = "req-create-7";
 
     @Mock
     private NotificationLogRepository notificationLogRepository;
@@ -57,7 +58,7 @@ class RabbitNotificationDeliveryWorkerTests {
         when(notificationLogRepository.findById(NOTIFICATION_ID)).thenReturn(Optional.of(notificationLog));
         when(notificationSender.send(notificationLog)).thenReturn(NotificationSender.DeliveryResult.success());
 
-        worker.deliver(NotificationDeliveryWork.firstAttempt(NOTIFICATION_ID));
+        worker.deliver(NotificationDeliveryWork.firstAttempt(NOTIFICATION_ID, REQUEST_ID));
 
         assertThat(notificationLog.getStatus()).isEqualTo(DeliveryStatus.SENT);
         assertThat(notificationLog.getSentAt()).isNotNull();
@@ -71,18 +72,18 @@ class RabbitNotificationDeliveryWorkerTests {
         when(notificationLogRepository.findById(NOTIFICATION_ID)).thenReturn(Optional.of(notificationLog));
         when(notificationSender.send(notificationLog)).thenReturn(NotificationSender.DeliveryResult.failed("smtp unavailable"));
 
-        worker.deliver(NotificationDeliveryWork.firstAttempt(NOTIFICATION_ID));
+        worker.deliver(NotificationDeliveryWork.firstAttempt(NOTIFICATION_ID, REQUEST_ID));
 
         assertThat(notificationLog.getStatus()).isEqualTo(DeliveryStatus.RETRYING);
         assertThat(notificationLog.getFailureReason()).isEqualTo("smtp unavailable");
         verify(attemptRecorder).record(notificationLog, 1, DeliveryStatus.RETRYING, "smtp unavailable");
-        verify(publisher).publishRetry(new NotificationDeliveryWork(NOTIFICATION_ID, 2));
+        verify(publisher).publishRetry(new NotificationDeliveryWork(NOTIFICATION_ID, 2, REQUEST_ID));
     }
 
     @Test
     void failedDeliveryPublishesDeadLetterWhenAttemptsAreExhausted() {
         NotificationLog notificationLog = notificationLog();
-        NotificationDeliveryWork finalAttempt = new NotificationDeliveryWork(NOTIFICATION_ID, 3);
+        NotificationDeliveryWork finalAttempt = new NotificationDeliveryWork(NOTIFICATION_ID, 3, REQUEST_ID);
         when(notificationLogRepository.findById(NOTIFICATION_ID)).thenReturn(Optional.of(notificationLog));
         when(notificationSender.send(notificationLog)).thenReturn(NotificationSender.DeliveryResult.failed("provider rejected"));
 
@@ -92,6 +93,15 @@ class RabbitNotificationDeliveryWorkerTests {
         assertThat(notificationLog.getFailureReason()).isEqualTo("provider rejected");
         verify(attemptRecorder).record(notificationLog, 3, DeliveryStatus.FAILED, "provider rejected");
         verify(publisher).publishDeadLetter(finalAttempt);
+    }
+
+    @Test
+    void missingNotificationIsDiscardedWithoutRequeue() {
+        when(notificationLogRepository.findById(NOTIFICATION_ID)).thenReturn(Optional.empty());
+
+        worker.deliver(NotificationDeliveryWork.firstAttempt(NOTIFICATION_ID, REQUEST_ID));
+
+        verifyNoInteractions(notificationSender, attemptRecorder, publisher);
     }
 
     private NotificationLog notificationLog() {

@@ -45,6 +45,10 @@ public class Reminder {
     @Column(nullable = false, length = 32)
     private ReminderStatus status = ReminderStatus.SCHEDULED;
 
+    // Request that created the reminder; carried on the triggered event so async logs share one request.id.
+    @Column(length = 128, updatable = false)
+    private String requestId;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -90,6 +94,10 @@ public class Reminder {
         this.recipient = recipient;
     }
 
+    public void assignRequestId(String requestId) {
+        this.requestId = requestId;
+    }
+
     public void markTriggered() {
         status = ReminderStatus.TRIGGERED;
     }
@@ -120,6 +128,10 @@ public class Reminder {
 
     public String getRecipient() {
         return recipient;
+    }
+
+    public String getRequestId() {
+        return requestId;
     }
 
     public ReminderStatus getStatus() {

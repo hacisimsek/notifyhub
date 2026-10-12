@@ -1,6 +1,7 @@
 package com.notifyhub.auth.security;
 
 import com.notifyhub.auth.config.AuthProperties;
+import com.notifyhub.auth.config.LoginThrottleProperties;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -15,7 +16,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
-@EnableConfigurationProperties(AuthProperties.class)
+@EnableConfigurationProperties({AuthProperties.class, LoginThrottleProperties.class})
 class SecurityConfig {
 
     @Bean
