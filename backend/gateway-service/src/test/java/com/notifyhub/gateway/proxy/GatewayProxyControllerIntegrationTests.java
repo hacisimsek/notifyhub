@@ -31,6 +31,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -289,6 +290,50 @@ class GatewayProxyControllerIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("\"language\":\"tr\"")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Giriş")));
+    }
+
+    @Test
+    void configuredOriginReceivesCorsHeaders() throws Exception {
+        mockMvc.perform(get("/api/i18n/messages?language=en")
+                        .header(HttpHeaders.ORIGIN, "http://dashboard.test"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://dashboard.test"))
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"));
+    }
+
+    @Test
+    void preflightFromConfiguredOriginAllowsSessionClientHeader() throws Exception {
+        mockMvc.perform(options("/api/reminders")
+                        .header(HttpHeaders.ORIGIN, "http://dashboard.test")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "content-type, x-notifyhub-client"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://dashboard.test"))
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS,
+                        org.hamcrest.Matchers.containsString("POST")))
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS,
+                        org.hamcrest.Matchers.containsStringIgnoringCase("x-notifyhub-client")));
+
+        assertThat(proxyClient.targetUri).isNull();
+    }
+
+    @Test
+    void unknownOriginIsRejectedBeforeProxying() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                        .header(HttpHeaders.ORIGIN, "http://evil.test")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"user@example.com\",\"password\":\"secret123\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
+
+        assertThat(proxyClient.targetUri).isNull();
+    }
+
+    @Test
+    void requestWithoutOriginIsNotTreatedAsCors() throws Exception {
+        mockMvc.perform(get("/api/i18n/messages?language=en"))
+                .andExpect(status().isOk())
+                .andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
     }
 
     private String validToken() throws Exception {

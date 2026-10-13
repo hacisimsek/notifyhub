@@ -24,6 +24,7 @@ data:
   AUTH_SERVICE_URL: http://auth-service:8081
   REMINDER_SERVICE_URL: http://reminder-service:8082
   NOTIFICATION_SERVICE_URL: http://notification-service:8083
+  GATEWAY_CORS_ALLOWED_ORIGINS: http://localhost:5173
   AUTH_DB_URL: jdbc:postgresql://postgres:5432/notifyhub_auth
   REMINDER_DB_URL: jdbc:postgresql://postgres:5432/notifyhub_reminder
   NOTIFICATION_DB_URL: jdbc:postgresql://postgres:5432/notifyhub_notification

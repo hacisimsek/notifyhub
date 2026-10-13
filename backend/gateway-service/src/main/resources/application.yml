@@ -24,6 +24,9 @@ notifyhub:
     session-cookie:
       # Set to true when the dashboard is served over HTTPS.
       secure: ${SESSION_COOKIE_SECURE:false}
+    cors:
+      # Comma-separated exact origins that may call the Gateway directly from a browser.
+      allowed-origins: ${GATEWAY_CORS_ALLOWED_ORIGINS:http://localhost:5173}
 
 management:
   health:

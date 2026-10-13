@@ -8,3 +8,6 @@ notifyhub:
       issuer: notifyhub-auth-test
       secret: test-secret-with-enough-length-for-hmac-signing
     internal-token: test-internal-token
+    cors:
+      allowed-origins:
+        - http://dashboard.test
