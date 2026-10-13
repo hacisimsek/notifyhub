@@ -36,7 +36,7 @@ flowchart LR
 
 - Gateway Service owns the external API surface, JWT verification and identity header propagation.
 - Auth Service owns registration, login, password changes, password hashing, user roles and token issuing.
-- Reminder Service owns reminder CRUD, owner checks, due reminder detection and Kafka event publishing.
+- Reminder Service owns reminder CRUD, owner checks, due reminder detection and Kafka event publishing. Writes go through `ReminderCommandService` and the `Reminder` aggregate; reads go through `ReminderQueryService`, which projects straight into the response read model ([ADR-0005](../adr/0005-reminder-cqrs.md)).
 - Notification Service owns notification logs, idempotency, delivery attempts, RabbitMQ dispatch, retry and DLQ handling.
 - Dashboard owns the browser workflow for auth, profile settings, reminder management, notification history and delivery metrics. Runtime topology and event-stream panels are isolated to the Overview page instead of repeating across operational pages.
 

@@ -3,7 +3,8 @@ package com.notifyhub.reminder.api;
 import com.notifyhub.common.logging.AuditLogger;
 import com.notifyhub.common.notifications.NotificationChannel;
 import com.notifyhub.reminder.domain.ReminderStatus;
-import com.notifyhub.reminder.service.ReminderService;
+import com.notifyhub.reminder.service.ReminderCommandService;
+import com.notifyhub.reminder.service.ReminderQueryService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,10 +33,12 @@ class ReminderController {
     private static final int DEFAULT_PAGE_SIZE = 100;
     private static final int MAX_PAGE_SIZE = 200;
 
-    private final ReminderService reminderService;
+    private final ReminderCommandService commandService;
+    private final ReminderQueryService queryService;
 
-    ReminderController(ReminderService reminderService) {
-        this.reminderService = reminderService;
+    ReminderController(ReminderCommandService commandService, ReminderQueryService queryService) {
+        this.commandService = commandService;
+        this.queryService = queryService;
     }
 
     @PostMapping
@@ -45,7 +48,7 @@ class ReminderController {
             @RequestHeader(value = "X-User-Email", required = false) String userEmail,
             @Valid @RequestBody CreateReminderRequest request
     ) {
-        ReminderResponse response = reminderService.create(userId, request);
+        ReminderResponse response = commandService.create(userId, request);
         audit("reminder.created", "User %s created reminder %s".formatted(displayUser(userId, userEmail), response.id()), userId, userEmail)
                 .resource("reminder", response.id())
                 .detail("title", response.title())
@@ -66,7 +69,7 @@ class ReminderController {
             @RequestParam(defaultValue = "" + DEFAULT_PAGE_SIZE) int size
     ) {
         PageRequest pageRequest = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, MAX_PAGE_SIZE));
-        List<ReminderResponse> reminders = reminderService.list(userId, status, channel, pageRequest);
+        List<ReminderResponse> reminders = queryService.list(userId, status, channel, pageRequest);
         audit("reminder.list.viewed", "User %s listed %d reminders".formatted(displayUser(userId, userEmail), reminders.size()), userId, userEmail)
                 .detail("statusFilter", status)
                 .detail("channelFilter", channel)
@@ -81,7 +84,7 @@ class ReminderController {
             @RequestHeader(value = "X-User-Email", required = false) String userEmail,
             @PathVariable UUID id
     ) {
-        ReminderResponse response = reminderService.get(userId, id);
+        ReminderResponse response = queryService.get(userId, id);
         audit("reminder.viewed", "User %s viewed reminder %s".formatted(displayUser(userId, userEmail), id), userId, userEmail)
                 .resource("reminder", response.id())
                 .detail("status", response.status())
@@ -97,7 +100,7 @@ class ReminderController {
             @PathVariable UUID id,
             @Valid @RequestBody UpdateReminderRequest request
     ) {
-        ReminderResponse response = reminderService.update(userId, id, request);
+        ReminderResponse response = commandService.update(userId, id, request);
         audit("reminder.updated", "User %s updated reminder %s".formatted(displayUser(userId, userEmail), response.id()), userId, userEmail)
                 .resource("reminder", response.id())
                 .detail("title", response.title())
@@ -115,7 +118,7 @@ class ReminderController {
             @RequestHeader(value = "X-User-Email", required = false) String userEmail,
             @PathVariable UUID id
     ) {
-        reminderService.delete(userId, id);
+        commandService.delete(userId, id);
         audit("reminder.deleted", "User %s deleted reminder %s".formatted(displayUser(userId, userEmail), id), userId, userEmail)
                 .resource("reminder", id)
                 .log();
