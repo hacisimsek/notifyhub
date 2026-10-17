@@ -574,7 +574,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (status) (increase(notifyhub_notification_delivery_attempts_total[1m]))",
+          "expr": "sum by (status) (clamp_min(notifyhub_notification_delivery_attempts_total - notifyhub_notification_delivery_attempts_total offset $__interval, 0))",
           "legendFormat": "{{status}}",
           "refId": "A",
           "interval": "1m"
