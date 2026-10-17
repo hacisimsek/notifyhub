@@ -34,7 +34,7 @@ flowchart LR
 
 ## Service Boundaries
 
-- Gateway Service owns the external API surface, JWT verification and identity header propagation.
+- Gateway Service owns the external API surface, JWT verification, CORS and identity header propagation.
 - Auth Service owns registration, login, password changes, password hashing, user roles and token issuing.
 - Reminder Service owns reminder CRUD, owner checks, due reminder detection and Kafka event publishing.
 - Notification Service owns notification logs, idempotency, delivery attempts, RabbitMQ dispatch, retry and DLQ handling.

@@ -391,6 +391,11 @@ spec:
                 configMapKeyRef:
                   name: notifyhub-config
                   key: NOTIFICATION_SERVICE_URL
+            - name: GATEWAY_CORS_ALLOWED_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: notifyhub-config
+                  key: GATEWAY_CORS_ALLOWED_ORIGINS
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
