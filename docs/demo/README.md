@@ -1,6 +1,6 @@
 # Demo Guide
 
-This guide describes the repeatable local demo path for the current MVP.
+This guide describes the repeatable local demo path for the current MVP. The latest captured run, with screenshots and gate results, is in [evidence/](evidence/README.md).
 
 ## Prerequisites
 
@@ -53,9 +53,10 @@ RESET_STACK=true ./scripts/local-stack-e2e.sh
 
 ## Kubernetes Demo Check
 
-With Minikube running, verify the Kubernetes path:
+Start Minikube with the Docker runtime, then verify the Kubernetes path:
 
 ```bash
+minikube start --driver=docker --container-runtime=docker --cpus=4 --memory=6g
 ./scripts/k8s-local-verify.sh
 ```
 
@@ -63,7 +64,7 @@ This builds local images in Minikube, applies the manifests, waits for rollouts,
 
 ## Manual Dashboard Demo
 
-1. Open `http://localhost:3000`.
+1. Open `http://localhost:3000`. If another app already uses port `3000`, start the stack with `DASHBOARD_PORT=3002` and open that port instead.
 2. Register a new user with an email and password.
 3. Create an `EMAIL` reminder scheduled about one minute in the future.
 4. Confirm the reminder appears in the reminder list.
@@ -99,5 +100,8 @@ docker compose --env-file deploy/docker/.env -f deploy/docker/compose.yml down -
 - RabbitMQ handles delivery work, retry and DLQ behavior; `+fail` recipients demonstrate it live.
 - `FOR UPDATE SKIP LOCKED` lets several scheduler replicas run without double-triggering.
 - Internal services trust identity headers only with the gateway's shared internal token.
+- The dashboard never sees the access token: the Gateway keeps it in an HttpOnly `SameSite=Strict` cookie and requires `X-NotifyHub-Client` on cookie sessions.
+- Gateway CORS allows only exact configured origins; the dashboard proxies `/api` itself and needs none.
+- Reminder Service separates commands from queries: writes go through the `Reminder` aggregate, reads project straight into the response model ([ADR-0005](../adr/0005-reminder-cqrs.md)).
 - Redis-backed login throttling, timing-safe unknown-email handling and masked recipients in audit logs.
 - Prometheus and Grafana provide service health, traffic and delivery failure visibility.
