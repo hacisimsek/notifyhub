@@ -1,28 +1,28 @@
 package com.notifyhub.reminder.service;
 
-import com.notifyhub.common.notifications.NotificationChannel;
 import com.notifyhub.common.web.RequestCorrelation;
 import com.notifyhub.reminder.api.CreateReminderRequest;
 import com.notifyhub.reminder.api.ReminderResponse;
 import com.notifyhub.reminder.api.UpdateReminderRequest;
 import com.notifyhub.reminder.domain.Reminder;
-import com.notifyhub.reminder.domain.ReminderStatus;
 import com.notifyhub.reminder.repository.ReminderRepository;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.List;
 import java.util.UUID;
 
+/**
+ * Write side of the reminder API: every state change goes through the {@link Reminder} aggregate.
+ * Reads live in {@link ReminderQueryService}.
+ */
 @Service
-public class ReminderService {
+public class ReminderCommandService {
 
     private final ReminderRepository reminderRepository;
 
-    public ReminderService(ReminderRepository reminderRepository) {
+    public ReminderCommandService(ReminderRepository reminderRepository) {
         this.reminderRepository = reminderRepository;
     }
 
@@ -38,24 +38,6 @@ public class ReminderService {
         );
         reminder.assignRequestId(RequestCorrelation.currentRequestId().orElse(null));
         return ReminderResponse.from(reminderRepository.save(reminder));
-    }
-
-    @Transactional(readOnly = true)
-    public List<ReminderResponse> list(UUID ownerId) {
-        return list(ownerId, null, null, Pageable.unpaged());
-    }
-
-    @Transactional(readOnly = true)
-    public List<ReminderResponse> list(UUID ownerId, ReminderStatus status, NotificationChannel channel, Pageable pageable) {
-        return reminderRepository.findOwnerReminders(ownerId, status, channel, pageable)
-                .stream()
-                .map(ReminderResponse::from)
-                .toList();
-    }
-
-    @Transactional(readOnly = true)
-    public ReminderResponse get(UUID ownerId, UUID id) {
-        return ReminderResponse.from(findOwnedReminder(ownerId, id));
     }
 
     @Transactional
