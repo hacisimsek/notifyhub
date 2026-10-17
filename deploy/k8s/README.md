@@ -4,7 +4,13 @@ These manifests provide a local Minikube deployment for NotifyHub.
 
 ## One-command Verification
 
-From the repository root, with Minikube running:
+Start Minikube with the Docker runtime. The script builds images through `minikube docker-env`, and Minikube 1.39+ defaults to containerd:
+
+```bash
+minikube start --driver=docker --container-runtime=docker --cpus=4 --memory=6g
+```
+
+Then, from the repository root:
 
 ```bash
 ./scripts/k8s-local-verify.sh
