@@ -86,6 +86,7 @@ openssl rand -base64 48
 
 Use a separate generated value for each of `POSTGRES_PASSWORD`, `RABBITMQ_PASSWORD`, `AUTH_JWT_SECRET`, `INTERNAL_SERVICE_TOKEN` and `GRAFANA_ADMIN_PASSWORD`.
 Keep `SESSION_COOKIE_SECURE=true`: the dashboard is only reachable through Caddy over HTTPS.
+Leave `GATEWAY_CORS_ALLOWED_ORIGINS` empty: the dashboard calls the Gateway through its own `/api` proxy. Add exact `https://` origins only for another browser app that calls the Gateway directly.
 
 Generate the Kibana Basic Auth hash:
 
