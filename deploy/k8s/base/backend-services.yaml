@@ -16,6 +16,8 @@ spec:
         app.kubernetes.io/name: auth-service
         app.kubernetes.io/part-of: notifyhub
     spec:
+      # Service links inject variables such as REDIS_PORT=tcp://..., which collide with Spring placeholders.
+      enableServiceLinks: false
       containers:
         - name: auth-service
           image: notifyhub/auth-service:local
@@ -115,6 +117,8 @@ spec:
         app.kubernetes.io/name: reminder-service
         app.kubernetes.io/part-of: notifyhub
     spec:
+      # Service links inject variables such as REDIS_PORT=tcp://..., which collide with Spring placeholders.
+      enableServiceLinks: false
       containers:
         - name: reminder-service
           image: notifyhub/reminder-service:local
@@ -214,6 +218,8 @@ spec:
         app.kubernetes.io/name: notification-service
         app.kubernetes.io/part-of: notifyhub
     spec:
+      # Service links inject variables such as REDIS_PORT=tcp://..., which collide with Spring placeholders.
+      enableServiceLinks: false
       containers:
         - name: notification-service
           image: notifyhub/notification-service:local
@@ -343,6 +349,8 @@ spec:
         app.kubernetes.io/name: gateway-service
         app.kubernetes.io/part-of: notifyhub
     spec:
+      # Service links inject variables such as REDIS_PORT=tcp://..., which collide with Spring placeholders.
+      enableServiceLinks: false
       containers:
         - name: gateway-service
           image: notifyhub/gateway-service:local
