@@ -1,0 +1,194 @@
+name: notifyhub
+
+x-production-restart: &production-restart
+  restart: unless-stopped
+
+x-backend-java-env: &backend-java-env
+  JAVA_TOOL_OPTIONS: ${BACKEND_JAVA_TOOL_OPTIONS:--Xms128m -Xmx384m}
+
+services:
+  caddy:
+    image: caddy:2.8-alpine
+    <<: *production-restart
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:?set PUBLIC_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL}
+      KIBANA_BASIC_AUTH_USER: ${KIBANA_BASIC_AUTH_USER:?set KIBANA_BASIC_AUTH_USER}
+      KIBANA_BASIC_AUTH_HASH: ${KIBANA_BASIC_AUTH_HASH:?set KIBANA_BASIC_AUTH_HASH}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../production/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      dashboard:
+        condition: service_started
+      grafana:
+        condition: service_started
+      kibana:
+        condition: service_healthy
+
+  postgres:
+    <<: *production-restart
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+    ports: !reset []
+
+  redis:
+    <<: *production-restart
+    ports: !reset []
+
+  rabbitmq:
+    <<: *production-restart
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:?set RABBITMQ_USERNAME}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD}
+    ports: !reset []
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
+  kafka:
+    <<: *production-restart
+    environment:
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_HEAP_OPTS: ${KAFKA_HEAP_OPTS:--Xms256m -Xmx512m}
+    ports: !reset []
+    volumes:
+      - kafka-data:/bitnami/kafka
+
+  auth-service:
+    <<: *production-restart
+    environment:
+      <<: *backend-java-env
+      AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER:?set AUTH_JWT_ISSUER}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?set AUTH_JWT_SECRET}
+      AUTH_JWT_EXPIRATION: ${AUTH_JWT_EXPIRATION:-PT2H}
+      AUTH_DB_USERNAME: ${POSTGRES_USER:?set POSTGRES_USER}
+      AUTH_DB_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    ports: !reset []
+
+  reminder-service:
+    <<: *production-restart
+    environment:
+      <<: *backend-java-env
+      REMINDER_DB_USERNAME: ${POSTGRES_USER:?set POSTGRES_USER}
+      REMINDER_DB_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      KAFKA_TOPIC_REMINDER_TRIGGERED: ${KAFKA_TOPIC_REMINDER_TRIGGERED:-reminder.triggered}
+      REMINDER_TRIGGER_SCHEDULER_DELAY_MS: ${REMINDER_TRIGGER_SCHEDULER_DELAY_MS:-5000}
+    ports: !reset []
+
+  notification-service:
+    <<: *production-restart
+    environment:
+      <<: *backend-java-env
+      NOTIFICATION_DB_USERNAME: ${POSTGRES_USER:?set POSTGRES_USER}
+      NOTIFICATION_DB_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      KAFKA_TOPIC_REMINDER_TRIGGERED: ${KAFKA_TOPIC_REMINDER_TRIGGERED:-reminder.triggered}
+      KAFKA_NOTIFICATION_GROUP_ID: ${KAFKA_NOTIFICATION_GROUP_ID:-notification-service}
+      RABBITMQ_ENABLED: ${RABBITMQ_ENABLED:-true}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:?set RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD}
+      NOTIFICATION_DELIVERY_MAX_ATTEMPTS: ${NOTIFICATION_DELIVERY_MAX_ATTEMPTS:-3}
+      NOTIFICATION_DELIVERY_RETRY_DELAY_MS: ${NOTIFICATION_DELIVERY_RETRY_DELAY_MS:-5000}
+    ports: !reset []
+
+  gateway-service:
+    <<: *production-restart
+    environment:
+      <<: *backend-java-env
+      AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER:?set AUTH_JWT_ISSUER}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?set AUTH_JWT_SECRET}
+    ports: !reset []
+
+  dashboard:
+    <<: *production-restart
+    ports: !reset []
+
+  prometheus:
+    <<: *production-restart
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-7d}
+    ports: !reset []
+    volumes:
+      - prometheus-data:/prometheus
+
+  grafana:
+    <<: *production-restart
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:?set GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SERVER_DOMAIN: grafana.${PUBLIC_DOMAIN:?set PUBLIC_DOMAIN}
+      GF_SERVER_ROOT_URL: https://grafana.${PUBLIC_DOMAIN:?set PUBLIC_DOMAIN}
+      GF_SECURITY_COOKIE_SECURE: "true"
+    ports: !reset []
+
+  elasticsearch:
+    <<: *production-restart
+    environment:
+      ES_JAVA_OPTS: ${ELASTICSEARCH_JAVA_OPTS:--Xms768m -Xmx768m}
+    ports: !reset []
+
+  kibana:
+    <<: *production-restart
+    environment:
+      SERVER_PUBLICBASEURL: https://kibana.${PUBLIC_DOMAIN:?set PUBLIC_DOMAIN}
+    ports: !reset []
+
+  logstash:
+    <<: *production-restart
+    environment:
+      LS_JAVA_OPTS: ${LOGSTASH_JAVA_OPTS:--Xms256m -Xmx256m}
+    ports: !override
+      - "127.0.0.1:${LOGSTASH_GELF_PORT:-12201}:12201/udp"
+
+  postgres-backup:
+    image: postgres:16-alpine
+    <<: *production-restart
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_BACKUP_RETENTION_DAYS: ${POSTGRES_BACKUP_RETENTION_DAYS:-7}
+    volumes:
+      - postgres-backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p /backups
+        while true; do
+          timestamp=$$(date -u +%Y%m%dT%H%M%SZ)
+          dump_file="/backups/notifyhub-$${timestamp}.sql"
+          export PGPASSWORD="$${POSTGRES_PASSWORD}"
+          if pg_dumpall -h postgres -U "$${POSTGRES_USER}" > "$${dump_file}"; then
+            gzip -f "$${dump_file}"
+            echo "Created backup $${dump_file}.gz"
+          else
+            rm -f "$${dump_file}"
+            echo "PostgreSQL backup failed" >&2
+          fi
+          find /backups -type f -name "notifyhub-*.sql.gz" -mtime +"$${POSTGRES_BACKUP_RETENTION_DAYS}" -delete
+          sleep 86400
+        done
+
+volumes:
+  caddy-data:
+  caddy-config:
+  rabbitmq-data:
+  kafka-data:
+  prometheus-data:
+  postgres-backups:

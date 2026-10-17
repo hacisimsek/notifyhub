@@ -1,0 +1,31 @@
+{
+	email {$ACME_EMAIL}
+}
+
+app.{$PUBLIC_DOMAIN} {
+	encode gzip zstd
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	reverse_proxy dashboard:80
+}
+
+grafana.{$PUBLIC_DOMAIN} {
+	encode gzip zstd
+	reverse_proxy grafana:3000
+}
+
+kibana.{$PUBLIC_DOMAIN} {
+	encode gzip zstd
+
+	basicauth {
+		{$KIBANA_BASIC_AUTH_USER} {$KIBANA_BASIC_AUTH_HASH}
+	}
+
+	reverse_proxy kibana:5601
+}
