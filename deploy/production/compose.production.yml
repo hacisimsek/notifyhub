@@ -121,6 +121,10 @@ services:
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-7d}
     ports: !reset []
+
+  alertmanager:
+    <<: *production-restart
+    ports: !reset []
     volumes:
       - prometheus-data:/prometheus
 

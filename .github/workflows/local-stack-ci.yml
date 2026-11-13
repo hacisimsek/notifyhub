@@ -66,3 +66,11 @@ jobs:
           -v "${{ github.workspace }}/observability/prometheus:/etc/prometheus:ro"
           prom/prometheus:v2.54.1
           check rules /etc/prometheus/rules/notifyhub-alerts.yml
+
+      - name: Check Alertmanager config
+        run: >
+          docker run --rm
+          --entrypoint amtool
+          -v "${{ github.workspace }}/observability/alertmanager:/etc/alertmanager:ro"
+          prom/alertmanager:v0.27.0
+          check-config /etc/alertmanager/alertmanager.yml
