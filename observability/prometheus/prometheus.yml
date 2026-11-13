@@ -34,3 +34,13 @@ scrape_configs:
     static_configs:
       - targets:
           - notification-service:8083
+
+  # RabbitMQ's bundled Prometheus plugin; queue_coarse_metrics gives ready/unacked counts per queue.
+  - job_name: rabbitmq
+    metrics_path: /metrics/detailed
+    params:
+      family:
+        - queue_coarse_metrics
+    static_configs:
+      - targets:
+          - rabbitmq:15692

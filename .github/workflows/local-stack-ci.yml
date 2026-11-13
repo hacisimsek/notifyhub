@@ -12,6 +12,7 @@ on:
       - "scripts/gateway-e2e-smoke.sh"
       - "scripts/smoke-check.sh"
       - "scripts/final-verify.sh"
+      - "scripts/performance-smoke.mjs"
       - ".github/workflows/local-stack-ci.yml"
   push:
     branches:
@@ -26,6 +27,7 @@ on:
       - "scripts/gateway-e2e-smoke.sh"
       - "scripts/smoke-check.sh"
       - "scripts/final-verify.sh"
+      - "scripts/performance-smoke.mjs"
       - ".github/workflows/local-stack-ci.yml"
 
 jobs:
@@ -45,6 +47,9 @@ jobs:
 
       - name: Check local stack scripts
         run: bash -n scripts/local-stack-e2e.sh scripts/gateway-e2e-smoke.sh scripts/smoke-check.sh scripts/final-verify.sh
+
+      - name: Check load test script
+        run: node --check scripts/performance-smoke.mjs
 
       - name: Check Prometheus config
         run: >

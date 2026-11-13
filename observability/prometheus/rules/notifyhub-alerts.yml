@@ -38,3 +38,11 @@ groups:
         annotations:
           summary: "Notification delivery retry volume is elevated"
           description: "More than 3 notification delivery attempts entered retry state in the last 10 minutes."
+
+      - alert: NotifyHubDeliveryDeadLetterQueueGrowing
+        expr: delta(rabbitmq_detailed_queue_messages_ready{queue="notifyhub.notifications.delivery.dlq"}[15m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Delivery dead-letter queue is growing"
+          description: "Delivery work landed in notifyhub.notifications.delivery.dlq in the last 15 minutes. Inspect the messages in the RabbitMQ UI and the matching FAILED notifications."

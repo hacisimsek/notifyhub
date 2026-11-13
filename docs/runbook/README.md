@@ -66,6 +66,25 @@ Grafana runs at `http://localhost:3001` with the local development credentials f
 
 Open the `NotifyHub Overview` dashboard to inspect service availability, request rate, average latency, JVM heap usage and HTTP 5xx rate.
 The `Notification delivery` row shows delivery attempts by result (`SENT`, `RETRYING`, `FAILED`) for the last 15 minutes and per minute by channel.
+The `Delivery Queue Depth` panel shows ready messages in the RabbitMQ delivery, retry and dead-letter queues.
+
+## Load Test
+
+With the stack running, run the Gateway load test:
+
+```bash
+node scripts/performance-smoke.mjs
+REQUESTS=5000 CONCURRENCY=50 node scripts/performance-smoke.mjs
+```
+
+It registers a user, sends authenticated `GET /api/reminders` requests and prints throughput and latency percentiles. It exits non-zero when p95 exceeds `MAX_P95_MS` (default `1500`) or the error rate exceeds `MAX_ERROR_RATE` (default `0.01`). `BASE_URL` targets another Gateway.
+
+Local Docker Compose result on 2026-11-13 (Apple Silicon laptop, all services single instance):
+
+| Requests | Concurrency | Throughput | p50 | p95 | p99 | Errors |
+|---|---|---|---|---|---|---|
+| 100 | 10 | 596 req/s | 15.6 ms | 25.1 ms | 28.6 ms | 0 |
+| 5000 | 50 | 2499 req/s | 16.9 ms | 41.2 ms | 65.2 ms | 0 |
 
 ## Stop Local Environment
 
@@ -142,6 +161,7 @@ Prometheus loads alert rules from `observability/prometheus/rules`.
 - `NotifyHubHighServerErrorRate`: inspect gateway and service logs for repeated 5xx responses.
 - `NotifyHubNotificationDeliveryFailures`: inspect `notification_delivery_attempts` for failed attempts and check RabbitMQ DLQ messages.
 - `NotifyHubNotificationDeliveryRetries`: inspect provider/mock sender failures and RabbitMQ retry queue health.
+- `NotifyHubDeliveryDeadLetterQueueGrowing`: open `notifyhub.notifications.delivery.dlq` in the RabbitMQ UI (`Get messages`), find the `notificationId` and inspect its `FAILED` attempts in `notification_delivery_attempts`.
 
 ## Common Failures
 

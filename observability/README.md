@@ -29,6 +29,8 @@ Prometheus scrapes the backend services through `/actuator/prometheus`:
 - Reminder Service
 - Notification Service
 
+It also scrapes RabbitMQ's bundled Prometheus plugin on port `15692` (`/metrics/detailed?family=queue_coarse_metrics`) for per-queue message counts.
+
 ## Alerts
 
 The local rule set covers:
@@ -37,8 +39,10 @@ The local rule set covers:
 - elevated 5xx response rates
 - notification delivery failures
 - elevated notification retry volume
+- growth of the delivery dead-letter queue
 
 Notification delivery alerts use the `notifyhub_notification_delivery_attempts_total` counter emitted by Notification Service with `channel` and `status` labels.
+The dead-letter alert uses `rabbitmq_detailed_queue_messages_ready` for `notifyhub.notifications.delivery.dlq`, which the `Delivery Queue Depth` panel also shows.
 
 ## Elastic Logging
 
