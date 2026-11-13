@@ -2,7 +2,7 @@ groups:
   - name: notifyhub-service-health
     rules:
       - alert: NotifyHubServiceDown
-        expr: up{job=~"gateway-service|auth-service|reminder-service|notification-service"} == 0
+        expr: up{job=~"gateway-service|auth-service|reminder-service|notification-service|rabbitmq"} == 0
         for: 1m
         labels:
           severity: critical

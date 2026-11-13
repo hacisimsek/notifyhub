@@ -35,7 +35,7 @@ It also scrapes RabbitMQ's bundled Prometheus plugin on port `15692` (`/metrics/
 
 The local rule set covers:
 
-- backend service scrape failures
+- backend service and RabbitMQ scrape failures (a RabbitMQ scrape failure would otherwise silence the dead-letter alert)
 - elevated 5xx response rates
 - notification delivery failures
 - elevated notification retry volume
