@@ -22,6 +22,13 @@ spec:
         - name: auth-service
           image: notifyhub/auth-service:local
           imagePullPolicy: Never
+          resources:
+            requests:
+              cpu: 250m
+              memory: 384Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
           ports:
             - name: http
               containerPort: 8081
@@ -123,6 +130,13 @@ spec:
         - name: reminder-service
           image: notifyhub/reminder-service:local
           imagePullPolicy: Never
+          resources:
+            requests:
+              cpu: 250m
+              memory: 384Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
           ports:
             - name: http
               containerPort: 8082
@@ -224,6 +238,13 @@ spec:
         - name: notification-service
           image: notifyhub/notification-service:local
           imagePullPolicy: Never
+          resources:
+            requests:
+              cpu: 250m
+              memory: 384Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
           ports:
             - name: http
               containerPort: 8083
@@ -355,6 +376,13 @@ spec:
         - name: gateway-service
           image: notifyhub/gateway-service:local
           imagePullPolicy: Never
+          resources:
+            requests:
+              cpu: 250m
+              memory: 384Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
           ports:
             - name: http
               containerPort: 8080

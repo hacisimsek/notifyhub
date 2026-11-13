@@ -64,6 +64,22 @@ cp deploy/k8s/base/secrets.env.example deploy/k8s/base/secrets.env
 
 `./scripts/k8s-local-verify.sh` copies the example automatically when the file is missing, which is only suitable for local testing.
 
+## Resources
+
+Every container sets CPU and memory requests and limits. Requests total about 1.7 CPU and 3.3 GiB, which fits the Minikube size above.
+
+| Workload | Request (CPU / memory) | Limit (CPU / memory) |
+|---|---|---|
+| Auth, Reminder, Notification, Gateway (each) | 250m / 384Mi | 1 / 768Mi |
+| Kafka (heap set to 512m) | 250m / 768Mi | 1 / 1Gi |
+| PostgreSQL, RabbitMQ | 100m / 256Mi | 1 / 512Mi |
+| Prometheus | 100m / 256Mi | 500m / 512Mi |
+| Grafana | 50m / 128Mi | 500m / 256Mi |
+| Redis | 50m / 64Mi | 250m / 256Mi |
+| Dashboard, Alertmanager | 25m / 32Mi | 200m and 100m / 128Mi |
+
+The Java services set no explicit heap, so the JVM uses 25% of the memory limit. In a local run the Java services used 270–345 MiB of their 768 MiB limit and Kafka used 330 MiB of 1 GiB, with no restarts.
+
 ## Access
 
 ```bash

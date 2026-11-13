@@ -20,6 +20,13 @@ spec:
         - name: rabbitmq
           image: rabbitmq:3.13-management-alpine
           imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
           ports:
             - name: amqp
               containerPort: 5672
