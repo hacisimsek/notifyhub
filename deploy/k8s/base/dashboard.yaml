@@ -20,6 +20,13 @@ spec:
         - name: dashboard
           image: notifyhub/dashboard:local
           imagePullPolicy: Never
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
           ports:
             - name: http
               containerPort: 80

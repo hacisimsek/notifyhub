@@ -26,6 +26,7 @@ DEPLOYMENTS=(
   gateway-service
   dashboard
   prometheus
+  alertmanager
   grafana
 )
 

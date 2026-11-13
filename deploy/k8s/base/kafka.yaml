@@ -20,12 +20,22 @@ spec:
         - name: kafka
           image: bitnamilegacy/kafka:3.7
           imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: 250m
+              memory: 768Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
           ports:
             - name: plaintext
               containerPort: 9092
             - name: controller
               containerPort: 9093
           env:
+            # Bitnami defaults to -Xmx1024m, which would not fit the 1Gi memory limit.
+            - name: KAFKA_HEAP_OPTS
+              value: -Xmx512m -Xms512m
             - name: ALLOW_PLAINTEXT_LISTENER
               value: "yes"
             - name: KAFKA_CFG_NODE_ID
