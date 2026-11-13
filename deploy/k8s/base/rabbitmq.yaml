@@ -25,6 +25,8 @@ spec:
               containerPort: 5672
             - name: management
               containerPort: 15672
+            - name: metrics
+              containerPort: 15692
           env:
             - name: RABBITMQ_DEFAULT_USER
               valueFrom:
@@ -70,3 +72,6 @@ spec:
     - name: management
       port: 15672
       targetPort: management
+    - name: metrics
+      port: 15692
+      targetPort: metrics

@@ -630,6 +630,119 @@
           "instant": true
         }
       ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "notifyhub-prometheus"
+      },
+      "id": 11,
+      "title": "Delivery Queue Depth",
+      "type": "timeseries",
+      "description": "Ready messages in the RabbitMQ delivery, retry and dead-letter queues. A growing DLQ means delivery work exhausted its retries.",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 32
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "SENT"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "RETRYING"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "FAILED"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "PENDING"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rabbitmq_detailed_queue_messages_ready{queue=~\"notifyhub.notifications.delivery.*\"}",
+          "legendFormat": "{{queue}}",
+          "refId": "A"
+        }
+      ]
     }
   ],
   "refresh": "10s",
