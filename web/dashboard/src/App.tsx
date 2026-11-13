@@ -1,12 +1,9 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react';
 import {
   Bell,
   CalendarClock,
-  CheckCircle2,
-  Clock3,
   Code2,
   Edit3,
-  Filter,
   History,
   LayoutDashboard,
   Loader2,
@@ -14,12 +11,10 @@ import {
   Plus,
   RefreshCw,
   Save,
-  Send,
+  Search,
   ShieldCheck,
-  Terminal,
   Trash2,
-  User,
-  XCircle
+  User
 } from 'lucide-react';
 import {
   changePassword,
@@ -48,9 +43,10 @@ import type {
 } from './api';
 import {
   CommandPalette,
+  DeparturesBoard,
   InspectorDrawer,
+  LineStatus,
   LiveEventConsole,
-  Metric,
   PipelineTimeline,
   ProfileSettingsPage,
   ServiceTopology,
@@ -90,13 +86,16 @@ import {
   emptyPasswordChangeForm,
   emptyRegistrationProfileForm,
   emptyReminderForm,
+  formatClock,
   formatDate,
+  formatDay,
   formatError,
   hasNotificationFilters,
   hasReminderFilters,
   initialLanguage,
   initialTheme,
   profileFormFromUser,
+  profileInitial,
   recipientPlaceholder,
   reminderFormWithChannel,
   sortRemindersNewestFirst,
@@ -312,10 +311,7 @@ export function App() {
       hint: t('command.createReminder.hint'),
       group: t('command.group.workflow'),
       shortcut: 'N',
-      run: () => {
-        openDashboardView('reminders');
-        window.setTimeout(() => document.getElementById('reminder-title-input')?.focus(), 0);
-      }
+      run: () => focusReminderForm()
     },
     {
       id: 'refresh-data',
@@ -661,24 +657,42 @@ export function App() {
     };
   }
 
+  function focusReminderForm() {
+    openDashboardView('reminders');
+    window.setTimeout(() => document.getElementById('reminder-title-input')?.focus(), 0);
+  }
+
   if (!isAuthenticated) {
     return (
       <main className="auth-page">
+        <section className="auth-showcase" aria-hidden="true">
+          <div className="brand">
+            <span className="brand-mark"><Bell size={20} /></span>
+            <span>{t('app.name')}</span>
+          </div>
+          <div className="auth-route">
+            <p>{t('auth.tagline')}</p>
+            <ol>
+              {['pipeline.created', 'pipeline.scheduled', 'pipeline.queued', 'pipeline.delivery'].map((key) => (
+                <li key={key}><span className="route-stop" />{t(key)}</li>
+              ))}
+            </ol>
+          </div>
+          <div className="auth-lines">
+            {CHANNELS.map((channel) => channelBadge(channel))}
+          </div>
+        </section>
+
         <section className="auth-panel" aria-labelledby="auth-title">
           <div className="auth-heading">
-            <div className="brand-row">
-              <div className="brand-mark">
-                <Bell size={22} aria-hidden="true" />
-              </div>
-              <div>
-                <h1 id="auth-title">{t('app.name')}</h1>
-                <p>{t('auth.subtitle')}</p>
-              </div>
+            <div>
+              <h1 id="auth-title">{t('app.name')}</h1>
+              <p>{t('auth.subtitle')}</p>
             </div>
             <ThemeToggle theme={theme} onToggle={toggleTheme} t={t} />
           </div>
 
-          <div className="auth-tabs" role="tablist" aria-label={t('aria.authenticationMode')}>
+          <div className="segmented auth-tabs" role="tablist" aria-label={t('aria.authenticationMode')}>
             <button
               type="button"
               className={authMode === 'login' ? 'active' : ''}
@@ -695,7 +709,7 @@ export function App() {
             </button>
           </div>
 
-          <form className="stack-form" onSubmit={submitAuth}>
+          <form className="form" onSubmit={submitAuth}>
             {authMode === 'register' ? (
               <div className="form-row">
                 <label>
@@ -755,16 +769,15 @@ export function App() {
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                placeholder="secret123"
                 autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
                 minLength={8}
                 maxLength={128}
                 required
               />
             </label>
-            {error ? <p className="form-error">{error}</p> : null}
-            <button type="submit" className="primary-action" disabled={loading}>
-              {loading ? <Loader2 className="spin" size={18} aria-hidden="true" /> : <ShieldCheck size={18} aria-hidden="true" />}
+            {error ? <p className="form-message error" role="alert">{error}</p> : null}
+            <button type="submit" className="button primary wide" disabled={loading}>
+              {loading ? <Loader2 className="spin" size={16} aria-hidden="true" /> : <ShieldCheck size={16} aria-hidden="true" />}
               {authMode === 'login' ? t('auth.signIn') : t('auth.createAccount')}
             </button>
           </form>
@@ -778,131 +791,97 @@ export function App() {
   }
 
   const authenticatedUser = user;
-  const heading = activeView === 'history'
-    ? { eyebrow: t('heading.history.eyebrow'), title: t('heading.history.title') }
-    : activeView === 'profile'
-      ? { eyebrow: t('heading.profile.eyebrow'), title: t('heading.profile.title') }
-      : activeView === 'reminders'
-        ? { eyebrow: t('heading.reminders.eyebrow'), title: t('heading.reminders.title') }
-        : { eyebrow: t('heading.overview.eyebrow'), title: t('heading.overview.title') };
+  const navItems: { view: DashboardView; icon: ReactNode }[] = [
+    { view: 'overview', icon: <LayoutDashboard size={18} aria-hidden="true" /> },
+    { view: 'reminders', icon: <CalendarClock size={18} aria-hidden="true" /> },
+    { view: 'history', icon: <History size={18} aria-hidden="true" /> },
+    { view: 'profile', icon: <User size={18} aria-hidden="true" /> }
+  ];
 
   return (
     <main className="app-shell">
-      <aside className="side-nav" aria-label={t('aria.primaryNavigation')}>
-        <div className="brand-row compact">
-          <div className="brand-mark">
-            <Bell size={20} aria-hidden="true" />
-          </div>
+      <aside className="rail" aria-label={t('aria.primaryNavigation')}>
+        <div className="brand">
+          <span className="brand-mark"><Bell size={18} aria-hidden="true" /></span>
           <span>{t('app.name')}</span>
         </div>
-        <div className="nav-console" aria-hidden="true">
-          <span>$ notifyhub</span>
-          <strong>watch --live</strong>
-        </div>
         <nav>
-          <a
-            href={DASHBOARD_ROUTES.overview}
-            aria-current={activeView === 'overview' ? 'page' : undefined}
-            onClick={(event) => {
-              event.preventDefault();
-              openDashboardView('overview');
-            }}
-          >
-            <LayoutDashboard size={18} aria-hidden="true" />{t('nav.overview')}
-          </a>
-          <a
-            href={DASHBOARD_ROUTES.reminders}
-            aria-current={activeView === 'reminders' ? 'page' : undefined}
-            onClick={(event) => {
-              event.preventDefault();
-              openDashboardView('reminders');
-            }}
-          >
-            <CalendarClock size={18} aria-hidden="true" />{t('nav.reminders')}
-          </a>
-          <a
-            href={DASHBOARD_ROUTES.history}
-            aria-current={activeView === 'history' ? 'page' : undefined}
-            onClick={(event) => {
-              event.preventDefault();
-              openDashboardView('history');
-            }}
-          >
-            <History size={18} aria-hidden="true" />{t('nav.history')}
-          </a>
-          <a
-            href={DASHBOARD_ROUTES.profile}
-            aria-current={activeView === 'profile' ? 'page' : undefined}
-            onClick={(event) => {
-              event.preventDefault();
-              openDashboardView('profile');
-            }}
-          >
-            <User size={18} aria-hidden="true" />{t('nav.profile')}
-          </a>
+          {navItems.map(({ view, icon }) => (
+            <a
+              key={view}
+              href={DASHBOARD_ROUTES[view]}
+              aria-current={activeView === view ? 'page' : undefined}
+              onClick={(event) => {
+                event.preventDefault();
+                openDashboardView(view);
+              }}
+            >
+              {icon}{t(`nav.${view}`)}
+            </a>
+          ))}
         </nav>
-        <div className="side-actions">
-          <span className="account-chip">{authenticatedUser.email}</span>
-          <button type="button" className="icon-action command-trigger" onClick={() => setCommandPaletteOpen(true)} title={t('actions.openCommandPalette')}>
-            <Terminal size={18} aria-hidden="true" />
+        <div className="rail-footer">
+          <button type="button" className="rail-action" onClick={() => setCommandPaletteOpen(true)} title={t('actions.openCommandPalette')}>
+            <Search size={17} aria-hidden="true" />
             <span>{t('actions.command')}</span>
             <kbd>⌘K</kbd>
           </button>
           <ThemeToggle theme={theme} onToggle={toggleTheme} t={t} />
-          <button type="button" className="icon-action" onClick={() => refreshData()} disabled={refreshing} title={t('actions.refreshData')}>
-            <RefreshCw className={refreshing ? 'spin' : ''} size={18} aria-hidden="true" />
-            <span>{t('actions.refresh')}</span>
-          </button>
-          <button type="button" className="icon-action" onClick={signOut} title={t('actions.signOut')}>
-            <LogOut size={18} aria-hidden="true" />
+          <button type="button" className="rail-action" onClick={signOut} title={t('actions.signOut')}>
+            <LogOut size={17} aria-hidden="true" />
             <span>{t('actions.signOut')}</span>
           </button>
+          <div className="rail-account">
+            <span className="avatar small" aria-hidden="true">{profileInitial(authenticatedUser)}</span>
+            <span>{authenticatedUser.email}</span>
+          </div>
         </div>
       </aside>
 
       <section className="workspace">
-        <header className="top-bar">
-          <div>
-            <p className="eyebrow">{heading.eyebrow}</p>
-            <h1>{heading.title}</h1>
+        <header className="page-head">
+          <h1>{t(`heading.${activeView}.title`)}</h1>
+          <div className="page-actions">
+            {activeView === 'reminders' || activeView === 'overview' ? (
+              <button type="button" className="button" onClick={focusReminderForm}>
+                <Plus size={16} aria-hidden="true" />{t('command.createReminder.title')}
+              </button>
+            ) : null}
+            <button type="button" className="button" onClick={() => refreshData()} disabled={refreshing} title={t('actions.refreshData')}>
+              <RefreshCw className={refreshing ? 'spin' : ''} size={16} aria-hidden="true" />
+              {t('actions.refresh')}
+            </button>
           </div>
         </header>
 
-        {error ? <div className="alert-error">{error}</div> : null}
+        {error ? <div className="banner error" role="alert">{error}</div> : null}
 
         {activeView === 'overview' ? (
-          <>
-            <section className="metric-grid" aria-label={t('aria.deliveryMetrics')}>
-              <Metric label={t('metrics.scheduled')} value={metrics.scheduled} icon={<CalendarClock size={20} />} tone="blue" />
-              <Metric label={t('metrics.triggered')} value={metrics.triggered} icon={<Send size={20} />} tone="purple" />
-              <Metric label={t('metrics.sent')} value={metrics.sent} icon={<CheckCircle2 size={20} />} tone="green" />
-              <Metric label={t('metrics.failed')} value={metrics.failed} icon={<XCircle size={20} />} tone="red" />
-              <Metric label={t('metrics.retrying')} value={metrics.retrying} icon={<RefreshCw size={20} />} tone="amber" />
-              <Metric label={t('metrics.attempts')} value={metrics.totalAttempts} icon={<Clock3 size={20} />} tone="slate" />
-            </section>
-
-            <section className="developer-grid" aria-label={t('aria.developerCockpit')}>
+          <div className="overview-grid" aria-label={t('aria.developerCockpit')}>
+            <div className="overview-column">
+              <DeparturesBoard
+                reminders={reminders}
+                language={language}
+                onInspect={setInspectorTarget}
+                onCreate={focusReminderForm}
+                t={t}
+              />
               <ServiceTopology metrics={metrics} t={t} />
+            </div>
+            <div className="overview-column">
+              <LineStatus notifications={notifications} metrics={metrics} t={t} />
               <LiveEventConsole events={eventStream} onInspect={setInspectorTarget} t={t} />
-            </section>
-          </>
+            </div>
+          </div>
         ) : null}
 
-        <section className="content-grid">
-          {activeView === 'reminders' ? (
-          <section className="panel" id="reminders" aria-labelledby="reminders-title">
-            <div className="panel-heading">
-              <div>
-                <p className="eyebrow">{t('heading.reminders.eyebrow')}</p>
-                <h2 id="reminders-title">{t('heading.reminders.title')}</h2>
-              </div>
-              <div className="heading-actions">
-                <span className="history-count">{visibleReminders.length} / {reminders.length}</span>
-              </div>
-            </div>
-
-            <form className="reminder-form" onSubmit={submitReminder}>
-              <div className="form-row">
+        {activeView === 'reminders' ? (
+          <div className="reminders-grid">
+            <section className="panel compose" aria-labelledby="compose-title">
+              <header className="panel-head">
+                <h2 id="compose-title">{editingId ? t('reminder.editTitle') : t('reminder.newTitle')}</h2>
+              </header>
+              <form className="form" onSubmit={submitReminder}>
                 <label>
                   {t('reminder.title')}
                   <input
@@ -922,27 +901,24 @@ export function App() {
                     required
                   />
                 </label>
-              </div>
-
-              <label>
-                {t('reminder.message')}
-                <textarea
-                  value={form.message}
-                  onChange={(event) => setForm({ ...form, message: event.target.value })}
-                  maxLength={1000}
-                  rows={3}
-                />
-              </label>
-
-              <div className="form-row">
-                <div className="segmented-control" role="group" aria-labelledby="channel-control-label">
-                  <span className="control-label" id="channel-control-label">{t('reminder.channel')}</span>
-                  <div className="segmented-options">
+                <label>
+                  {t('reminder.message')}
+                  <textarea
+                    value={form.message}
+                    onChange={(event) => setForm({ ...form, message: event.target.value })}
+                    maxLength={1000}
+                    rows={3}
+                  />
+                </label>
+                <div className="field" role="group" aria-labelledby="channel-control-label">
+                  <span className="field-label" id="channel-control-label">{t('reminder.channel')}</span>
+                  <div className="segmented channels">
                     {CHANNELS.map((channel) => (
                       <button
                         type="button"
                         key={channel}
-                        className={form.channel === channel ? 'active' : ''}
+                        className={`line-${channel.toLowerCase()} ${form.channel === channel ? 'active' : ''}`}
+                        aria-pressed={form.channel === channel}
                         onClick={() => setForm((currentForm) => reminderFormWithChannel(currentForm, channel, user))}
                       >
                         {channelIcon(channel)}
@@ -961,206 +937,188 @@ export function App() {
                     required
                   />
                 </label>
-              </div>
-
-              <div className="form-actions">
-                {editingId ? (
-                  <button
-                    type="button"
-                    className="secondary-action"
-                    onClick={() => {
-                      setEditingId(null);
-                      setForm(emptyReminderForm(user));
-                    }}
-                  >
-                    {t('actions.cancelEdit')}
+                <div className="form-actions">
+                  {editingId ? (
+                    <button
+                      type="button"
+                      className="button"
+                      onClick={() => {
+                        setEditingId(null);
+                        setForm(emptyReminderForm(user));
+                      }}
+                    >
+                      {t('actions.cancelEdit')}
+                    </button>
+                  ) : null}
+                  <button type="submit" className="button primary" disabled={loading}>
+                    {loading
+                      ? <Loader2 className="spin" size={16} aria-hidden="true" />
+                      : editingId ? <Save size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
+                    {editingId ? t('actions.updateReminder') : t('actions.addReminder')}
                   </button>
-                ) : null}
-                <button type="submit" className="primary-action" disabled={loading}>
-                  {editingId ? <Save size={18} aria-hidden="true" /> : <Plus size={18} aria-hidden="true" />}
-                  {editingId ? t('actions.updateReminder') : t('actions.addReminder')}
-                </button>
-              </div>
-            </form>
-
-            <div className="notification-toolbar" aria-label={t('reminder.filters')}>
-              <div className="filter-group">
-                <span><Filter size={15} aria-hidden="true" />{t('table.status')}</span>
-                <div className="filter-buttons">
-                  {(['ALL', ...REMINDER_STATUSES] as ReminderStatusFilter[]).map((status) => (
-                    <button
-                      type="button"
-                      key={status}
-                      className={reminderStatusFilter === status ? 'active' : ''}
-                      onClick={() => setReminderStatusFilter(status)}
-                    >
-                      {statusFilterLabel(status, t)}
-                    </button>
-                  ))}
                 </div>
-              </div>
-              <div className="filter-group">
-                <span>{channelIcon('EMAIL')}{t('reminder.channel')}</span>
-                <div className="filter-buttons">
-                  {(['ALL', ...CHANNELS] as ReminderChannelFilter[]).map((channel) => (
-                    <button
-                      type="button"
-                      key={channel}
-                      className={reminderChannelFilter === channel ? 'active' : ''}
-                      onClick={() => setReminderChannelFilter(channel)}
-                    >
-                      {channel}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
+              </form>
+            </section>
 
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>{t('table.title')}</th>
-                    <th>{t('table.channel')}</th>
-                    <th>{t('table.scheduled')}</th>
-                    <th>{t('table.pipeline')}</th>
-                    <th>{t('table.status')}</th>
-                    <th aria-label={t('table.actions')} />
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleReminders.map((reminder) => (
-                    <tr key={reminder.id}>
-                      <td>
-                        <strong>{reminder.title}</strong>
-                        <span>{reminder.recipient}</span>
-                      </td>
-                      <td>{channelBadge(reminder.channel)}</td>
-                      <td>{formatDate(reminder.scheduledFor)}</td>
-                      <td><PipelineTimeline status={reminder.status} ariaLabel={t('aria.deliveryPipeline')} t={t} /></td>
-                      <td>{statusBadge(reminder.status, t)}</td>
-                      <td className="row-actions">
-                        <button type="button" onClick={() => setInspectorTarget({ kind: 'reminder', item: reminder })} title={t('actions.inspectReminder')}>
-                          <Code2 size={16} aria-hidden="true" />
-                        </button>
-                        <button type="button" onClick={() => startEditing(reminder)} title={t('actions.editReminder')}>
-                          <Edit3 size={16} aria-hidden="true" />
-                        </button>
-                        <button type="button" onClick={() => removeReminder(reminder.id)} title={t('actions.deleteReminder')}>
-                          <Trash2 size={16} aria-hidden="true" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {reminders.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="empty-state">{t('reminder.noItems')}</td>
-                    </tr>
-                  ) : null}
-                  {reminders.length > 0 && visibleReminders.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="empty-state">{t('reminder.noMatches')}</td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
-            </div>
-          </section>
-          ) : null}
+            <section className="panel timetable" id="reminders" aria-labelledby="reminders-title">
+              <header className="panel-head">
+                <h2 id="reminders-title">{t('heading.reminders.title')}</h2>
+                <span className="count">{visibleReminders.length} / {reminders.length}</span>
+              </header>
 
-          {activeView === 'history' ? (
+              <div className="toolbar" role="group" aria-label={t('reminder.filters')}>
+                <FilterGroup
+                  label={t('table.status')}
+                  options={['ALL', ...REMINDER_STATUSES] as ReminderStatusFilter[]}
+                  value={reminderStatusFilter}
+                  render={(status) => statusFilterLabel(status, t)}
+                  onChange={setReminderStatusFilter}
+                />
+                <FilterGroup
+                  label={t('reminder.channel')}
+                  options={['ALL', ...CHANNELS] as ReminderChannelFilter[]}
+                  value={reminderChannelFilter}
+                  render={(channel) => channel === 'ALL' ? t('filters.all') : channel}
+                  onChange={setReminderChannelFilter}
+                />
+              </div>
+
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">{t('table.scheduled')}</th>
+                      <th scope="col">{t('table.title')}</th>
+                      <th scope="col">{t('table.channel')}</th>
+                      <th scope="col">{t('table.pipeline')}</th>
+                      <th scope="col">{t('table.status')}</th>
+                      <th scope="col"><span className="visually-hidden">{t('table.actions')}</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleReminders.map((reminder) => (
+                      <tr key={reminder.id} className={editingId === reminder.id ? 'editing' : undefined}>
+                        <td className="cell-time">
+                          <strong>{formatClock(reminder.scheduledFor)}</strong>
+                          <span>{formatDay(reminder.scheduledFor)}</span>
+                        </td>
+                        <td className="cell-title">
+                          <strong>{reminder.title}</strong>
+                          <span>{reminder.recipient}</span>
+                        </td>
+                        <td>{channelBadge(reminder.channel)}</td>
+                        <td>
+                          <PipelineTimeline status={reminder.status} channel={reminder.channel} ariaLabel={t('aria.deliveryPipeline')} t={t} />
+                        </td>
+                        <td>{statusBadge(reminder.status, t)}</td>
+                        <td className="row-actions">
+                          <button type="button" className="icon-button" onClick={() => setInspectorTarget({ kind: 'reminder', item: reminder })} title={t('actions.inspectReminder')} aria-label={t('actions.inspectReminder')}>
+                            <Code2 size={16} aria-hidden="true" />
+                          </button>
+                          <button type="button" className="icon-button" onClick={() => startEditing(reminder)} title={t('actions.editReminder')} aria-label={t('actions.editReminder')}>
+                            <Edit3 size={16} aria-hidden="true" />
+                          </button>
+                          <button type="button" className="icon-button danger" onClick={() => removeReminder(reminder.id)} title={t('actions.deleteReminder')} aria-label={t('actions.deleteReminder')}>
+                            <Trash2 size={16} aria-hidden="true" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {reminders.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="empty-state">{t('reminder.noItems')}</td>
+                      </tr>
+                    ) : null}
+                    {reminders.length > 0 && visibleReminders.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="empty-state">{t('reminder.noMatches')}</td>
+                      </tr>
+                    ) : null}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        ) : null}
+
+        {activeView === 'history' ? (
           <section className="panel" id="history" aria-labelledby="notifications-title">
-            <div className="panel-heading">
-              <div>
-                <p className="eyebrow">{t('heading.history.eyebrow')}</p>
-                <h2 id="notifications-title">{t('nav.history')}</h2>
-              </div>
-              <span className="history-count">{visibleNotifications.length} / {notifications.length}</span>
+            <header className="panel-head">
+              <h2 id="notifications-title">{t('nav.history')}</h2>
+              <span className="count">{visibleNotifications.length} / {notifications.length}</span>
+            </header>
+
+            <div className="toolbar" role="group" aria-label={t('history.filters')}>
+              <FilterGroup
+                label={t('table.status')}
+                options={['ALL', ...DELIVERY_STATUSES] as NotificationStatusFilter[]}
+                value={notificationStatusFilter}
+                render={(status) => statusFilterLabel(status, t)}
+                onChange={setNotificationStatusFilter}
+              />
+              <FilterGroup
+                label={t('reminder.channel')}
+                options={['ALL', ...CHANNELS] as NotificationChannelFilter[]}
+                value={notificationChannelFilter}
+                render={(channel) => channel === 'ALL' ? t('filters.all') : channel}
+                onChange={setNotificationChannelFilter}
+              />
             </div>
 
-            <div className="notification-toolbar" aria-label={t('history.filters')}>
-              <div className="filter-group">
-                <span><Filter size={15} aria-hidden="true" />{t('table.status')}</span>
-                <div className="filter-buttons">
-                  {(['ALL', ...DELIVERY_STATUSES] as NotificationStatusFilter[]).map((status) => (
-                    <button
-                      type="button"
-                      key={status}
-                      className={notificationStatusFilter === status ? 'active' : ''}
-                      onClick={() => setNotificationStatusFilter(status)}
-                    >
-                      {statusFilterLabel(status, t)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="filter-group">
-                <span>{channelIcon('EMAIL')}{t('reminder.channel')}</span>
-                <div className="filter-buttons">
-                  {(['ALL', ...CHANNELS] as NotificationChannelFilter[]).map((channel) => (
-                    <button
-                      type="button"
-                      key={channel}
-                      className={notificationChannelFilter === channel ? 'active' : ''}
-                      onClick={() => setNotificationChannelFilter(channel)}
-                    >
-                      {channel}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="notification-list">
+            <ol className="trips">
               {visibleNotifications.map((notification) => (
-                <article className="notification-item" key={notification.id}>
-                  <div className="notification-icon">{channelIcon(notification.channel)}</div>
-                  <div>
-                    <div className="notification-title">
+                <li className={`trip ${notification.status.toLowerCase()}`} key={notification.id}>
+                  <div className="cell-time">
+                    <strong>{formatClock(notification.createdAt)}</strong>
+                    <span>{formatDay(notification.createdAt)}</span>
+                  </div>
+                  <div className="trip-body">
+                    <div className="trip-title">
                       <strong>{notification.subject}</strong>
                       {statusBadge(notification.status, t)}
                     </div>
-                    <PipelineTimeline deliveryStatus={notification.status} ariaLabel={t('aria.deliveryPipeline')} t={t} />
                     <p>{notification.message}</p>
-                    <div className="notification-meta">
-                      <span>
-                        {notification.recipient} · {formatDate(notification.createdAt)} · {t('history.attempts')}: {notification.attemptCount}
-                      </span>
+                    <div className="trip-meta">
+                      <span>{notification.recipient}</span>
+                      <span>{t('history.attempts')}: {notification.attemptCount}</span>
                       {notification.lastAttemptAt ? <span>{t('history.lastAttempt')}: {formatDate(notification.lastAttemptAt)}</span> : null}
-                      {notification.failureReason ? <span>{notification.failureReason}</span> : null}
                     </div>
-                    <button type="button" className="inline-inspect" onClick={() => setInspectorTarget({ kind: 'notification', item: notification })}>
-                      {t('actions.inspectPayload')}
+                    {notification.failureReason ? <p className="trip-reason">{notification.failureReason}</p> : null}
+                  </div>
+                  <div className="trip-side">
+                    {channelBadge(notification.channel)}
+                    <PipelineTimeline deliveryStatus={notification.status} channel={notification.channel} ariaLabel={t('aria.deliveryPipeline')} t={t} />
+                    <button type="button" className="button small" onClick={() => setInspectorTarget({ kind: 'notification', item: notification })}>
+                      <Code2 size={14} aria-hidden="true" />{t('actions.inspectPayload')}
                     </button>
                   </div>
-                </article>
+                </li>
               ))}
-              {notifications.length === 0 ? <div className="empty-state">{t('history.noItems')}</div> : null}
-              {notifications.length > 0 && visibleNotifications.length === 0 ? (
-                <div className="empty-state">{t('history.noMatches')}</div>
-              ) : null}
-            </div>
+            </ol>
+            {notifications.length === 0 ? <p className="empty-state">{t('history.noItems')}</p> : null}
+            {notifications.length > 0 && visibleNotifications.length === 0 ? (
+              <p className="empty-state">{t('history.noMatches')}</p>
+            ) : null}
           </section>
-          ) : null}
+        ) : null}
 
-          {activeView === 'profile' ? (
-            <ProfileSettingsPage
-              user={authenticatedUser}
-              profileForm={profileForm}
-              profileStatus={profileStatus}
-              profileSubmitting={profileSubmitting}
-              onProfileChange={setProfileForm}
-              onLanguageChange={changeProfileLanguage}
-              onProfileSubmit={submitProfileUpdate}
-              passwordForm={passwordChangeForm}
-              passwordStatus={passwordChangeStatus}
-              passwordSubmitting={passwordSubmitting}
-              onPasswordChange={setPasswordChangeForm}
-              onPasswordSubmit={submitPasswordChange}
-              t={t}
-            />
-          ) : null}
-        </section>
+        {activeView === 'profile' ? (
+          <ProfileSettingsPage
+            user={authenticatedUser}
+            profileForm={profileForm}
+            profileStatus={profileStatus}
+            profileSubmitting={profileSubmitting}
+            onProfileChange={setProfileForm}
+            onLanguageChange={changeProfileLanguage}
+            onProfileSubmit={submitProfileUpdate}
+            passwordForm={passwordChangeForm}
+            passwordStatus={passwordChangeStatus}
+            passwordSubmitting={passwordSubmitting}
+            onPasswordChange={setPasswordChangeForm}
+            onPasswordSubmit={submitPasswordChange}
+            t={t}
+          />
+        ) : null}
       </section>
 
       {commandPaletteOpen ? (
@@ -1180,7 +1138,39 @@ export function App() {
       {inspectorTarget ? (
         <InspectorDrawer target={inspectorTarget} onClose={() => setInspectorTarget(null)} t={t} />
       ) : null}
-
     </main>
+  );
+}
+
+function FilterGroup<T extends string>({
+  label,
+  options,
+  value,
+  render,
+  onChange
+}: {
+  label: string;
+  options: T[];
+  value: T;
+  render: (option: T) => string;
+  onChange: (option: T) => void;
+}) {
+  return (
+    <div className="filter-group">
+      <span className="field-label">{label}</span>
+      <div className="chips">
+        {options.map((option) => (
+          <button
+            type="button"
+            key={option}
+            className={value === option ? 'active' : ''}
+            aria-pressed={value === option}
+            onClick={() => onChange(option)}
+          >
+            {render(option)}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

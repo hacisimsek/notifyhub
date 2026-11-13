@@ -1,7 +1,8 @@
 import { FormEvent } from 'react';
-import { KeyRound, Loader2, Moon, Save, Sun, Terminal, XCircle } from 'lucide-react';
-import type { DeliveryStatus, LanguageCode, ReminderStatus, UserSummary } from '../api';
+import { KeyRound, Loader2, Moon, Plus, Save, Search, Sun, X } from 'lucide-react';
+import type { Channel, DeliveryStatus, LanguageCode, NotificationLog, Reminder, ReminderStatus, UserSummary } from '../api';
 import {
+  CHANNELS,
   CommandItem,
   EventStreamEntry,
   FormStatus,
@@ -11,57 +12,167 @@ import {
   ThemeMode
 } from './types';
 import {
-  formatConsoleTime,
+  channelBadge,
+  formatClock,
   formatDate,
+  formatDay,
   fullName,
+  lineHealth,
   pipelineStages,
   profileInitial,
-  statusBadge
+  relativeTime,
+  statusBadge,
+  statusLabel
 } from './utils';
 
-export function ServiceTopology({
+type Translate = (key: string) => string;
+type Metrics = { scheduled: number; triggered: number; sent: number; failed: number; retrying: number; totalAttempts: number };
+
+export function DeparturesBoard({
+  reminders,
+  language,
+  onInspect,
+  onCreate,
+  t
+}: {
+  reminders: Reminder[];
+  language: LanguageCode;
+  onInspect: (target: InspectorTarget) => void;
+  onCreate: () => void;
+  t: Translate;
+}) {
+  const now = Date.now();
+  const departures = reminders
+    .filter((reminder) => reminder.status === 'SCHEDULED')
+    .sort((left, right) => new Date(left.scheduledFor).getTime() - new Date(right.scheduledFor).getTime())
+    .slice(0, 5);
+
+  return (
+    <section className="board" aria-labelledby="departures-title">
+      <header className="board-head">
+        <h2 id="departures-title">{t('overview.departures.title')}</h2>
+        <span className="board-clock">{formatClock(new Date(now).toISOString())}</span>
+      </header>
+      {departures.length === 0 ? (
+        <div className="board-empty">
+          <p>{t('overview.departures.empty')}</p>
+          <button type="button" className="button primary" onClick={onCreate}>
+            <Plus size={16} aria-hidden="true" />{t('command.createReminder.title')}
+          </button>
+        </div>
+      ) : (
+        <ol className="board-rows">
+          {departures.map((reminder) => {
+            const due = new Date(reminder.scheduledFor).getTime() <= now;
+            return (
+              <li key={reminder.id}>
+                <button type="button" className="board-row" onClick={() => onInspect({ kind: 'reminder', item: reminder })}>
+                  <span className="board-time">
+                    <strong>{formatClock(reminder.scheduledFor)}</strong>
+                    <small>{formatDay(reminder.scheduledFor)}</small>
+                  </span>
+                  <span className="board-title">
+                    <strong>{reminder.title}</strong>
+                    <small>{reminder.recipient}</small>
+                  </span>
+                  {channelBadge(reminder.channel)}
+                  <span className={`board-eta ${due ? 'due' : ''}`}>
+                    {due ? t('overview.departures.due') : relativeTime(reminder.scheduledFor, language, now)}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </section>
+  );
+}
+
+export function LineStatus({
+  notifications,
   metrics,
   t
 }: {
-  metrics: { scheduled: number; triggered: number; sent: number; failed: number; retrying: number; totalAttempts: number };
-  t: (key: string) => string;
+  notifications: NotificationLog[];
+  metrics: Metrics;
+  t: Translate;
 }) {
-  const services = [
+  return (
+    <section className="panel line-status" aria-labelledby="line-status-title">
+      <header className="panel-head">
+        <h2 id="line-status-title">{t('overview.status.title')}</h2>
+      </header>
+      <ul className="line-list" aria-label={t('aria.deliveryMetrics')}>
+        {CHANNELS.map((channel) => {
+          const onLine = notifications.filter((item) => item.channel === channel);
+          const health = lineHealth(onLine);
+          const counts = (['SENT', 'RETRYING', 'FAILED'] as DeliveryStatus[])
+            .map((status) => [status, onLine.filter((item) => item.status === status).length] as const)
+            .filter(([, count]) => count > 0);
+          return (
+            <li key={channel} className={`line-row ${health}`}>
+              {channelBadge(channel)}
+              <span className="line-health">{t(`overview.status.${health}`)}</span>
+              <span className="line-counts">
+                {counts.length === 0 ? '—' : counts.map(([status, count]) => `${count} ${statusLabel(status, t).toLowerCase()}`).join(' · ')}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      <dl className="totals">
+        <div><dt>{t('metrics.scheduled')}</dt><dd>{metrics.scheduled}</dd></div>
+        <div><dt>{t('metrics.triggered')}</dt><dd>{metrics.triggered}</dd></div>
+        <div><dt>{t('metrics.sent')}</dt><dd>{metrics.sent}</dd></div>
+        <div className={metrics.failed > 0 ? 'alarm' : ''}><dt>{t('metrics.failed')}</dt><dd>{metrics.failed}</dd></div>
+        <div><dt>{t('metrics.retrying')}</dt><dd>{metrics.retrying}</dd></div>
+        <div><dt>{t('metrics.attempts')}</dt><dd>{metrics.totalAttempts}</dd></div>
+      </dl>
+    </section>
+  );
+}
+
+export function ServiceTopology({ metrics, t }: { metrics: Metrics; t: Translate }) {
+  const mainLine = [
     { key: 'gateway', name: 'Gateway', detail: t('topology.gateway.detail'), meta: `${metrics.totalAttempts} ${t('topology.gateway.meta')}` },
-    { key: 'auth', name: 'Auth', detail: t('topology.auth.detail'), meta: t('topology.auth.meta') },
     { key: 'reminder', name: 'Reminder', detail: t('topology.reminder.detail'), meta: `${metrics.scheduled} ${t('topology.reminder.meta')}` },
     { key: 'kafka', name: 'Kafka', detail: t('topology.kafka.detail'), meta: `${metrics.triggered} ${t('topology.kafka.meta')}` },
-    { key: 'notification', name: 'Notify', detail: t('topology.notification.detail'), meta: `${metrics.sent} ${t('topology.notification.meta')}` },
-    { key: 'storage', name: 'Postgres', detail: t('topology.storage.detail'), meta: `${metrics.failed + metrics.retrying} ${t('topology.storage.meta')}` }
+    { key: 'notification', name: 'Notification', detail: t('topology.notification.detail'), meta: `${metrics.sent} ${t('topology.notification.meta')}` },
+    { key: 'rabbitmq', name: 'RabbitMQ', detail: t('topology.rabbitmq.detail'), meta: `${metrics.retrying} ${t('topology.rabbitmq.meta')}`, alert: metrics.failed > 0 || metrics.retrying > 0 }
+  ];
+  const branches = [
+    { key: 'auth', name: 'Auth', detail: t('topology.auth.detail'), meta: t('topology.auth.meta') },
+    { key: 'storage', name: 'PostgreSQL', detail: t('topology.storage.detail'), meta: `${metrics.failed + metrics.retrying} ${t('topology.storage.meta')}` }
   ];
 
   return (
-    <section className="cockpit-card topology-card" aria-labelledby="topology-title">
-      <div className="cockpit-heading">
-        <div>
-          <p className="eyebrow">{t('overview.topology.eyebrow')}</p>
-          <h2 id="topology-title">{t('overview.topology.title')}</h2>
-        </div>
-        <span className="live-chip"><span className="pulse-dot" />{t('runtime.live')}</span>
-      </div>
-
-      <div className="topology-map">
-        <svg className="topology-lines" viewBox="0 0 640 300" role="img" aria-label={t('aria.serviceDependencies')}>
-          <path d="M92 82 C190 42 262 42 322 82" />
-          <path d="M322 82 C418 38 496 44 548 82" />
-          <path d="M322 82 C312 132 312 166 322 214" />
-          <path d="M92 218 C188 260 254 258 322 214" />
-          <path d="M322 214 C418 260 490 256 548 218" />
-          <path d="M548 82 C590 130 590 172 548 218" />
-        </svg>
-        {services.map((service) => (
-          <div className={`topology-node ${service.key}`} key={service.key}>
-            <span className="node-orbit" />
-            <strong>{service.name}</strong>
-            <code>{service.detail}</code>
-            <small>{service.meta}</small>
-          </div>
-        ))}
+    <section className="panel topology" aria-labelledby="topology-title">
+      <header className="panel-head">
+        <h2 id="topology-title">{t('overview.topology.title')}</h2>
+        <span className="live-chip"><span className="live-dot" aria-hidden="true" />{t('runtime.live')}</span>
+      </header>
+      <div className="line-map" role="img" aria-label={t('aria.serviceDependencies')}>
+        <ol className="line-map-main">
+          {mainLine.map((stop) => (
+            <li key={stop.key} className={`map-stop ${stop.alert ? 'alert' : ''}`}>
+              <span className="map-dot" aria-hidden="true" />
+              <strong>{stop.name}</strong>
+              <span>{stop.detail}</span>
+              <small>{stop.meta}</small>
+            </li>
+          ))}
+        </ol>
+        <ol className="line-map-branch">
+          {branches.map((stop) => (
+            <li key={stop.key} className="map-stop branch">
+              <span className="map-dot" aria-hidden="true" />
+              <strong>{stop.name}</strong>
+              <span>{stop.detail}</span>
+              <small>{stop.meta}</small>
+            </li>
+          ))}
+        </ol>
       </div>
     </section>
   );
@@ -74,29 +185,28 @@ export function LiveEventConsole({
 }: {
   events: EventStreamEntry[];
   onInspect: (target: InspectorTarget) => void;
-  t: (key: string) => string;
+  t: Translate;
 }) {
   return (
-    <section className="cockpit-card console-card" aria-labelledby="console-title">
-      <div className="cockpit-heading">
-        <div>
-          <p className="eyebrow">{t('overview.console.eyebrow')}</p>
-          <h2 id="console-title">{t('overview.console.title')}</h2>
-        </div>
-      </div>
-
-      <div className="console-window" role="log" aria-live="polite" aria-label={t('aria.liveEventStream')} tabIndex={0}>
+    <section className="panel activity" aria-labelledby="console-title">
+      <header className="panel-head">
+        <h2 id="console-title">{t('overview.console.title')}</h2>
+      </header>
+      <div className="activity-log" role="log" aria-live="polite" aria-label={t('aria.liveEventStream')} tabIndex={0}>
         {events.map((event) => (
           <button
             type="button"
-            className={`console-line ${event.tone}`}
+            className={`activity-row ${event.tone}`}
             key={event.id}
             onClick={() => event.target ? onInspect(event.target) : undefined}
             disabled={!event.target}
           >
-            <code>{formatConsoleTime(event.time)}</code>
-            <strong>{event.command}</strong>
-            <span>{event.detail}</span>
+            <time>{formatClock(event.time)}</time>
+            <span className="activity-dot" aria-hidden="true" />
+            <span className="activity-copy">
+              <strong>{event.detail}</strong>
+              <code>{event.command}</code>
+            </span>
           </button>
         ))}
       </div>
@@ -117,11 +227,11 @@ export function CommandPalette({
   onQueryChange: (query: string) => void;
   onRun: (command: CommandItem) => void;
   onClose: () => void;
-  t: (key: string) => string;
+  t: Translate;
 }) {
   return (
     <div
-      className="command-backdrop"
+      className="overlay"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
@@ -130,8 +240,9 @@ export function CommandPalette({
       }}
     >
       <section className="command-palette" role="dialog" aria-modal="true" aria-labelledby="command-title">
+        <h2 id="command-title" className="visually-hidden">{t('command.title')}</h2>
         <div className="command-input">
-          <Terminal size={18} aria-hidden="true" />
+          <Search size={18} aria-hidden="true" />
           <input
             autoFocus
             value={query}
@@ -147,7 +258,6 @@ export function CommandPalette({
           />
           <kbd>Esc</kbd>
         </div>
-        <h2 id="command-title">{t('command.title')}</h2>
         <div className="command-list">
           {commands.map((command) => (
             <button type="button" className="command-item" key={command.id} onClick={() => onRun(command)}>
@@ -158,7 +268,7 @@ export function CommandPalette({
               {command.shortcut ? <kbd>{command.shortcut}</kbd> : null}
             </button>
           ))}
-          {commands.length === 0 ? <div className="empty-state">{t('command.noMatch')}</div> : null}
+          {commands.length === 0 ? <p className="empty-state">{t('command.noMatch')}</p> : null}
         </div>
       </section>
     </div>
@@ -172,29 +282,44 @@ export function InspectorDrawer({
 }: {
   target: InspectorTarget;
   onClose: () => void;
-  t: (key: string) => string;
+  t: Translate;
 }) {
   const title = target.kind === 'reminder' ? target.item.title : target.item.subject;
   const payload = JSON.stringify(target.item, null, 2);
 
   return (
-    <aside className="inspector-drawer" role="dialog" aria-modal="true" aria-labelledby="inspector-title">
-      <div className="inspector-heading">
-        <div>
-          <p className="eyebrow">{target.kind} {t('inspector.payload').toLowerCase()}</p>
-          <h2 id="inspector-title">{title}</h2>
-        </div>
-        <button type="button" className="row-actions-close" onClick={onClose} aria-label={t('actions.closeInspector')}>
-          <XCircle size={18} aria-hidden="true" />
-        </button>
-      </div>
-      {target.kind === 'reminder' ? (
-        <PipelineTimeline status={target.item.status} variant="drawer" ariaLabel={t('aria.deliveryPipeline')} t={t} />
-      ) : (
-        <PipelineTimeline deliveryStatus={target.item.status} variant="drawer" ariaLabel={t('aria.deliveryPipeline')} t={t} />
-      )}
-      <pre>{payload}</pre>
-    </aside>
+    <div
+      className="overlay drawer-overlay"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <aside className="inspector" role="dialog" aria-modal="true" aria-labelledby="inspector-title">
+        <header className="inspector-head">
+          <div>
+            {channelBadge(target.item.channel)}
+            <h2 id="inspector-title">{title}</h2>
+            <p>{target.item.recipient}</p>
+          </div>
+          <button type="button" className="icon-button" onClick={onClose} aria-label={t('actions.closeInspector')}>
+            <X size={18} aria-hidden="true" />
+          </button>
+        </header>
+        <PipelineTimeline
+          status={target.kind === 'reminder' ? target.item.status : undefined}
+          deliveryStatus={target.kind === 'notification' ? target.item.status : undefined}
+          channel={target.item.channel}
+          variant="drawer"
+          ariaLabel={t('aria.deliveryPipeline')}
+          t={t}
+        />
+        <h3>{t('inspector.payload')}</h3>
+        <pre>{payload}</pre>
+      </aside>
+    </div>
   );
 }
 
@@ -225,30 +350,27 @@ export function ProfileSettingsPage({
   passwordSubmitting: boolean;
   onPasswordChange: (form: PasswordChangeForm) => void;
   onPasswordSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  t: (key: string) => string;
+  t: Translate;
 }) {
   const displayName = fullName(user);
 
   return (
     <section className="profile-grid" id="profile" aria-label={t('aria.profileSettings')}>
-      <section className="panel profile-card" aria-labelledby="profile-title">
-        <div className="panel-heading">
-          <div>
-            <p className="eyebrow">{t('profile.userInfo')}</p>
-            <h2 id="profile-title">{t('heading.profile.title')}</h2>
-          </div>
+      <section className="panel" aria-labelledby="profile-title">
+        <header className="panel-head">
+          <h2 id="profile-title">{t('heading.profile.title')}</h2>
           {statusBadge(user.role, t)}
-        </div>
+        </header>
 
-        <div className="profile-identity">
-          <div className="profile-avatar" aria-hidden="true">{profileInitial(user)}</div>
+        <div className="identity">
+          <div className="avatar" aria-hidden="true">{profileInitial(user)}</div>
           <div>
             <strong>{displayName || user.email}</strong>
-            <span>{user.role}</span>
+            <span>{user.email}</span>
           </div>
         </div>
 
-        <form className="profile-form" onSubmit={onProfileSubmit}>
+        <form className="form" onSubmit={onProfileSubmit}>
           <div className="form-row">
             <label>
               {t('auth.firstName')}
@@ -273,42 +395,42 @@ export function ProfileSettingsPage({
               />
             </label>
           </div>
-          <label>
-            {t('auth.phoneNumber')}
-            <input
-              type="tel"
-              value={profileForm.phoneNumber}
-              onChange={(event) => onProfileChange({ ...profileForm, phoneNumber: event.target.value })}
-              autoComplete="tel"
-              maxLength={32}
-              required
-            />
-          </label>
-          <label>
-            {t('profile.language')}
-            <select
-              value={profileForm.preferredLanguage}
-              onChange={(event) => onLanguageChange(event.target.value as LanguageCode)}
-            >
-              <option value="en">{t('profile.languageEnglish')}</option>
-              <option value="tr">{t('profile.languageTurkish')}</option>
-            </select>
-          </label>
-          {profileStatus ? <p className={profileStatus.tone === 'success' ? 'form-success' : 'form-error'}>{profileStatus.message}</p> : null}
-          <button type="submit" className="primary-action" disabled={profileSubmitting}>
-            {profileSubmitting ? <Loader2 className="spin" size={18} aria-hidden="true" /> : <Save size={18} aria-hidden="true" />}
-            {t('actions.saveProfile')}
-          </button>
+          <div className="form-row">
+            <label>
+              {t('auth.phoneNumber')}
+              <input
+                type="tel"
+                value={profileForm.phoneNumber}
+                onChange={(event) => onProfileChange({ ...profileForm, phoneNumber: event.target.value })}
+                autoComplete="tel"
+                maxLength={32}
+                required
+              />
+            </label>
+            <label>
+              {t('profile.language')}
+              <select
+                value={profileForm.preferredLanguage}
+                onChange={(event) => onLanguageChange(event.target.value as LanguageCode)}
+              >
+                <option value="en">{t('profile.languageEnglish')}</option>
+                <option value="tr">{t('profile.languageTurkish')}</option>
+              </select>
+            </label>
+          </div>
+          {profileStatus ? <p className={`form-message ${profileStatus.tone}`} role="status">{profileStatus.message}</p> : null}
+          <div className="form-actions">
+            <button type="submit" className="button primary" disabled={profileSubmitting}>
+              {profileSubmitting ? <Loader2 className="spin" size={16} aria-hidden="true" /> : <Save size={16} aria-hidden="true" />}
+              {t('actions.saveProfile')}
+            </button>
+          </div>
         </form>
 
-        <dl className="profile-fields">
-          <div>
-            <dt>{t('auth.email')}</dt>
-            <dd>{user.email}</dd>
-          </div>
+        <dl className="facts">
           <div>
             <dt>{t('profile.userId')}</dt>
-            <dd>{user.id}</dd>
+            <dd><code>{user.id}</code></dd>
           </div>
           <div>
             <dt>{t('profile.role')}</dt>
@@ -321,15 +443,11 @@ export function ProfileSettingsPage({
         </dl>
       </section>
 
-      <section className="panel security-panel" aria-labelledby="security-title">
-        <div className="panel-heading">
-          <div>
-            <p className="eyebrow">{t('profile.security')}</p>
-            <h2 id="security-title">{t('profile.password')}</h2>
-          </div>
-          <KeyRound size={20} aria-hidden="true" />
-        </div>
-
+      <section className="panel" aria-labelledby="security-title">
+        <header className="panel-head">
+          <h2 id="security-title">{t('profile.password')}</h2>
+          <KeyRound size={18} aria-hidden="true" />
+        </header>
         <PasswordChangeFormView
           form={passwordForm}
           status={passwordStatus}
@@ -356,10 +474,10 @@ export function PasswordChangeFormView({
   submitting: boolean;
   onChange: (form: PasswordChangeForm) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  t: (key: string) => string;
+  t: Translate;
 }) {
   return (
-    <form className="security-form" onSubmit={onSubmit}>
+    <form className="form" onSubmit={onSubmit}>
       <label>
         {t('password.current')}
         <input
@@ -397,11 +515,13 @@ export function PasswordChangeFormView({
           required
         />
       </label>
-      {status ? <p className={status.tone === 'success' ? 'form-success' : 'form-error'}>{status.message}</p> : null}
-      <button type="submit" className="primary-action" disabled={submitting}>
-        {submitting ? <Loader2 className="spin" size={18} aria-hidden="true" /> : <KeyRound size={18} aria-hidden="true" />}
-        {t('actions.changePassword')}
-      </button>
+      {status ? <p className={`form-message ${status.tone}`} role="status">{status.message}</p> : null}
+      <div className="form-actions">
+        <button type="submit" className="button primary" disabled={submitting}>
+          {submitting ? <Loader2 className="spin" size={16} aria-hidden="true" /> : <KeyRound size={16} aria-hidden="true" />}
+          {t('actions.changePassword')}
+        </button>
+      </div>
     </form>
   );
 }
@@ -409,61 +529,50 @@ export function PasswordChangeFormView({
 export function PipelineTimeline({
   status,
   deliveryStatus,
+  channel,
   variant,
   ariaLabel,
   t
 }: {
   status?: ReminderStatus;
   deliveryStatus?: DeliveryStatus;
+  channel?: Channel;
   variant?: 'drawer';
   ariaLabel?: string;
-  t?: (key: string) => string;
+  t?: Translate;
 }) {
   const stages = pipelineStages(status, deliveryStatus);
+  const label = (key: string) => t ? t(key) : key;
+  const current = stages.find((stage) => stage.state === 'active' || stage.state === 'error') ?? stages[stages.length - 1];
 
   return (
-    <div className={`pipeline-timeline ${variant === 'drawer' ? 'drawer' : ''}`} aria-label={ariaLabel ?? 'Delivery pipeline'}>
-      {stages.map((stage) => (
-        <span className={stage.state} key={stage.labelKey}>
-          <i />
-          {t ? t(stage.labelKey) : stage.labelKey}
-        </span>
-      ))}
+    <div className={`route ${variant ?? 'compact'} ${channel ? `line-${channel.toLowerCase()}` : ''}`}>
+      <ol aria-label={ariaLabel ?? 'Delivery pipeline'}>
+        {stages.map((stage) => (
+          <li className={stage.state} key={stage.labelKey}>
+            <span className="route-stop" aria-hidden="true" />
+            <span className={variant === 'drawer' ? 'route-label' : 'visually-hidden'}>{label(stage.labelKey)}</span>
+          </li>
+        ))}
+      </ol>
+      {variant === 'drawer' ? null : <span className={`route-current ${current.state}`} aria-hidden="true">{label(current.labelKey)}</span>}
     </div>
   );
 }
 
-export function Metric({ label, value, icon, tone }: { label: string; value: number; icon: React.ReactNode; tone: string }) {
-  return (
-    <article className={`metric-card ${tone}`}>
-      <div className="metric-icon">{icon}</div>
-      <div className="metric-copy">
-        <span>{label}</span>
-        <strong>{value}</strong>
-      </div>
-      <span className="metric-spark" aria-hidden="true">
-        <i />
-        <i />
-        <i />
-        <i />
-      </span>
-    </article>
-  );
-}
-
-export function ThemeToggle({ theme, onToggle, t }: { theme: ThemeMode; onToggle: () => void; t: (key: string) => string }) {
+export function ThemeToggle({ theme, onToggle, t }: { theme: ThemeMode; onToggle: () => void; t: Translate }) {
   const nextTheme = theme === 'dark' ? 'light' : 'dark';
   const title = nextTheme === 'dark' ? t('theme.switchDark') : t('theme.switchLight');
 
   return (
     <button
       type="button"
-      className="icon-action theme-toggle"
+      className="rail-action theme-toggle"
       onClick={onToggle}
       title={title}
       aria-label={title}
     >
-      {theme === 'dark' ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+      {theme === 'dark' ? <Sun size={17} aria-hidden="true" /> : <Moon size={17} aria-hidden="true" />}
       <span>{theme === 'dark' ? t('theme.light') : t('theme.dark')}</span>
     </button>
   );

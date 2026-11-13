@@ -65,11 +65,24 @@ export function channelIcon(channel: Channel) {
 }
 
 export function channelBadge(channel: Channel) {
-  return <span className={`badge channel ${channel.toLowerCase()}`}>{channelIcon(channel)}{channel}</span>;
+  return <span className={`line-chip line-${channel.toLowerCase()}`}>{channelIcon(channel)}{channel}</span>;
 }
 
 export function statusBadge(status: string, t: (key: string) => string) {
-  return <span className={`badge status ${status.toLowerCase()}`}>{statusLabel(status, t)}</span>;
+  return <span className={`status-badge ${status.toLowerCase()}`}><i aria-hidden="true" />{statusLabel(status, t)}</span>;
+}
+
+export type LineHealth = 'good' | 'delays' | 'disruption' | 'idle';
+
+// Transit-style service status for one channel: any failure is a disruption, any retry a delay.
+export function lineHealth(notifications: NotificationLog[]): LineHealth {
+  if (notifications.some((item) => item.status === 'FAILED')) {
+    return 'disruption';
+  }
+  if (notifications.some((item) => item.status === 'RETRYING' || item.status === 'PENDING')) {
+    return 'delays';
+  }
+  return notifications.length > 0 ? 'good' : 'idle';
 }
 
 export function statusFilterLabel(status: ReminderStatusFilter | NotificationStatusFilter, t: (key: string) => string) {
@@ -132,6 +145,26 @@ export function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+export function formatClock(value: string) {
+  return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value));
+}
+
+export function formatDay(value: string) {
+  return new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(value));
+}
+
+export function relativeTime(value: string, language: LanguageCode, now = Date.now()) {
+  const minutes = Math.round((new Date(value).getTime() - now) / 60000);
+  const format = new Intl.RelativeTimeFormat(language, { numeric: 'auto' });
+  if (Math.abs(minutes) < 60) {
+    return format.format(minutes, 'minute');
+  }
+  if (Math.abs(minutes) < 60 * 24) {
+    return format.format(Math.round(minutes / 60), 'hour');
+  }
+  return format.format(Math.round(minutes / (60 * 24)), 'day');
+}
+
 export function toDateTimeLocal(value: string) {
   const date = new Date(value);
   const offset = date.getTimezoneOffset() * 60 * 1000;
@@ -144,10 +177,7 @@ export function initialTheme(): ThemeMode {
     return storedTheme;
   }
 
-  if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches) {
-    return 'dark';
-  }
-
+  // Light is the default because the dashboard is mostly shown on projectors; dark stays one toggle away.
   return 'light';
 }
 
@@ -199,7 +229,7 @@ export function buildEventStream(reminders: Reminder[], notifications: Notificat
     id: `reminder-${reminder.id}`,
     time: reminder.updatedAt,
     command: `reminder.${reminder.status.toLowerCase()}`,
-    detail: `${reminder.title} -> ${reminder.channel.toLowerCase()} ${reminder.recipient}`,
+    detail: `${reminder.title} → ${reminder.recipient}`,
     tone: reminder.status.toLowerCase(),
     target: { kind: 'reminder', item: reminder }
   }));
@@ -207,7 +237,7 @@ export function buildEventStream(reminders: Reminder[], notifications: Notificat
     id: `notification-${notification.id}`,
     time: notification.updatedAt,
     command: `notification.${notification.status.toLowerCase()}`,
-    detail: `${notification.subject} -> ${notification.recipient}`,
+    detail: `${notification.subject} → ${notification.recipient}`,
     tone: notification.status.toLowerCase(),
     target: { kind: 'notification', item: notification }
   }));
@@ -241,14 +271,6 @@ export function sortRemindersNewestFirst(reminders: Reminder[]) {
   return [...reminders].sort((left, right) => {
     return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
   });
-}
-
-export function formatConsoleTime(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  }).format(new Date(value));
 }
 
 export function pipelineStages(status?: ReminderStatus, deliveryStatus?: DeliveryStatus): { labelKey: string; state: PipelineStageState }[] {
