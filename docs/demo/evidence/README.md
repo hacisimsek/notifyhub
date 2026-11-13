@@ -1,6 +1,7 @@
 # Demo Evidence
 
 Captured on 2026-10-17 against `main` at `2455c86`, following [the demo guide](../README.md).
+Gates, alerting and load results were re-run on 2026-11-13 after the Alertmanager and resource-limit changes; see [Re-verification on 2026-11-13](#re-verification-on-2026-11-13). Screenshots are from the October run.
 
 ## Release Gates
 
@@ -46,3 +47,20 @@ Run against the live Compose stack through the dashboard nginx proxy:
 | Cookie without `X-NotifyHub-Client` | `401` (CSRF guard) |
 | Direct Gateway call with `Origin: http://evil.test` | `403`, no `Access-Control-Allow-Origin` |
 | Direct Gateway call with `Origin: http://localhost:5173` | `200`, `Access-Control-Allow-Origin: http://localhost:5173` |
+
+## Re-verification on 2026-11-13
+
+Run against `main` up to `2a8767d` (DLQ alert, Flyway startup retries, Alertmanager, Kubernetes resource limits).
+
+| Gate | Result |
+|---|---|
+| `./scripts/final-verify.sh` | Passed |
+| `TEARDOWN=true ./scripts/local-stack-e2e.sh` | Passed |
+| `./scripts/k8s-local-verify.sh` | Passed on Minikube 1.39: 12 deployments (now including `alertmanager`) rolled out with resource requests and limits, 0 restarts, no `OOMKilled`; Java services used 269–344 MiB of their 768 MiB limit, Kafka 328 MiB of 1 GiB |
+
+| Check | Result |
+|---|---|
+| `+fail` reminder exhausts retries | `NotifyHubDeliveryDeadLetterQueueGrowing` fired from the RabbitMQ `notifyhub.notifications.delivery.dlq` metric |
+| Stop RabbitMQ in Compose | `NotifyHubServiceDown` (job `rabbitmq`) reached Alertmanager at `http://localhost:9093` |
+| PostgreSQL slower than the services on startup | Services wait through Flyway connect retries instead of crash-looping; no restarts in Compose or Kubernetes |
+| `REQUESTS=5000 CONCURRENCY=50 node scripts/performance-smoke.mjs` | 2499 req/s, p95 41.2 ms, p99 65.2 ms, 0 errors (full table in the [runbook](../../runbook/README.md#load-test)) |

@@ -74,7 +74,9 @@ This builds local images in Minikube, applies the manifests, waits for rollouts,
 8. Use notification filters for status and channel.
 9. Create a second reminder with recipient `demo+fail@example.com`. The mock sender fails it, so history shows `RETRYING` and then `FAILED` after 3 attempts, and the work item lands in `notifyhub.notifications.delivery.dlq` (RabbitMQ UI at `http://localhost:15672`, credentials `RABBITMQ_USERNAME`/`RABBITMQ_PASSWORD` from `deploy/docker/.env`).
 10. Open `http://localhost:3001` and inspect the `NotifyHub Overview` dashboard.
-11. Open `http://localhost:9090/targets` and confirm backend scrape targets are up.
+11. Open `http://localhost:9090/targets` and confirm backend and `rabbitmq` scrape targets are up.
+12. Open `http://localhost:9090/alerts`: after step 9, `NotifyHubDeliveryDeadLetterQueueGrowing` goes pending, then firing. Firing alerts appear in Alertmanager at `http://localhost:9093`.
+13. Optional: run `node scripts/performance-smoke.mjs` to show throughput and latency percentiles through the Gateway.
 
 ## Reset Between Demo Runs
 
@@ -104,4 +106,8 @@ docker compose --env-file deploy/docker/.env -f deploy/docker/compose.yml down -
 - Gateway CORS allows only exact configured origins; the dashboard proxies `/api` itself and needs none.
 - Reminder Service separates commands from queries: writes go through the `Reminder` aggregate, reads project straight into the response model ([ADR-0005](../adr/0005-reminder-cqrs.md)).
 - Redis-backed login throttling, timing-safe unknown-email handling and masked recipients in audit logs.
-- Prometheus and Grafana provide service health, traffic and delivery failure visibility.
+- Prometheus and Grafana provide service health, traffic, delivery failure and queue depth visibility.
+- Prometheus alert rules (service down, 5xx rate, delivery failures, growing DLQ) route through Alertmanager, which groups and deduplicates them.
+- Services wait for PostgreSQL with Flyway connect retries instead of crash-looping on startup.
+- Every Kubernetes workload has CPU and memory requests and limits; the full stack fits on a 4 CPU / 6 GB Minikube.
+- A load test through the Gateway sustains about 2500 req/s at 50 concurrent clients with p95 under 50 ms on a laptop.
