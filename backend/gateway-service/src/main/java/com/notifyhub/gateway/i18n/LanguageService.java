@@ -177,7 +177,20 @@ class LanguageService {
             Map.entry("topology.storage.detail", "State"),
             Map.entry("topology.storage.meta", "watch"),
             Map.entry("event.waitingPayloads", "Waiting for authenticated payloads"),
-            Map.entry("event.noRemindersQueued", "No reminders in the queue")
+            Map.entry("event.noRemindersQueued", "No reminders in the queue"),
+            Map.entry("auth.tagline", "Schedule a reminder and follow it all the way to delivery."),
+            Map.entry("overview.departures.title", "Next departures"),
+            Map.entry("overview.departures.empty", "No reminders are scheduled. Create one and it appears here with a countdown."),
+            Map.entry("overview.departures.due", "Due now"),
+            Map.entry("overview.status.title", "Delivery status"),
+            Map.entry("overview.status.good", "Good service"),
+            Map.entry("overview.status.delays", "Delays"),
+            Map.entry("overview.status.disruption", "Disruption"),
+            Map.entry("overview.status.idle", "No traffic yet"),
+            Map.entry("topology.rabbitmq.detail", "Delivery queue"),
+            Map.entry("topology.rabbitmq.meta", "retrying"),
+            Map.entry("reminder.newTitle", "New reminder"),
+            Map.entry("reminder.editTitle", "Edit reminder")
     );
 
     private static final Map<String, String> TR_MESSAGES = Map.ofEntries(
@@ -347,7 +360,20 @@ class LanguageService {
             Map.entry("topology.storage.detail", "Durum"),
             Map.entry("topology.storage.meta", "izleme"),
             Map.entry("event.waitingPayloads", "Kimliği doğrulanmış payload bekleniyor"),
-            Map.entry("event.noRemindersQueued", "Kuyrukta hatırlatıcı yok")
+            Map.entry("event.noRemindersQueued", "Kuyrukta hatırlatıcı yok"),
+            Map.entry("auth.tagline", "Bir hatırlatıcı planlayın ve teslimata kadar her adımını izleyin."),
+            Map.entry("overview.departures.title", "Sıradaki çıkışlar"),
+            Map.entry("overview.departures.empty", "Planlanmış hatırlatıcı yok. Oluşturduğunuz hatırlatıcı burada geri sayımla görünür."),
+            Map.entry("overview.departures.due", "Şimdi"),
+            Map.entry("overview.status.title", "Teslimat durumu"),
+            Map.entry("overview.status.good", "Sorunsuz"),
+            Map.entry("overview.status.delays", "Gecikme var"),
+            Map.entry("overview.status.disruption", "Aksama var"),
+            Map.entry("overview.status.idle", "Henüz trafik yok"),
+            Map.entry("topology.rabbitmq.detail", "Teslimat kuyruğu"),
+            Map.entry("topology.rabbitmq.meta", "yeniden deneniyor"),
+            Map.entry("reminder.newTitle", "Yeni hatırlatıcı"),
+            Map.entry("reminder.editTitle", "Hatırlatıcıyı düzenle")
     );
 
     LanguageMessagesResponse messages(String requestedLanguage) {
