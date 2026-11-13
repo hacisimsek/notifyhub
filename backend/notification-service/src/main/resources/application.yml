@@ -24,6 +24,10 @@ spring:
     url: ${NOTIFICATION_DB_URL:jdbc:postgresql://localhost:5432/notifyhub_notification}
     username: ${NOTIFICATION_DB_USERNAME:notifyhub}
     password: ${NOTIFICATION_DB_PASSWORD}
+  flyway:
+    # Wait for PostgreSQL on startup instead of crash-looping; ~90s fits inside the Kubernetes liveness window.
+    connect-retries: 20
+    connect-retries-interval: 5s
   jpa:
     hibernate:
       ddl-auto: validate
