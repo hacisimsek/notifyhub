@@ -16,6 +16,7 @@ Main local URLs:
 - Gateway: `http://localhost:8080`
 - Dashboard: `http://localhost:3000`
 - Prometheus: `http://localhost:9090`
+- Alertmanager: `http://localhost:9093`
 - Grafana: `http://localhost:3001`
 - RabbitMQ management: `http://localhost:15672`
 
@@ -155,7 +156,7 @@ In Kibana, filter on `request.id: "<request-id>"`.
 
 ## Alert Response
 
-Prometheus loads alert rules from `observability/prometheus/rules`.
+Prometheus loads alert rules from `observability/prometheus/rules` and sends firing alerts to Alertmanager (`http://localhost:9093`), which groups them by alert name and job. No delivery channel is configured, so alerts are visible only in the Alertmanager UI until a channel is added to `observability/alertmanager/alertmanager.yml`.
 
 - `NotifyHubServiceDown`: check the target service container or pod, then inspect `/actuator/health`.
 - `NotifyHubHighServerErrorRate`: inspect gateway and service logs for repeated 5xx responses.

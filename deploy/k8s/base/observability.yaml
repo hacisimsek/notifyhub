@@ -14,6 +14,12 @@ data:
     rule_files:
       - /etc/prometheus/rules/*.yml
 
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+                - alertmanager:9093
+
     scrape_configs:
       - job_name: prometheus
         static_configs:
@@ -110,6 +116,89 @@ data:
             annotations:
               summary: "Delivery dead-letter queue is growing"
               description: "Delivery work landed in notifyhub.notifications.delivery.dlq in the last 15 minutes. Inspect the messages in the RabbitMQ UI and the matching FAILED notifications."
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  labels:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/part-of: notifyhub
+data:
+  alertmanager.yml: |
+    # Prometheus sends NotifyHub alerts here; Alertmanager groups, deduplicates and silences them.
+    route:
+      receiver: notifyhub-ops
+      group_by: [alertname, job]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+
+    receivers:
+      # No channel is configured, so alerts are only visible in the Alertmanager UI.
+      # To deliver them, add one channel to this receiver, for example:
+      #   slack_configs:
+      #     - api_url_file: /etc/alertmanager/slack-webhook-url
+      #       channel: "#notifyhub-alerts"
+      #       send_resolved: true
+      - name: notifyhub-ops
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  labels:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/part-of: notifyhub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: alertmanager
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: alertmanager
+        app.kubernetes.io/part-of: notifyhub
+    spec:
+      containers:
+        - name: alertmanager
+          image: prom/alertmanager:v0.27.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - --config.file=/etc/alertmanager/alertmanager.yml
+            - --storage.path=/alertmanager
+          ports:
+            - name: http
+              containerPort: 9093
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+          volumeMounts:
+            - name: alertmanager-config
+              mountPath: /etc/alertmanager/alertmanager.yml
+              subPath: alertmanager.yml
+              readOnly: true
+      volumes:
+        - name: alertmanager-config
+          configMap:
+            name: alertmanager-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  labels:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/part-of: notifyhub
+spec:
+  selector:
+    app.kubernetes.io/name: alertmanager
+  ports:
+    - name: http
+      port: 9093
+      targetPort: http
 ---
 apiVersion: apps/v1
 kind: Deployment

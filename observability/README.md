@@ -12,6 +12,7 @@ docker compose --env-file deploy/docker/.env -f deploy/docker/compose.yml up --b
 ```
 
 Prometheus is available at `http://localhost:9090`.
+Alertmanager is available at `http://localhost:9093`.
 Grafana is available at `http://localhost:3001`.
 
 Grafana credentials are `GRAFANA_ADMIN_USER` and `GRAFANA_ADMIN_PASSWORD` from `deploy/docker/.env`.
@@ -43,6 +44,8 @@ The local rule set covers:
 
 Notification delivery alerts use the `notifyhub_notification_delivery_attempts_total` counter emitted by Notification Service with `channel` and `status` labels.
 The dead-letter alert uses `rabbitmq_detailed_queue_messages_ready` for `notifyhub.notifications.delivery.dlq`, which the `Delivery Queue Depth` panel also shows.
+
+Prometheus forwards firing alerts to Alertmanager. `observability/alertmanager/alertmanager.yml` routes every alert to the `notifyhub-ops` receiver, grouped by `alertname` and `job`, with a 4-hour repeat interval. The receiver has no channel yet. To deliver alerts, add one channel to it, for example `slack_configs` with `api_url_file` pointing to a mounted secret file, so the webhook URL stays out of git. The Kubernetes copy lives in the `alertmanager-config` ConfigMap in `deploy/k8s/base/observability.yaml`.
 
 ## Elastic Logging
 

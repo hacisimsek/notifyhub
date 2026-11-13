@@ -1,0 +1,16 @@
+# Prometheus sends NotifyHub alerts here; Alertmanager groups, deduplicates and silences them.
+route:
+  receiver: notifyhub-ops
+  group_by: [alertname, job]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+  # No channel is configured, so alerts are only visible in the Alertmanager UI.
+  # To deliver them, add one channel to this receiver, for example:
+  #   slack_configs:
+  #     - api_url_file: /etc/alertmanager/slack-webhook-url
+  #       channel: "#notifyhub-alerts"
+  #       send_resolved: true
+  - name: notifyhub-ops
