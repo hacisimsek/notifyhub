@@ -161,6 +161,12 @@ export function App() {
   }, [language]);
 
   useEffect(() => {
+    document.title = isAuthenticated
+      ? `${t(`heading.${activeView}.title`)} · ${t('app.name')}`
+      : t('app.name');
+  }, [activeView, isAuthenticated, messages]);
+
+  useEffect(() => {
     const syncRoute = () => setActiveView(currentDashboardView());
 
     window.addEventListener('hashchange', syncRoute);
@@ -641,6 +647,8 @@ export function App() {
     if (window.location.hash !== nextRoute) {
       window.history.pushState(null, '', nextRoute);
     }
+    // Tell keyboard and screen-reader users the view changed; callers that focus a field schedule theirs after this.
+    window.setTimeout(() => document.getElementById('page-title')?.focus(), 0);
   }
 
   async function runCommand(command: CommandItem) {
@@ -873,7 +881,7 @@ export function App() {
 
       <main className="workspace" id="main-content" tabIndex={-1}>
         <header className="page-head">
-          <h1>{t(`heading.${activeView}.title`)}</h1>
+          <h1 id="page-title" tabIndex={-1}>{t(`heading.${activeView}.title`)}</h1>
           <div className="page-actions">
             {activeView === 'reminders' || activeView === 'overview' ? (
               <button type="button" className="button" onClick={focusReminderForm}>
