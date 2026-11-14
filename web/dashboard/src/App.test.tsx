@@ -177,6 +177,16 @@ describe('App dashboard', () => {
     expect(window.location.hash).toBe('#reminders');
   });
 
+  it('moves focus to the page heading and updates the title when the view changes', async () => {
+    const actor = userEvent.setup();
+    await renderAuthenticatedDashboard();
+
+    await actor.click(screen.getByRole('link', { name: /history/i }));
+
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Notification history' })).toHaveFocus());
+    expect(document.title).toBe('Notification history · NotifyHub');
+  });
+
   it('registers with profile details', async () => {
     const actor = userEvent.setup();
     render(<App />);

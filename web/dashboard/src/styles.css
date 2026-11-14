@@ -1802,6 +1802,13 @@ td.cell-title {
   color: var(--board-ink);
   font-size: 0.8125rem;
   line-height: 1.6;
+  /* Wrap long values (idempotency keys) so nothing hides behind a scroll keyboards cannot reach. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+#page-title:focus {
+  outline: none;
 }
 
 /* ---------- Responsive ---------- */
