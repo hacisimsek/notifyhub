@@ -96,6 +96,25 @@ docker run --rm -it caddy:2.8-alpine caddy hash-password --plaintext 'replace-wi
 
 Put the resulting hash in `KIBANA_BASIC_AUTH_HASH`. If the hash contains `$`, wrap the value in single quotes in `production.env`.
 
+### Free demo hosting
+
+For a short demo with one or two users, no paid server or domain is needed:
+
+- **Server:** Oracle Cloud Always Free Ampere A1 (arm64, 2 OCPU / 12 GB in 2026). All images used by the stack publish arm64 variants, and the backend images build from source on the server. Ampere capacity is often exhausted in popular regions; if creation fails, retry later or pick another availability domain. Google Cloud's free trial credit is a fallback.
+- **Domain:** set `PUBLIC_DOMAIN=<server-ip>.sslip.io`. sslip.io resolves `app.<server-ip>.sslip.io` to the server IP, so Caddy gets Let's Encrypt certificates without a purchased domain. Corporate networks sometimes block such wildcard DNS names; test from the presentation machine beforehand.
+- **Oracle firewall:** besides UFW, open TCP `80` and `443` in the instance's VCN security list. Oracle Ubuntu images also ship iptables rules that reject them; allow both ports there too.
+
+### Live email and push delivery
+
+By default every channel uses the mock sender. To deliver real messages during a demo, set these in `production.env`:
+
+- `NOTIFICATION_LIVE_RECIPIENTS`: comma-separated exact recipients that get real delivery, for example `you@gmail.com,notifyhub-demo-k3x9q`. All other recipients stay mocked, so registered strangers and load tests cannot send real mail.
+- **EMAIL over Gmail SMTP:** `NOTIFICATION_SMTP_HOST=smtp.gmail.com`, `NOTIFICATION_SMTP_PORT=587`, your Gmail address as `NOTIFICATION_SMTP_USERNAME` and a Google app password (2-Step Verification required) as `NOTIFICATION_SMTP_PASSWORD`. Mail is sent from that Gmail address.
+- **PUSH over ntfy:** the reminder recipient is the ntfy topic. Install the ntfy app on the phone, subscribe to a long random topic name (topics on ntfy.sh are public), and add that topic to `NOTIFICATION_LIVE_RECIPIENTS`.
+- **SMS** stays mocked.
+
+Failed live sends follow the normal retry and DLQ path, and the failure reason appears in the delivery log.
+
 ## Deploy
 
 Clone the repository on the VPS and deploy from the repository root:

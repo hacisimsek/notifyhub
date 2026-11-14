@@ -48,6 +48,15 @@ notifyhub:
   delivery:
     mock:
       failure-marker: ${NOTIFICATION_MOCK_FAILURE_MARKER:+fail}
+    live:
+      # Only these exact recipients get real EMAIL (SMTP) or PUSH (ntfy topic) delivery; all others use the mock sender.
+      recipients: ${NOTIFICATION_LIVE_RECIPIENTS:}
+      smtp:
+        host: ${NOTIFICATION_SMTP_HOST:}
+        port: ${NOTIFICATION_SMTP_PORT:587}
+        username: ${NOTIFICATION_SMTP_USERNAME:}
+        password: ${NOTIFICATION_SMTP_PASSWORD:}
+      ntfy-base-url: ${NOTIFICATION_NTFY_BASE_URL:https://ntfy.sh}
     rabbitmq:
       enabled: ${RABBITMQ_ENABLED:false}
       exchange: ${NOTIFICATION_DELIVERY_EXCHANGE:notifyhub.notifications.delivery}
