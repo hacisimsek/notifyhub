@@ -449,7 +449,7 @@ export function ProfileSettingsPage({
     <section className="profile-grid" id="profile" aria-label={t('aria.profileSettings')}>
       <section className="panel" aria-labelledby="profile-title">
         <header className="panel-head">
-          <h2 id="profile-title">{t('heading.profile.title')}</h2>
+          <h2 id="profile-title">{t('profile.details')}</h2>
           {statusBadge(user.role, t)}
         </header>
 

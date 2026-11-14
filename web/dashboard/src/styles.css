@@ -2026,3 +2026,33 @@ td.cell-title {
   font-weight: 400;
   color: var(--ink-3);
 }
+
+/* Navy rail, departure board and login showcase: the blue focus ring drops under 3:1 there, the signal yellow does not. */
+.rail :focus-visible,
+.board :focus-visible,
+.auth-showcase :focus-visible {
+  outline-color: var(--signal);
+}
+
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--signal);
+  color: var(--signal-ink);
+  font-weight: 700;
+  text-decoration: none;
+  transform: translateY(calc(-100% - 16px));
+  transition: transform 150ms ease-out;
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+.workspace:focus {
+  outline: none;
+}
