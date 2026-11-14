@@ -98,6 +98,7 @@ import {
   profileInitial,
   recipientPlaceholder,
   reminderFormWithChannel,
+  setDisplayLocale,
   sortRemindersNewestFirst,
   statusBadge,
   statusFilterLabel,
@@ -120,6 +121,7 @@ export function App() {
   const [visibleNotifications, setVisibleNotifications] = useState<NotificationLog[]>([]);
   const [form, setForm] = useState<ReminderForm>(() => emptyReminderForm());
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [reminderStatusFilter, setReminderStatusFilter] = useState<ReminderStatusFilter>('ALL');
   const [reminderChannelFilter, setReminderChannelFilter] = useState<ReminderChannelFilter>('ALL');
   const [notificationStatusFilter, setNotificationStatusFilter] = useState<NotificationStatusFilter>('ALL');
@@ -137,6 +139,8 @@ export function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Times and dates follow the UI language, not the browser locale, so one screen never mixes two languages.
+  setDisplayLocale(language);
   const isAuthenticated = Boolean(user);
   const t = (key: string) => messages[key] ?? DEFAULT_MESSAGES[key] ?? key;
   const hasPendingWork = reminders.some((item) => item.status === 'SCHEDULED')
@@ -180,6 +184,7 @@ export function App() {
       if (event.key === 'Escape') {
         setCommandPaletteOpen(false);
         setInspectorTarget(null);
+        setPendingDeleteId(null);
       }
     }
 
@@ -568,6 +573,7 @@ export function App() {
   }
 
   async function removeReminder(id: string) {
+    setPendingDeleteId(null);
     setError(null);
     try {
       await deleteReminder(id);
@@ -692,24 +698,36 @@ export function App() {
             <ThemeToggle theme={theme} onToggle={toggleTheme} t={t} />
           </div>
 
-          <div className="segmented auth-tabs" role="tablist" aria-label={t('aria.authenticationMode')}>
-            <button
-              type="button"
-              className={authMode === 'login' ? 'active' : ''}
-              onClick={() => setAuthMode('login')}
-            >
-              {t('auth.login')}
-            </button>
-            <button
-              type="button"
-              className={authMode === 'register' ? 'active' : ''}
-              onClick={() => setAuthMode('register')}
-            >
-              {t('auth.register')}
-            </button>
+          <div
+            className="segmented auth-tabs"
+            role="tablist"
+            aria-label={t('aria.authenticationMode')}
+            onKeyDown={(event) => {
+              if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+                const next = authMode === 'login' ? 'register' : 'login';
+                setAuthMode(next);
+                document.getElementById(`auth-tab-${next}`)?.focus();
+              }
+            }}
+          >
+            {(['login', 'register'] as AuthMode[]).map((mode) => (
+              <button
+                type="button"
+                key={mode}
+                id={`auth-tab-${mode}`}
+                role="tab"
+                aria-selected={authMode === mode}
+                aria-controls="auth-form"
+                tabIndex={authMode === mode ? 0 : -1}
+                className={authMode === mode ? 'active' : ''}
+                onClick={() => setAuthMode(mode)}
+              >
+                {t(`auth.${mode}`)}
+              </button>
+            ))}
           </div>
 
-          <form className="form" onSubmit={submitAuth}>
+          <form className="form" id="auth-form" role="tabpanel" aria-labelledby={`auth-tab-${authMode}`} onSubmit={submitAuth}>
             {authMode === 'register' ? (
               <div className="form-row">
                 <label>
@@ -1012,15 +1030,28 @@ export function App() {
                         </td>
                         <td>{statusBadge(reminder.status, t)}</td>
                         <td className="row-actions">
-                          <button type="button" className="icon-button" onClick={() => setInspectorTarget({ kind: 'reminder', item: reminder })} title={t('actions.inspectReminder')} aria-label={t('actions.inspectReminder')}>
-                            <Code2 size={16} aria-hidden="true" />
-                          </button>
-                          <button type="button" className="icon-button" onClick={() => startEditing(reminder)} title={t('actions.editReminder')} aria-label={t('actions.editReminder')}>
-                            <Edit3 size={16} aria-hidden="true" />
-                          </button>
-                          <button type="button" className="icon-button danger" onClick={() => removeReminder(reminder.id)} title={t('actions.deleteReminder')} aria-label={t('actions.deleteReminder')}>
-                            <Trash2 size={16} aria-hidden="true" />
-                          </button>
+                          {pendingDeleteId === reminder.id ? (
+                            <span className="confirm-delete">
+                              <button type="button" className="button small danger" autoFocus onClick={() => removeReminder(reminder.id)}>
+                                {t('actions.confirmDelete')}
+                              </button>
+                              <button type="button" className="button small" onClick={() => setPendingDeleteId(null)}>
+                                {t('actions.keep')}
+                              </button>
+                            </span>
+                          ) : (
+                            <>
+                              <button type="button" className="icon-button" onClick={() => setInspectorTarget({ kind: 'reminder', item: reminder })} title={t('actions.inspectReminder')} aria-label={t('actions.inspectReminder')}>
+                                <Code2 size={16} aria-hidden="true" />
+                              </button>
+                              <button type="button" className="icon-button" onClick={() => startEditing(reminder)} title={t('actions.editReminder')} aria-label={t('actions.editReminder')}>
+                                <Edit3 size={16} aria-hidden="true" />
+                              </button>
+                              <button type="button" className="icon-button danger" onClick={() => setPendingDeleteId(reminder.id)} title={t('actions.deleteReminder')} aria-label={t('actions.deleteReminder')}>
+                                <Trash2 size={16} aria-hidden="true" />
+                              </button>
+                            </>
+                          )}
                         </td>
                       </tr>
                     ))}

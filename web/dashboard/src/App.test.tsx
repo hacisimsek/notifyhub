@@ -131,11 +131,29 @@ describe('App dashboard', () => {
     expect(within(rows[2]).getByText('Pay invoice')).toBeInTheDocument();
   });
 
+  it('asks for confirmation before deleting a reminder', async () => {
+    const actor = userEvent.setup();
+    await renderAuthenticatedDashboard();
+
+    await actor.click(screen.getByRole('link', { name: /reminders/i }));
+    const row = within(remindersPanel()).getAllByRole('row')[1];
+    await actor.click(within(row).getByRole('button', { name: 'Delete reminder' }));
+    expect(mockedApi.deleteReminder).not.toHaveBeenCalled();
+
+    await actor.click(within(row).getByRole('button', { name: 'Keep' }));
+    expect(within(row).queryByRole('button', { name: 'Keep' })).not.toBeInTheDocument();
+    expect(mockedApi.deleteReminder).not.toHaveBeenCalled();
+
+    await actor.click(within(row).getByRole('button', { name: 'Delete reminder' }));
+    await actor.click(within(row).getByRole('button', { name: 'Delete' }));
+    expect(mockedApi.deleteReminder).toHaveBeenCalledTimes(1);
+  });
+
   it('registers with profile details', async () => {
     const actor = userEvent.setup();
     render(<App />);
 
-    await actor.click(screen.getByRole('button', { name: /register/i }));
+    await actor.click(screen.getByRole('tab', { name: /register/i }));
     await actor.type(screen.getByLabelText('First name'), 'Haci');
     await actor.type(screen.getByLabelText('Last name'), 'Simsek');
     await actor.type(screen.getByLabelText('Email'), 'user@example.com');
