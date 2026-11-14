@@ -166,6 +166,17 @@ describe('App dashboard', () => {
     expect(options[options.length - 1]).toHaveAttribute('aria-selected', 'true');
   });
 
+  it('skips past navigation to the main content without changing the view', async () => {
+    const actor = userEvent.setup();
+    await renderAuthenticatedDashboard();
+    await actor.click(screen.getByRole('link', { name: /reminders/i }));
+
+    await actor.click(screen.getByRole('link', { name: 'Skip to content' }));
+
+    expect(screen.getByRole('main')).toHaveFocus();
+    expect(window.location.hash).toBe('#reminders');
+  });
+
   it('registers with profile details', async () => {
     const actor = userEvent.setup();
     render(<App />);
@@ -265,7 +276,7 @@ describe('App dashboard', () => {
 
     expect(window.location.hash).toBe('#history');
     expect(screen.getByRole('heading', { name: 'Notification history' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'History' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Delivery log' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Reminders' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Service topology' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /history/i })).toHaveAttribute('aria-current', 'page');
@@ -283,7 +294,7 @@ describe('App dashboard', () => {
 
     expect(window.location.hash).toBe('#reminders');
     expect(screen.getAllByRole('heading', { name: 'Reminders' }).length).toBeGreaterThan(0);
-    expect(screen.queryByRole('heading', { name: 'History' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Delivery log' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Service topology' })).not.toBeInTheDocument();
   });
 

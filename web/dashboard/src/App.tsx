@@ -821,7 +821,18 @@ export function App() {
   ];
 
   return (
-    <main className="app-shell">
+    <div className="app-shell">
+      <a
+        className="skip-link"
+        href="#main-content"
+        onClick={(event) => {
+          // Hash routes drive the views, so move focus without touching location.hash.
+          event.preventDefault();
+          document.getElementById('main-content')?.focus();
+        }}
+      >
+        {t('actions.skipToContent')}
+      </a>
       <aside className="rail" aria-label={t('aria.primaryNavigation')}>
         <div className="brand">
           <span className="brand-mark"><Bell size={18} aria-hidden="true" /></span>
@@ -860,7 +871,7 @@ export function App() {
         </div>
       </aside>
 
-      <section className="workspace">
+      <main className="workspace" id="main-content" tabIndex={-1}>
         <header className="page-head">
           <h1>{t(`heading.${activeView}.title`)}</h1>
           <div className="page-actions">
@@ -984,7 +995,7 @@ export function App() {
 
             <section className="panel timetable" id="reminders" aria-labelledby="reminders-title">
               <header className="panel-head">
-                <h2 id="reminders-title">{t('heading.reminders.title')}</h2>
+                <h2 id="reminders-title">{t('reminder.listTitle')}</h2>
                 <span className="count">{visibleReminders.length} / {reminders.length}</span>
               </header>
 
@@ -1079,7 +1090,7 @@ export function App() {
         {activeView === 'history' ? (
           <section className="panel" id="history" aria-labelledby="notifications-title">
             <header className="panel-head">
-              <h2 id="notifications-title">{t('nav.history')}</h2>
+              <h2 id="notifications-title">{t('history.listTitle')}</h2>
               <span className="count">{visibleNotifications.length} / {notifications.length}</span>
             </header>
 
@@ -1154,7 +1165,7 @@ export function App() {
             t={t}
           />
         ) : null}
-      </section>
+      </main>
 
       {commandPaletteOpen ? (
         <CommandPalette
@@ -1173,7 +1184,7 @@ export function App() {
       {inspectorTarget ? (
         <InspectorDrawer target={inspectorTarget} onClose={() => setInspectorTarget(null)} t={t} />
       ) : null}
-    </main>
+    </div>
   );
 }
 
