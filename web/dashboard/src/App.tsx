@@ -762,6 +762,8 @@ export function App() {
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
+                aria-invalid={error ? true : undefined}
+                aria-describedby={error ? 'auth-error' : undefined}
                 placeholder="user@example.com"
                 autoComplete="email"
                 required
@@ -787,13 +789,15 @@ export function App() {
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
+                aria-invalid={error ? true : undefined}
+                aria-describedby={error ? 'auth-error' : undefined}
                 autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
                 minLength={8}
                 maxLength={128}
                 required
               />
             </label>
-            {error ? <p className="form-message error" role="alert">{error}</p> : null}
+            {error ? <p id="auth-error" className="form-message error" role="alert">{error}</p> : null}
             <button type="submit" className="button primary wide" disabled={loading}>
               {loading ? <Loader2 className="spin" size={16} aria-hidden="true" /> : <ShieldCheck size={16} aria-hidden="true" />}
               {authMode === 'login' ? t('auth.signIn') : t('auth.createAccount')}
@@ -920,7 +924,7 @@ export function App() {
                   />
                 </label>
                 <label>
-                  {t('reminder.message')}
+                  <span>{t('reminder.message')} <span className="optional">({t('form.optional')})</span></span>
                   <textarea
                     value={form.message}
                     onChange={(event) => setForm({ ...form, message: event.target.value })}

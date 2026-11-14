@@ -283,6 +283,13 @@ export function CommandPalette({
 }) {
   const dialogRef = useRef<HTMLElement>(null);
   useDialogFocus(dialogRef);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const active = Math.min(activeIndex, Math.max(commands.length - 1, 0));
+  const optionId = (index: number) => `command-option-${index}`;
+
+  useEffect(() => {
+    document.getElementById(optionId(active))?.scrollIntoView?.({ block: 'nearest' });
+  }, [active]);
 
   return (
     <div
@@ -300,12 +307,27 @@ export function CommandPalette({
           <Search size={18} aria-hidden="true" />
           <input
             autoFocus
+            role="combobox"
+            aria-expanded="true"
+            aria-controls="command-options"
+            aria-autocomplete="list"
+            aria-activedescendant={commands[active] ? optionId(active) : undefined}
             value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
+            onChange={(event) => {
+              setActiveIndex(0);
+              onQueryChange(event.target.value);
+            }}
             onKeyDown={(event) => {
-              if (event.key === 'Enter' && commands[0]) {
+              if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
                 event.preventDefault();
-                onRun(commands[0]);
+                if (commands.length > 0) {
+                  const step = event.key === 'ArrowDown' ? 1 : -1;
+                  setActiveIndex((active + step + commands.length) % commands.length);
+                }
+              }
+              if (event.key === 'Enter' && commands[active]) {
+                event.preventDefault();
+                onRun(commands[active]);
               }
             }}
             aria-label={t('command.title')}
@@ -313,9 +335,19 @@ export function CommandPalette({
           />
           <kbd>Esc</kbd>
         </div>
-        <div className="command-list">
-          {commands.map((command) => (
-            <button type="button" className="command-item" key={command.id} onClick={() => onRun(command)}>
+        <div className="command-list" id="command-options" role="listbox" aria-label={t('command.title')}>
+          {commands.map((command, index) => (
+            <button
+              type="button"
+              role="option"
+              id={optionId(index)}
+              aria-selected={index === active}
+              tabIndex={-1}
+              className="command-item"
+              key={command.id}
+              onMouseMove={() => setActiveIndex(index)}
+              onClick={() => onRun(command)}
+            >
               <span>
                 <strong>{command.title}</strong>
                 <small>{command.group} · {command.hint}</small>
@@ -410,6 +442,8 @@ export function ProfileSettingsPage({
   t: Translate;
 }) {
   const displayName = fullName(user);
+  // Server errors are form-level, so every field points at the one message that explains them.
+  const fieldError = profileStatus?.tone === 'error' ? { 'aria-invalid': true, 'aria-describedby': 'profile-status' } : {};
 
   return (
     <section className="profile-grid" id="profile" aria-label={t('aria.profileSettings')}>
@@ -436,6 +470,7 @@ export function ProfileSettingsPage({
                 value={profileForm.firstName}
                 onChange={(event) => onProfileChange({ ...profileForm, firstName: event.target.value })}
                 autoComplete="given-name"
+                {...fieldError}
                 maxLength={80}
                 required
               />
@@ -447,6 +482,7 @@ export function ProfileSettingsPage({
                 value={profileForm.lastName}
                 onChange={(event) => onProfileChange({ ...profileForm, lastName: event.target.value })}
                 autoComplete="family-name"
+                {...fieldError}
                 maxLength={80}
                 required
               />
@@ -460,6 +496,7 @@ export function ProfileSettingsPage({
                 value={profileForm.phoneNumber}
                 onChange={(event) => onProfileChange({ ...profileForm, phoneNumber: event.target.value })}
                 autoComplete="tel"
+                {...fieldError}
                 maxLength={32}
                 required
               />
@@ -475,7 +512,7 @@ export function ProfileSettingsPage({
               </select>
             </label>
           </div>
-          {profileStatus ? <p className={`form-message ${profileStatus.tone}`} role="status">{profileStatus.message}</p> : null}
+          {profileStatus ? <p id="profile-status" className={`form-message ${profileStatus.tone}`} role={profileStatus.tone === 'error' ? 'alert' : 'status'}>{profileStatus.message}</p> : null}
           <div className="form-actions">
             <button type="submit" className="button primary" disabled={profileSubmitting}>
               {profileSubmitting ? <Loader2 className="spin" size={16} aria-hidden="true" /> : <Save size={16} aria-hidden="true" />}
@@ -533,6 +570,8 @@ export function PasswordChangeFormView({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   t: Translate;
 }) {
+  const fieldError = status?.tone === 'error' ? { 'aria-invalid': true, 'aria-describedby': 'password-status' } : {};
+
   return (
     <form className="form" onSubmit={onSubmit}>
       <label>
@@ -543,6 +582,7 @@ export function PasswordChangeFormView({
           value={form.currentPassword}
           onChange={(event) => onChange({ ...form, currentPassword: event.target.value })}
           autoComplete="current-password"
+          {...fieldError}
           minLength={8}
           maxLength={128}
           required
@@ -555,6 +595,7 @@ export function PasswordChangeFormView({
           value={form.newPassword}
           onChange={(event) => onChange({ ...form, newPassword: event.target.value })}
           autoComplete="new-password"
+          {...fieldError}
           minLength={8}
           maxLength={128}
           required
@@ -567,12 +608,13 @@ export function PasswordChangeFormView({
           value={form.confirmPassword}
           onChange={(event) => onChange({ ...form, confirmPassword: event.target.value })}
           autoComplete="new-password"
+          {...fieldError}
           minLength={8}
           maxLength={128}
           required
         />
       </label>
-      {status ? <p className={`form-message ${status.tone}`} role="status">{status.message}</p> : null}
+      {status ? <p id="password-status" className={`form-message ${status.tone}`} role={status.tone === 'error' ? 'alert' : 'status'}>{status.message}</p> : null}
       <div className="form-actions">
         <button type="submit" className="button primary" disabled={submitting}>
           {submitting ? <Loader2 className="spin" size={16} aria-hidden="true" /> : <KeyRound size={16} aria-hidden="true" />}

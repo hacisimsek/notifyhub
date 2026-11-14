@@ -44,6 +44,10 @@
 
   --shadow: 0 1px 2px rgba(17, 24, 38, 0.06), 0 4px 16px rgba(17, 24, 38, 0.05);
   --shadow-pop: 0 12px 40px rgba(17, 24, 38, 0.22);
+  --shadow-control: 0 1px 2px rgba(17, 24, 38, 0.12);
+  --overlay: rgba(8, 13, 24, 0.45);
+  --board-row-hover: #22314f;
+  --danger-hover: #a72a1a;
   --radius: 10px;
   --radius-sm: 6px;
 
@@ -90,6 +94,10 @@
 
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-pop: 0 16px 48px rgba(0, 0, 0, 0.55);
+  --shadow-control: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --overlay: rgba(0, 0, 0, 0.6);
+  --board-row-hover: #17233d;
+  --danger-hover: #ff9585;
 
   color-scheme: dark;
 }
@@ -282,6 +290,8 @@ kbd {
 
 .form {
   display: grid;
+  /* minmax(0, …) lets fields shrink below their intrinsic width (date inputs) when text is enlarged. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
 
@@ -310,6 +320,7 @@ input,
 select,
 textarea {
   width: 100%;
+  min-width: 0;
   min-height: 40px;
   padding: 8px 12px;
   border: 1px solid var(--control-border);
@@ -412,12 +423,13 @@ input:user-invalid {
 .chips button.active {
   background: var(--surface);
   color: var(--ink);
-  box-shadow: 0 1px 2px rgba(17, 24, 38, 0.12), 0 0 0 1px var(--rule);
+  box-shadow: var(--shadow-control), 0 0 0 1px var(--rule);
 }
 
 .segmented.channels {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  /* Three across when they fit, stacked when text is enlarged. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 5.5rem), 1fr));
 }
 
 .segmented.channels button.active {
@@ -1016,7 +1028,7 @@ input:user-invalid {
 }
 
 .board-row:hover {
-  background: color-mix(in srgb, var(--board-row) 80%, #ffffff);
+  background: var(--board-row-hover);
 }
 
 .board-time,
@@ -1181,19 +1193,31 @@ input:user-invalid {
 }
 
 .live-dot {
+  position: relative;
   width: 8px;
   height: 8px;
+  border-radius: 50%;
+  background: var(--ok);
+}
+
+/* Compositor-only pulse: transform and opacity, no repaint per frame. */
+.live-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
   border-radius: 50%;
   background: var(--ok);
   animation: live 2s ease-out infinite;
 }
 
 @keyframes live {
-  0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 50%, transparent);
+  from {
+    transform: scale(1);
+    opacity: 0.5;
   }
-  100% {
-    box-shadow: 0 0 0 8px transparent;
+  to {
+    transform: scale(3);
+    opacity: 0;
   }
 }
 
@@ -1528,6 +1552,7 @@ td.cell-title {
 }
 
 .trip-body {
+  overflow-wrap: anywhere;
   display: grid;
   gap: 4px;
   min-width: 0;
@@ -1599,6 +1624,8 @@ td.cell-title {
 }
 
 .identity > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
   display: grid;
 }
 
@@ -1646,7 +1673,7 @@ td.cell-title {
   display: grid;
   place-items: start center;
   padding: 12vh 16px 16px;
-  background: rgba(8, 13, 24, 0.45);
+  background: var(--overlay);
   animation: fade 150ms ease-out;
 }
 
@@ -1712,7 +1739,7 @@ td.cell-title {
 
 .command-item:hover,
 .command-item:focus-visible,
-.command-list > .command-item:first-child {
+.command-item[aria-selected='true'] {
   background: var(--surface-2);
 }
 
@@ -1867,27 +1894,6 @@ td.cell-title {
     padding: 0;
   }
 
-  /* Touch targets: at least 44px on phones (WCAG 2.5.5). */
-  .button,
-  .button.small,
-  .icon-button,
-  .segmented button,
-  .chips button,
-  input,
-  select {
-    min-height: 44px;
-  }
-
-  .icon-button {
-    width: 44px;
-    height: 44px;
-  }
-
-  .chips button,
-  .segmented button {
-    padding: 0 14px;
-  }
-
   .workspace {
     padding: 20px 16px 40px;
   }
@@ -1945,12 +1951,36 @@ td.cell-title {
   }
 }
 
+/* Touch targets: at least 44px on touch screens of any width (tablets too) and on narrow windows (WCAG 2.5.5). */
+@media (pointer: coarse), (max-width: 860px) {
+  .button,
+  .button.small,
+  .icon-button,
+  .segmented button,
+  .chips button,
+  input,
+  select {
+    min-height: 44px;
+  }
+
+  .icon-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .chips button,
+  .segmented button {
+    padding: 0 14px;
+  }
+}
+
 /* Reduced motion: drop movement, keep state. The live dot stays as a static ring, overlays appear without sliding,
    and the loading spinner keeps turning slowly because it is the only loading signal. */
 @media (prefers-reduced-motion: reduce) {
-  .live-dot {
+  .live-dot::after {
     animation: none;
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 30%, transparent);
+    transform: scale(1.8);
+    opacity: 0.3;
   }
 
   .overlay,
@@ -1984,10 +2014,15 @@ td.cell-title {
 }
 
 .button.danger:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--danger) 85%, #000000);
+  background: var(--danger-hover);
   border-color: transparent;
 }
 
 .confirm-delete .button.small {
   padding: 0 8px;
+}
+
+.optional {
+  font-weight: 400;
+  color: var(--ink-3);
 }

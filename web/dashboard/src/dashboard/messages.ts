@@ -74,6 +74,7 @@ export const DEFAULT_MESSAGES: Record<string, string> = {
   'error.validation.invalid': 'Please check the highlighted fields.',
   'reminder.title': 'Title',
   'reminder.message': 'Message',
+  'form.optional': 'optional',
   'reminder.scheduledFor': 'Scheduled for',
   'reminder.channel': 'Channel',
   'reminder.recipient': 'Recipient',

@@ -149,6 +149,23 @@ describe('App dashboard', () => {
     expect(mockedApi.deleteReminder).toHaveBeenCalledTimes(1);
   });
 
+  it('moves through command palette results with the arrow keys', async () => {
+    const actor = userEvent.setup();
+    await renderAuthenticatedDashboard();
+
+    await actor.click(screen.getByRole('button', { name: /command/i }));
+    const input = screen.getByRole('combobox', { name: 'Command palette' });
+    const options = screen.getAllByRole('option');
+    expect(options[0]).toHaveAttribute('aria-selected', 'true');
+
+    await actor.keyboard('{ArrowDown}');
+    expect(options[1]).toHaveAttribute('aria-selected', 'true');
+    expect(input).toHaveAttribute('aria-activedescendant', options[1].id);
+
+    await actor.keyboard('{ArrowUp}{ArrowUp}');
+    expect(options[options.length - 1]).toHaveAttribute('aria-selected', 'true');
+  });
+
   it('registers with profile details', async () => {
     const actor = userEvent.setup();
     render(<App />);
@@ -192,7 +209,7 @@ describe('App dashboard', () => {
 
     await actor.click(screen.getByRole('link', { name: /reminders/i }));
     await actor.type(screen.getByLabelText('Title'), '  Demo reminder  ');
-    await actor.type(screen.getByLabelText('Message'), '  Follow up with finance  ');
+    await actor.type(screen.getByLabelText(/^Message/), '  Follow up with finance  ');
     await actor.clear(screen.getByLabelText('Recipient'));
     await actor.type(screen.getByLabelText('Recipient'), '  demo@example.com  ');
     await actor.click(screen.getByRole('button', { name: /add reminder/i }));
@@ -277,8 +294,8 @@ describe('App dashboard', () => {
     await actor.click(screen.getByRole('button', { name: /command/i }));
     expect(screen.getByRole('dialog', { name: 'Command palette' })).toBeInTheDocument();
 
-    await actor.type(screen.getByRole('textbox', { name: 'Command palette' }), 'history');
-    await actor.click(screen.getByRole('button', { name: /open history/i }));
+    await actor.type(screen.getByRole('combobox', { name: 'Command palette' }), 'history');
+    await actor.click(screen.getByRole('option', { name: /open history/i }));
 
     expect(window.location.hash).toBe('#history');
     expect(screen.getByRole('heading', { name: 'Notification history' })).toBeInTheDocument();
