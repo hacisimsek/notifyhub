@@ -9,6 +9,8 @@
   --ink-3: #626b7e;
   --rule: #dcdfd8;
   --rule-strong: #c3c7bf;
+  /* Boundaries that identify a control or a state must reach 3:1 (WCAG 1.4.11). */
+  --control-border: #858b80;
 
   --rail: #12203a;
   --rail-2: #1b2c4c;
@@ -23,10 +25,11 @@
   --signal-ink: #111826;
 
   --line-email: #1d5fd1;
-  --line-sms: #0e8a55;
+  --line-sms: #0b7a4b;
+  --line-ink: #ffffff;
   --line-push: #b5307c;
 
-  --ok: #12805c;
+  --ok: #0d6e4c;
   --ok-bg: #e2f3ec;
   --warn: #9a5a00;
   --warn-bg: #fdf0d5;
@@ -59,6 +62,7 @@
   --ink-3: #8f99ad;
   --rule: #26314a;
   --rule-strong: #34405c;
+  --control-border: #66738e;
 
   --rail: #070c16;
   --rail-2: #142039;
@@ -69,6 +73,7 @@
   --line-email: #6198f7;
   --line-sms: #3cbc85;
   --line-push: #e568a6;
+  --line-ink: #0b111d;
 
   --ok: #4cc795;
   --ok-bg: #11392b;
@@ -182,6 +187,9 @@ kbd {
   position: absolute;
   width: 1px;
   height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
@@ -304,7 +312,7 @@ textarea {
   width: 100%;
   min-height: 40px;
   padding: 8px 12px;
-  border: 1px solid var(--rule-strong);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--ink);
@@ -414,7 +422,7 @@ input:user-invalid {
 
 .segmented.channels button.active {
   background: var(--line);
-  color: #ffffff;
+  color: var(--line-ink);
   box-shadow: none;
 }
 
@@ -440,7 +448,7 @@ input:user-invalid {
   padding: 0 8px 0 6px;
   border-radius: 5px;
   background: var(--line);
-  color: #ffffff;
+  color: var(--line-ink);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -529,7 +537,7 @@ input:user-invalid {
   width: 18px;
   height: 3px;
   transform: translateY(-50%);
-  background: var(--rule-strong);
+  background: var(--control-border);
 }
 
 .route li.done + li::before {
@@ -541,7 +549,7 @@ input:user-invalid {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  border: 3px solid var(--rule-strong);
+  border: 3px solid var(--control-border);
   background: var(--surface);
 }
 
@@ -1400,6 +1408,7 @@ input:user-invalid {
 }
 
 .table-wrap {
+  position: relative;
   overflow-x: auto;
   margin: 0 -20px -20px;
 }
@@ -1804,18 +1813,18 @@ td.cell-title {
     grid-template-columns: 1fr;
   }
 
+  /* Phone layout: brand and actions on the first row, the four views as equal tabs below. */
   .rail {
     position: sticky;
     z-index: 10;
     flex-direction: row;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 12px;
+    gap: 8px 12px;
     height: auto;
-    padding: 10px 16px;
-    overflow-x: auto;
+    padding: 8px 16px 10px;
   }
 
-  .rail .brand span:last-child,
   .rail-account,
   .rail-action span,
   .rail-action kbd,
@@ -1824,16 +1833,59 @@ td.cell-title {
   }
 
   .rail nav {
-    display: flex;
+    order: 3;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    width: 100%;
   }
 
   .rail nav a {
-    white-space: nowrap;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    min-height: 52px;
+    padding: 4px 2px;
+    font-size: 0.75rem;
+    text-align: center;
+  }
+
+  .rail nav a[aria-current='page'] {
+    box-shadow: inset 0 -3px 0 var(--signal);
   }
 
   .rail-footer {
     display: flex;
+    gap: 4px;
     margin: 0 0 0 auto;
+  }
+
+  .rail-action {
+    justify-content: center;
+    width: 44px;
+    min-height: 44px;
+    padding: 0;
+  }
+
+  /* Touch targets: at least 44px on phones (WCAG 2.5.5). */
+  .button,
+  .button.small,
+  .icon-button,
+  .segmented button,
+  .chips button,
+  input,
+  select {
+    min-height: 44px;
+  }
+
+  .icon-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .chips button,
+  .segmented button {
+    padding: 0 14px;
   }
 
   .workspace {
@@ -1893,13 +1945,21 @@ td.cell-title {
   }
 }
 
+/* Reduced motion: drop movement, keep state. The live dot stays as a static ring, overlays appear without sliding,
+   and the loading spinner keeps turning slowly because it is the only loading signal. */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 1ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 1ms !important;
+  .live-dot {
+    animation: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 30%, transparent);
+  }
+
+  .overlay,
+  .inspector {
+    animation: none;
+  }
+
+  .spin {
+    animation-duration: 2.4s;
   }
 }
 
@@ -1912,8 +1972,22 @@ td.cell-title {
   align-content: start;
 }
 
-/* Brighter dark-theme line colours need dark lettering to keep contrast. */
-[data-theme='dark'] .line-chip,
-[data-theme='dark'] .segmented.channels button.active {
-  color: #0b111d;
+.confirm-delete {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.button.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--line-ink);
+}
+
+.button.danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 85%, #000000);
+  border-color: transparent;
+}
+
+.confirm-delete .button.small {
+  padding: 0 8px;
 }

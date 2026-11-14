@@ -138,19 +138,25 @@ export function hasNotificationFilters(filters: NotificationFilters) {
   return Boolean(filters.status || filters.channel);
 }
 
+let displayLocale: string | undefined;
+
+export function setDisplayLocale(locale: LanguageCode) {
+  displayLocale = locale;
+}
+
 export function formatDate(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(displayLocale, {
     dateStyle: 'medium',
     timeStyle: 'short'
   }).format(new Date(value));
 }
 
 export function formatClock(value: string) {
-  return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value));
+  return new Intl.DateTimeFormat(displayLocale, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value));
 }
 
 export function formatDay(value: string) {
-  return new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(value));
+  return new Intl.DateTimeFormat(displayLocale, { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(value));
 }
 
 export function relativeTime(value: string, language: LanguageCode, now = Date.now()) {

@@ -1,4 +1,4 @@
-import { FormEvent } from 'react';
+import { FormEvent, RefObject, useEffect, useRef, useState } from 'react';
 import { KeyRound, Loader2, Moon, Plus, Save, Search, Sun, X } from 'lucide-react';
 import type { Channel, DeliveryStatus, LanguageCode, NotificationLog, Reminder, ReminderStatus, UserSummary } from '../api';
 import {
@@ -26,6 +26,58 @@ import {
 } from './utils';
 
 type Translate = (key: string) => string;
+
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+// Modal dialogs: move focus in, keep Tab inside, and give focus back to the opener on close (WCAG 2.4.3).
+function useDialogFocus(ref: RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    const dialog = ref.current;
+    if (!dialog) {
+      return;
+    }
+    if (!dialog.contains(document.activeElement)) {
+      (dialog.querySelector<HTMLElement>(FOCUSABLE) ?? dialog).focus();
+    }
+
+    function trapTab(event: KeyboardEvent) {
+      if (event.key !== 'Tab' || !dialog) {
+        return;
+      }
+      const items = [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)];
+      if (items.length === 0) {
+        event.preventDefault();
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    dialog.addEventListener('keydown', trapTab);
+    return () => {
+      dialog.removeEventListener('keydown', trapTab);
+      opener?.focus?.();
+    };
+  }, [ref]);
+}
+
+// Re-render on a timer so clocks and countdowns stay current between data refreshes.
+function useNow(intervalMs: number) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), intervalMs);
+    return () => window.clearInterval(id);
+  }, [intervalMs]);
+  return now;
+}
 type Metrics = { scheduled: number; triggered: number; sent: number; failed: number; retrying: number; totalAttempts: number };
 
 export function DeparturesBoard({
@@ -41,7 +93,7 @@ export function DeparturesBoard({
   onCreate: () => void;
   t: Translate;
 }) {
-  const now = Date.now();
+  const now = useNow(15000);
   const departures = reminders
     .filter((reminder) => reminder.status === 'SCHEDULED')
     .sort((left, right) => new Date(left.scheduledFor).getTime() - new Date(right.scheduledFor).getTime())
@@ -152,8 +204,8 @@ export function ServiceTopology({ metrics, t }: { metrics: Metrics; t: Translate
         <h2 id="topology-title">{t('overview.topology.title')}</h2>
         <span className="live-chip"><span className="live-dot" aria-hidden="true" />{t('runtime.live')}</span>
       </header>
-      <div className="line-map" role="img" aria-label={t('aria.serviceDependencies')}>
-        <ol className="line-map-main">
+      <div className="line-map">
+        <ol className="line-map-main" aria-label={t('aria.serviceDependencies')}>
           {mainLine.map((stop) => (
             <li key={stop.key} className={`map-stop ${stop.alert ? 'alert' : ''}`}>
               <span className="map-dot" aria-hidden="true" />
@@ -192,7 +244,7 @@ export function LiveEventConsole({
       <header className="panel-head">
         <h2 id="console-title">{t('overview.console.title')}</h2>
       </header>
-      <div className="activity-log" role="log" aria-live="polite" aria-label={t('aria.liveEventStream')} tabIndex={0}>
+      <div className="activity-log" role="log" aria-label={t('aria.liveEventStream')} tabIndex={0}>
         {events.map((event) => (
           <button
             type="button"
@@ -229,6 +281,9 @@ export function CommandPalette({
   onClose: () => void;
   t: Translate;
 }) {
+  const dialogRef = useRef<HTMLElement>(null);
+  useDialogFocus(dialogRef);
+
   return (
     <div
       className="overlay"
@@ -239,7 +294,7 @@ export function CommandPalette({
         }
       }}
     >
-      <section className="command-palette" role="dialog" aria-modal="true" aria-labelledby="command-title">
+      <section ref={dialogRef} className="command-palette" role="dialog" aria-modal="true" aria-labelledby="command-title">
         <h2 id="command-title" className="visually-hidden">{t('command.title')}</h2>
         <div className="command-input">
           <Search size={18} aria-hidden="true" />
@@ -284,6 +339,8 @@ export function InspectorDrawer({
   onClose: () => void;
   t: Translate;
 }) {
+  const dialogRef = useRef<HTMLElement>(null);
+  useDialogFocus(dialogRef);
   const title = target.kind === 'reminder' ? target.item.title : target.item.subject;
   const payload = JSON.stringify(target.item, null, 2);
 
@@ -297,7 +354,7 @@ export function InspectorDrawer({
         }
       }}
     >
-      <aside className="inspector" role="dialog" aria-modal="true" aria-labelledby="inspector-title">
+      <aside ref={dialogRef} className="inspector" role="dialog" aria-modal="true" aria-labelledby="inspector-title">
         <header className="inspector-head">
           <div>
             {channelBadge(target.item.channel)}
