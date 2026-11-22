@@ -295,7 +295,8 @@ export function pipelineStages(status?: ReminderStatus, deliveryStatus?: Deliver
     activeIndex = 2;
   }
   if (deliveryStatus === 'SENT') {
-    activeIndex = 3;
+    // Delivered is the end of the line: every stop is complete.
+    activeIndex = labelKeys.length;
   }
   if (deliveryStatus === 'FAILED') {
     activeIndex = 3;
@@ -314,6 +315,17 @@ export function pipelineStages(status?: ReminderStatus, deliveryStatus?: Deliver
     }
     return { labelKey, state: 'queued' };
   });
+}
+
+// The reminder list only knows TRIGGERED; the latest notification for it carries the delivery outcome.
+export function latestDeliveryStatus(notifications: NotificationLog[], reminderId: string): DeliveryStatus | undefined {
+  let latest: NotificationLog | undefined;
+  for (const notification of notifications) {
+    if (notification.reminderId === reminderId && (!latest || notification.createdAt > latest.createdAt)) {
+      latest = notification;
+    }
+  }
+  return latest?.status;
 }
 
 export function formatError(error: unknown, translate: (key: string) => string) {
