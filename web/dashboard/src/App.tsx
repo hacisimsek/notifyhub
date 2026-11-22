@@ -94,6 +94,7 @@ import {
   hasReminderFilters,
   initialLanguage,
   initialTheme,
+  latestDeliveryStatus,
   profileFormFromUser,
   profileInitial,
   recipientPlaceholder,
@@ -1049,7 +1050,7 @@ export function App() {
                         </td>
                         <td>{channelBadge(reminder.channel)}</td>
                         <td>
-                          <PipelineTimeline status={reminder.status} channel={reminder.channel} ariaLabel={t('aria.deliveryPipeline')} t={t} />
+                          <PipelineTimeline status={reminder.status} deliveryStatus={latestDeliveryStatus(notifications, reminder.id)} channel={reminder.channel} ariaLabel={t('aria.deliveryPipeline')} t={t} />
                         </td>
                         <td>{statusBadge(reminder.status, t)}</td>
                         <td className="row-actions">
@@ -1190,7 +1191,12 @@ export function App() {
       ) : null}
 
       {inspectorTarget ? (
-        <InspectorDrawer target={inspectorTarget} onClose={() => setInspectorTarget(null)} t={t} />
+        <InspectorDrawer
+          target={inspectorTarget}
+          deliveryStatus={inspectorTarget.kind === 'reminder' ? latestDeliveryStatus(notifications, inspectorTarget.item.id) : undefined}
+          onClose={() => setInspectorTarget(null)}
+          t={t}
+        />
       ) : null}
     </div>
   );

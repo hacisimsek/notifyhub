@@ -364,10 +364,12 @@ export function CommandPalette({
 
 export function InspectorDrawer({
   target,
+  deliveryStatus,
   onClose,
   t
 }: {
   target: InspectorTarget;
+  deliveryStatus?: DeliveryStatus;
   onClose: () => void;
   t: Translate;
 }) {
@@ -399,7 +401,7 @@ export function InspectorDrawer({
         </header>
         <PipelineTimeline
           status={target.kind === 'reminder' ? target.item.status : undefined}
-          deliveryStatus={target.kind === 'notification' ? target.item.status : undefined}
+          deliveryStatus={target.kind === 'notification' ? target.item.status : deliveryStatus}
           channel={target.item.channel}
           variant="drawer"
           ariaLabel={t('aria.deliveryPipeline')}
