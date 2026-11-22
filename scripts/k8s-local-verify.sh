@@ -87,6 +87,13 @@ if ! minikube status >/dev/null 2>&1; then
   exit 1
 fi
 
+for grafana_file in dashboards/notifyhub-overview.json provisioning/dashboards/dashboards.yml; do
+  if ! cmp -s "${REPO_ROOT}/observability/grafana/${grafana_file}" "${REPO_ROOT}/deploy/k8s/base/grafana/$(basename "${grafana_file}")"; then
+    echo "deploy/k8s/base/grafana/$(basename "${grafana_file}") differs from observability/grafana/${grafana_file}; copy it over." >&2
+    exit 1
+  fi
+done
+
 kubectl kustomize "${KUSTOMIZE_DIR}" >/dev/null
 
 trap cleanup EXIT
