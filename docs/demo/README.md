@@ -62,6 +62,8 @@ minikube start --driver=docker --container-runtime=docker --cpus=4 --memory=6g
 
 This builds local images in Minikube, applies the manifests, waits for rollouts, port-forwards Gateway Service and runs the same gateway e2e smoke flow.
 
+For a live demo reachable from any machine, run the same Minikube deployment in a free GitHub Codespace: see [live-codespaces.md](live-codespaces.md).
+
 ## Manual Dashboard Demo
 
 1. Open `http://localhost:3000`. If another app already uses port `3000`, start the stack with `DASHBOARD_PORT=3002` and open that port instead.

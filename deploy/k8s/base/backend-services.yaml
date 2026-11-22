@@ -324,6 +324,30 @@ spec:
                 configMapKeyRef:
                   name: notifyhub-config
                   key: NOTIFICATION_DELIVERY_RETRY_DELAY_MS
+            - name: NOTIFICATION_LIVE_RECIPIENTS
+              valueFrom:
+                secretKeyRef:
+                  name: notifyhub-secrets
+                  key: NOTIFICATION_LIVE_RECIPIENTS
+                  optional: true
+            - name: NOTIFICATION_SMTP_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: notifyhub-secrets
+                  key: NOTIFICATION_SMTP_HOST
+                  optional: true
+            - name: NOTIFICATION_SMTP_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: notifyhub-secrets
+                  key: NOTIFICATION_SMTP_USERNAME
+                  optional: true
+            - name: NOTIFICATION_SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: notifyhub-secrets
+                  key: NOTIFICATION_SMTP_PASSWORD
+                  optional: true
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
