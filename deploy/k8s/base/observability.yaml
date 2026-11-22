@@ -345,10 +345,21 @@ spec:
               mountPath: /etc/grafana/provisioning/datasources/prometheus.yml
               subPath: prometheus.yml
               readOnly: true
+            - name: grafana-dashboards
+              mountPath: /etc/grafana/provisioning/dashboards/dashboards.yml
+              subPath: dashboards.yml
+              readOnly: true
+            - name: grafana-dashboards
+              mountPath: /var/lib/grafana/dashboards/notifyhub-overview.json
+              subPath: notifyhub-overview.json
+              readOnly: true
       volumes:
         - name: grafana-datasources
           configMap:
             name: grafana-datasources
+        - name: grafana-dashboards
+          configMap:
+            name: grafana-dashboards
 ---
 apiVersion: v1
 kind: Service

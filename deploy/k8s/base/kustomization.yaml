@@ -22,3 +22,13 @@ secretGenerator:
     options:
       labels:
         app.kubernetes.io/part-of: notifyhub
+
+# Copy of observability/grafana; scripts/k8s-local-verify.sh fails if the two drift apart.
+configMapGenerator:
+  - name: grafana-dashboards
+    files:
+      - grafana/dashboards.yml
+      - grafana/notifyhub-overview.json
+    options:
+      labels:
+        app.kubernetes.io/part-of: notifyhub
