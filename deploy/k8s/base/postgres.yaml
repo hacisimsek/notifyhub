@@ -34,6 +34,9 @@ metadata:
     app.kubernetes.io/part-of: notifyhub
 spec:
   replicas: 1
+  # The data volume must never be shared by two PostgreSQL pods, so stop the old pod before starting a new one.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: postgres
